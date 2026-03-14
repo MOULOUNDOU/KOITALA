@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, type Resolver, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   ArrowLeft,
@@ -110,7 +110,7 @@ export default function NouvelleAnnoncePage() {
     watch,
     formState: { errors, isSubmitting },
   } = useForm<PropertyInput>({
-    resolver: zodResolver(propertySchema),
+    resolver: zodResolver(propertySchema) as Resolver<PropertyInput>,
     shouldUnregister: false,
     defaultValues: {
       status: "brouillon",
@@ -166,9 +166,15 @@ export default function NouvelleAnnoncePage() {
   };
 
   const nextStep = async () => {
+    const stepOneFields: Array<keyof PropertyInput> = ["title", "property_type", "listing_type", "status"];
+    if (listingType === "location") stepOneFields.push("rental_category");
+
+    const stepTwoFields: Array<keyof PropertyInput> = ["price"];
+    if (listingType === "location") stepTwoFields.push("rent_payment_period");
+
     const fieldsByStep: Record<number, Array<keyof PropertyInput>> = {
-      1: ["title", "property_type", "listing_type", "status", ...(listingType === "location" ? ["rental_category"] : [])],
-      2: ["price", ...(listingType === "location" ? ["rent_payment_period"] : [])],
+      1: stepOneFields,
+      2: stepTwoFields,
       3: ["city"],
       4: [],
     };

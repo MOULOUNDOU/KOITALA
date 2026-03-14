@@ -1,6 +1,32 @@
 import type { NextConfig } from "next";
 import path from "path";
 
+const normalizeOriginHost = (value?: string | null) => {
+  if (!value) return "";
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+
+  try {
+    const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+    return new URL(withProtocol).host;
+  } catch {
+    return "";
+  }
+};
+
+const serverActionAllowedOrigins = Array.from(
+  new Set(
+    [
+      "localhost:3000",
+      process.env.NEXT_PUBLIC_SITE_URL,
+      process.env.URL,
+      process.env.DEPLOY_PRIME_URL,
+    ]
+      .map(normalizeOriginHost)
+      .filter(Boolean)
+  )
+);
+
 const nextConfig: NextConfig = {
   turbopack: {
     root: path.resolve(__dirname),
@@ -32,7 +58,7 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     serverActions: {
-      allowedOrigins: ["localhost:3000"],
+      allowedOrigins: serverActionAllowedOrigins,
     },
   },
 };

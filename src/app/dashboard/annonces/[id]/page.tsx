@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, type Resolver, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   ArrowLeft,
@@ -90,7 +90,7 @@ export default function EditAnnoncePage() {
     watch,
     formState: { errors, isSubmitting },
   } = useForm<PropertyInput>({
-    resolver: zodResolver(propertySchema),
+    resolver: zodResolver(propertySchema) as Resolver<PropertyInput>,
     shouldUnregister: false,
   });
   const listingType = watch("listing_type");
