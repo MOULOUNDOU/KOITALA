@@ -37,15 +37,22 @@ async function getFeaturedProperties(): Promise<Property[]> {
   return data ?? [];
 }
 
-async function getRecentProperties(): Promise<Property[]> {
+async function getRecentProperties(
+  page: number,
+  pageSize: number
+): Promise<{ properties: Property[]; total: number }> {
   const supabase = await createClient();
-  const { data } = await supabase
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
+  const { data, count } = await supabase
     .from("properties")
-    .select("*, property_images(*)")
+    .select("*, property_images(*)", { count: "exact" })
     .eq("status", "publie")
     .order("created_at", { ascending: false })
-    .limit(6);
-  return data ?? [];
+    .range(from, to);
+
+  return { properties: data ?? [], total: count ?? 0 };
 }
 
 const STATS = [
@@ -70,8 +77,55 @@ const RENTAL_CATEGORY_LINKS = [
   { label: "Colocation", href: "/biens?listing_type=location&rental_category=colocation" },
 ];
 
-export default async function HomePage() {
-  const [featured, recent] = await Promise.all([getFeaturedProperties(), getRecentProperties()]);
+interface HomePageProps {
+  searchParams: Promise<Record<string, string>>;
+}
+
+export default async function HomePage({ searchParams }: HomePageProps) {
+  const params = await searchParams;
+  const RECENT_PAGE_SIZE = 6;
+  const parsedRecentPage = Number(params.annonces_page ?? "1");
+  let currentRecentPage =
+    Number.isFinite(parsedRecentPage) && parsedRecentPage > 0
+      ? Math.floor(parsedRecentPage)
+      : 1;
+
+  const [featured, recentQuery] = await Promise.all([
+    getFeaturedProperties(),
+    getRecentProperties(currentRecentPage, RECENT_PAGE_SIZE),
+  ]);
+
+  let recent = recentQuery.properties;
+  let totalRecent = recentQuery.total;
+  const computedRecentTotalPages = Math.max(1, Math.ceil(totalRecent / RECENT_PAGE_SIZE));
+
+  if (totalRecent > 0 && currentRecentPage > computedRecentTotalPages) {
+    currentRecentPage = computedRecentTotalPages;
+    const fallbackRecentQuery = await getRecentProperties(currentRecentPage, RECENT_PAGE_SIZE);
+    recent = fallbackRecentQuery.properties;
+    totalRecent = fallbackRecentQuery.total;
+  }
+
+  const recentTotalPages = Math.max(1, Math.ceil(totalRecent / RECENT_PAGE_SIZE));
+  const firstVisibleRecentPage = Math.max(1, Math.min(currentRecentPage - 2, recentTotalPages - 4));
+  const lastVisibleRecentPage = Math.min(recentTotalPages, firstVisibleRecentPage + 4);
+  const visibleRecentPages = Array.from(
+    { length: lastVisibleRecentPage - firstVisibleRecentPage + 1 },
+    (_, index) => firstVisibleRecentPage + index
+  );
+
+  const buildRecentPageHref = (page: number): string => {
+    const nextParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (!value || key === "annonces_page") return;
+      nextParams.set(key, value);
+    });
+    if (page > 1) {
+      nextParams.set("annonces_page", String(page));
+    }
+    const query = nextParams.toString();
+    return query ? `/?${query}#annonces-recentes` : "/#annonces-recentes";
+  };
 
   return (
     <>
@@ -151,7 +205,7 @@ export default async function HomePage() {
         )}
 
         {/* RECENT */}
-        <section className="py-8 sm:py-20 bg-[#f4f6f9]">
+        <section id="annonces-recentes" className="py-8 sm:py-20 bg-[#f4f6f9]">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex flex-col gap-2 min-[420px]:flex-row min-[420px]:items-end min-[420px]:justify-between mb-5 sm:mb-10">
               <div>
@@ -178,6 +232,75 @@ export default async function HomePage() {
                     <PropertyCardHorizontal key={property.id} property={property} />
                   ))}
                 </div>
+
+                {recentTotalPages > 1 && (
+                  <div className="mt-6 sm:mt-8 space-y-3">
+                    <div className="flex items-center justify-between sm:hidden">
+                      <Link
+                        href={buildRecentPageHref(currentRecentPage - 1)}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium border ${
+                          currentRecentPage === 1
+                            ? "pointer-events-none border-gray-200 text-gray-300"
+                            : "border-[#1a3a5c]/30 text-[#1a3a5c]"
+                        }`}
+                      >
+                        Précédent
+                      </Link>
+                      <span className="text-sm text-gray-500">
+                        Page{" "}
+                        <span className="font-semibold text-[#0f1724]">{currentRecentPage}</span> / {recentTotalPages}
+                      </span>
+                      <Link
+                        href={buildRecentPageHref(currentRecentPage + 1)}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium border ${
+                          currentRecentPage === recentTotalPages
+                            ? "pointer-events-none border-gray-200 text-gray-300"
+                            : "border-[#1a3a5c]/30 text-[#1a3a5c]"
+                        }`}
+                      >
+                        Suivant
+                      </Link>
+                    </div>
+
+                    <div className="hidden sm:flex items-center justify-center gap-2">
+                      <Link
+                        href={buildRecentPageHref(currentRecentPage - 1)}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium border ${
+                          currentRecentPage === 1
+                            ? "pointer-events-none border-gray-200 text-gray-300"
+                            : "border-[#1a3a5c]/30 text-[#1a3a5c] hover:bg-[#1a3a5c] hover:text-white"
+                        }`}
+                      >
+                        Précédent
+                      </Link>
+
+                      {visibleRecentPages.map((page) => (
+                        <Link
+                          key={`home-recent-page-${page}`}
+                          href={buildRecentPageHref(page)}
+                          className={`w-10 h-10 rounded-lg text-sm font-semibold inline-flex items-center justify-center border transition-colors ${
+                            page === currentRecentPage
+                              ? "bg-[#1a3a5c] border-[#1a3a5c] text-white"
+                              : "border-gray-200 text-gray-600 hover:border-[#1a3a5c]/40 hover:text-[#1a3a5c]"
+                          }`}
+                        >
+                          {page}
+                        </Link>
+                      ))}
+
+                      <Link
+                        href={buildRecentPageHref(currentRecentPage + 1)}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium border ${
+                          currentRecentPage === recentTotalPages
+                            ? "pointer-events-none border-gray-200 text-gray-300"
+                            : "border-[#1a3a5c]/30 text-[#1a3a5c] hover:bg-[#1a3a5c] hover:text-white"
+                        }`}
+                      >
+                        Suivant
+                      </Link>
+                    </div>
+                  </div>
+                )}
               </>
             ) : (
               <div className="text-center py-16">

@@ -121,61 +121,70 @@ export default function ClientSidebar({ userName }: ClientSidebarProps) {
         </button>
       </div>
 
-      {mobileOpen && (
-        <>
-          <div className="md:hidden fixed inset-0 bg-black/50 z-40" onClick={() => setMobileOpen(false)} />
-          <div className="md:hidden fixed top-14 left-0 bottom-0 w-64 bg-[#1a3a5c] z-40 overflow-y-auto">
-            {userName && (
-              <div className="px-4 py-4 border-b border-white/10">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 bg-[#1a3a5c] rounded-full flex items-center justify-center text-[#e8b86d] text-sm font-bold">
-                    {userName.charAt(0).toUpperCase()}
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-white">{userName}</p>
-                    <p className="text-xs text-gray-400">Client</p>
-                  </div>
-                </div>
+      <div
+        className={cn(
+          "md:hidden fixed inset-0 z-40 bg-black/50 transition-opacity duration-300",
+          mobileOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+        )}
+        onClick={() => setMobileOpen(false)}
+        aria-hidden={!mobileOpen}
+      />
+      <div
+        className={cn(
+          "md:hidden fixed top-14 left-0 bottom-0 w-64 bg-[#1a3a5c] z-40 overflow-y-auto transition-transform duration-300 ease-out",
+          mobileOpen ? "translate-x-0" : "-translate-x-full"
+        )}
+        aria-hidden={!mobileOpen}
+      >
+        {userName && (
+          <div className="px-4 py-4 border-b border-white/10">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-[#1a3a5c] rounded-full flex items-center justify-center text-[#e8b86d] text-sm font-bold">
+                {userName.charAt(0).toUpperCase()}
               </div>
-            )}
-            <nav className="px-3 py-4">
-              <ul className="space-y-1">
-                {navItems.map((item) => {
-                  const active = isActive(item.href, item.exact);
-                  return (
-                    <li key={item.href}>
-                      <Link
-                        href={item.href}
-                        onClick={() => setMobileOpen(false)}
-                        className={cn(
-                          "flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all",
-                          active ? "bg-[#1a3a5c] text-white" : "text-gray-400 hover:text-white hover:bg-white/5"
-                        )}
-                      >
-                        <item.icon className="w-5 h-5 shrink-0" />
-                        {item.label}
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            </nav>
-            <div className="px-3 py-4 border-t border-white/10">
-              {bottomItems.map((item) => (
-                <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm text-gray-400 hover:text-white hover:bg-white/5 transition-all mb-1">
-                  <item.icon className="w-5 h-5" /> {item.label}
-                </Link>
-              ))}
-              <Link href="/" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm text-gray-400 hover:text-white hover:bg-white/5 transition-all mb-1">
-                <ExternalLink className="w-5 h-5" /> Retour au site
-              </Link>
-              <button onClick={handleSignOut} className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all">
-                <LogOut className="w-5 h-5" /> Déconnexion
-              </button>
+              <div>
+                <p className="text-sm font-semibold text-white">{userName}</p>
+                <p className="text-xs text-gray-400">Client</p>
+              </div>
             </div>
           </div>
-        </>
-      )}
+        )}
+        <nav className="px-3 py-4">
+          <ul className="space-y-1">
+            {navItems.map((item) => {
+              const active = isActive(item.href, item.exact);
+              return (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    onClick={() => setMobileOpen(false)}
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all",
+                      active ? "bg-[#1a3a5c] text-white" : "text-gray-400 hover:text-white hover:bg-white/5"
+                    )}
+                  >
+                    <item.icon className="w-5 h-5 shrink-0" />
+                    {item.label}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+        <div className="px-3 py-4 border-t border-white/10">
+          {bottomItems.map((item) => (
+            <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm text-gray-400 hover:text-white hover:bg-white/5 transition-all mb-1">
+              <item.icon className="w-5 h-5" /> {item.label}
+            </Link>
+          ))}
+          <Link href="/" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm text-gray-400 hover:text-white hover:bg-white/5 transition-all mb-1">
+            <ExternalLink className="w-5 h-5" /> Retour au site
+          </Link>
+          <button onClick={handleSignOut} className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all">
+            <LogOut className="w-5 h-5" /> Déconnexion
+          </button>
+        </div>
+      </div>
     </>
   );
 }

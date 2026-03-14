@@ -128,49 +128,58 @@ export default function DashboardSidebar() {
       </div>
 
       {/* Mobile overlay */}
-      {mobileOpen && (
-        <>
-          <div className="md:hidden fixed inset-0 bg-black/50 z-40" onClick={() => setMobileOpen(false)} />
-          <div className="md:hidden fixed top-14 left-0 bottom-0 w-64 bg-[#1a3a5c] z-40 overflow-y-auto">
-            <nav className="px-3 py-4">
-              <ul className="space-y-1">
-                {[...navItems, ...bottomItems].map((item) => {
-                  const active = isActive(item.href, (item as { exact?: boolean }).exact);
-                  return (
-                    <li key={item.href}>
-                      <Link
-                        href={item.href}
-                        onClick={() => setMobileOpen(false)}
-                        className={cn(
-                          "flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all",
-                          active ? "bg-[#1a3a5c] text-white" : "text-gray-400 hover:text-white hover:bg-white/5"
-                        )}
-                      >
-                        <item.icon className="w-5 h-5 shrink-0" />
-                        {item.label}
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            </nav>
-            <div className="px-3 py-4 border-t border-white/10">
-              <Link
-                href="/"
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => setMobileOpen(false)}
-                className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm text-white/80 hover:text-white hover:bg-white/5 transition-all mb-1"
-              >
-                <ExternalLink className="w-5 h-5" /> Voir le site
-              </Link>
-              <button onClick={handleSignOut} className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all">
-                <LogOut className="w-5 h-5" /> Déconnexion
-              </button>
-            </div>
-          </div>
-        </>
-      )}
+      <div
+        className={cn(
+          "md:hidden fixed inset-0 z-40 bg-black/50 transition-opacity duration-300",
+          mobileOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+        )}
+        onClick={() => setMobileOpen(false)}
+        aria-hidden={!mobileOpen}
+      />
+      <div
+        className={cn(
+          "md:hidden fixed top-14 left-0 bottom-0 w-64 bg-[#1a3a5c] z-40 overflow-y-auto transition-transform duration-300 ease-out",
+          mobileOpen ? "translate-x-0" : "-translate-x-full"
+        )}
+        aria-hidden={!mobileOpen}
+      >
+        <nav className="px-3 py-4">
+          <ul className="space-y-1">
+            {[...navItems, ...bottomItems].map((item) => {
+              const active = isActive(item.href, (item as { exact?: boolean }).exact);
+              return (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    onClick={() => setMobileOpen(false)}
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all",
+                      active ? "bg-[#1a3a5c] text-white" : "text-gray-400 hover:text-white hover:bg-white/5"
+                    )}
+                  >
+                    <item.icon className="w-5 h-5 shrink-0" />
+                    {item.label}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+        <div className="px-3 py-4 border-t border-white/10">
+          <Link
+            href="/"
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => setMobileOpen(false)}
+            className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm text-white/80 hover:text-white hover:bg-white/5 transition-all mb-1"
+          >
+            <ExternalLink className="w-5 h-5" /> Voir le site
+          </Link>
+          <button onClick={handleSignOut} className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all">
+            <LogOut className="w-5 h-5" /> Déconnexion
+          </button>
+        </div>
+      </div>
     </>
   );
 }
