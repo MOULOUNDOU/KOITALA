@@ -68,6 +68,21 @@ export const propertySchema = z.object({
   longitude: z.number().optional().nullable(),
   is_featured: z.boolean().optional(),
   is_furnished: z.boolean().optional(),
+  rental_category: z.preprocess(
+    (v) => (v === "" ? undefined : v),
+    z.enum([
+      "chambre_meublee",
+      "studio",
+      "appartement",
+      "mini_studio",
+      "colocation",
+    ]).optional().nullable()
+  ),
+  rent_payment_period: z.preprocess(
+    (v) => (v === "" ? undefined : v),
+    z.enum(["jour", "mois"]).optional().nullable()
+  ),
+  main_image_url: z.string().optional().nullable(),
   video_url: z.string().optional().nullable(),
 });
 

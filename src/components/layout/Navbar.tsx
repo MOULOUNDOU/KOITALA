@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Heart, User, LogOut, ChevronDown, Building2, Home, Key, BarChart3, Scale, Layers, MapPin, Phone, Mail, ArrowRight } from "lucide-react";
+import { Heart, User, LogOut, ChevronDown, Building2, Home, Key, BarChart3, Scale, Layers, MapPin, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import type { Profile } from "@/types";
@@ -30,13 +30,14 @@ const SERVICES_LINKS = [
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [user, setUser] = useState<Profile | null>(null);
+  const [user, setUser] = useState<Pick<Profile, "id" | "full_name" | "role"> | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [biensMobileOpen, setBiensMobileOpen] = useState(false);
   const [servicesMobileOpen, setServicesMobileOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
+  const accountHref = user?.role === "admin" ? "/dashboard" : "/dashboard-client";
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -45,25 +46,93 @@ export default function Navbar() {
   }, []);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user: authUser } }) => {
-      if (authUser) {
-        supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", authUser.id)
-          .single()
-          .then(({ data }) => setUser(data));
+    const resolveRole = async (
+      authUser: { id: string; email?: string | null }
+    ): Promise<"admin" | "user"> => {
+      const { data: rpcIsAdmin, error: rpcError } = await supabase.rpc("is_admin");
+      if (!rpcError && rpcIsAdmin === true) {
+        return "admin";
       }
+
+      const { data: profileById } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", authUser.id)
+        .maybeSingle();
+
+      if (profileById?.role === "admin") {
+        return "admin";
+      }
+
+      if (authUser.email) {
+        const { data: profileByEmail } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("email", authUser.email)
+          .maybeSingle();
+
+        if (profileByEmail?.role === "admin") {
+          return "admin";
+        }
+      }
+
+      return "user";
+    };
+
+    const syncUser = async (authUser: { id: string; email?: string | null; user_metadata?: { full_name?: unknown } } | null) => {
+      if (!authUser) {
+        setUser(null);
+        return;
+      }
+
+      const metadataName = typeof authUser.user_metadata?.full_name === "string"
+        ? authUser.user_metadata.full_name.trim()
+        : "";
+      const emailFallback = authUser.email?.split("@")[0] ?? "Client";
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id, full_name, role")
+        .eq("id", authUser.id)
+        .maybeSingle();
+
+      if (profile) {
+        const resolvedRole = profile.role === "admin"
+          ? "admin"
+          : await resolveRole(authUser);
+
+        setUser({
+          id: profile.id,
+          full_name: profile.full_name?.trim() || metadataName || emailFallback,
+          role: resolvedRole,
+        });
+        return;
+      }
+
+      const resolvedRole = await resolveRole(authUser);
+      setUser({
+        id: authUser.id,
+        full_name: metadataName || emailFallback,
+        role: resolvedRole,
+      });
+    };
+
+    supabase.auth.getUser().then(({ data: { user: authUser } }) => {
+      void syncUser(authUser);
     });
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
-      if (!session) setUser(null);
+      void syncUser(session?.user ?? null);
     });
+
     return () => subscription.unsubscribe();
   }, [supabase]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     setUser(null);
+    setDropdownOpen(false);
+    setIsOpen(false);
     router.push("/");
     router.refresh();
   };
@@ -83,7 +152,7 @@ export default function Navbar() {
         <div className="flex items-center justify-between h-18 py-3">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2">
-            <Image src="/logo-koitala.jpeg" alt="KOITALA" width={44} height={44} className="w-11 h-11 sm:w-10 sm:h-10 rounded-xl object-contain" priority />
+            <Image src="/logo-koitala.png" alt="KOITALA" width={44} height={44} className="w-11 h-11 sm:w-10 sm:h-10 rounded-xl object-cover" priority />
             <span
               className={cn(
                 "text-2xl sm:text-xl font-bold tracking-wide transition-colors",
@@ -231,7 +300,7 @@ export default function Navbar() {
                   {dropdownOpen && (
                     <div className="absolute right-0 mt-2 w-52 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50">
                       <Link
-                        href="/dashboard-client"
+                        href={accountHref}
                         className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
                         onClick={() => setDropdownOpen(false)}
                       >
@@ -412,7 +481,7 @@ export default function Navbar() {
                     <p className="text-xs text-gray-500">{user.role === "admin" ? "Administrateur" : "Client"}</p>
                   </div>
                 </div>
-                <Link href="/dashboard-client" onClick={() => setIsOpen(false)}
+                <Link href={accountHref} onClick={() => setIsOpen(false)}
                   className="flex items-center gap-3 px-3 py-3 text-sm text-gray-700 hover:bg-gray-50 rounded-xl transition-colors">
                   <User className="w-4 h-4 text-[#1a3a5c]" /> Mon compte
                 </Link>

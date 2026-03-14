@@ -25,33 +25,53 @@ export default function StatsCard({
   className,
 }: StatsCardProps) {
   const palette = {
-    blue:   { ring: "ring-blue-100",   icon: "bg-blue-50 text-blue-500",   trend: "text-blue-500" },
-    green:  { ring: "ring-green-100",  icon: "bg-green-50 text-green-500",  trend: "text-green-500" },
-    yellow: { ring: "ring-amber-100",  icon: "bg-amber-50 text-amber-500",  trend: "text-amber-500" },
-    purple: { ring: "ring-purple-100", icon: "bg-purple-50 text-purple-500", trend: "text-purple-500" },
-    red:    { ring: "ring-red-100",    icon: "bg-red-50 text-red-500",    trend: "text-red-500" },
+    blue: {
+      ring: "ring-[#1a3a5c]/15",
+      icon: "bg-[#1a3a5c]/10 text-[#1a3a5c]",
+      trend: "text-[#1a3a5c]",
+    },
+    green: {
+      ring: "ring-[#e8b86d]/30",
+      icon: "bg-[#e8b86d]/20 text-[#1a3a5c]",
+      trend: "text-[#1a3a5c]",
+    },
+    yellow: {
+      ring: "ring-[#e8b86d]/20",
+      icon: "bg-[#e8b86d]/15 text-[#1a3a5c]",
+      trend: "text-[#1a3a5c]",
+    },
+    purple: {
+      ring: "ring-[#1a3a5c]/20",
+      icon: "bg-[#1a3a5c]/15 text-[#1a3a5c]",
+      trend: "text-[#1a3a5c]",
+    },
+    red: {
+      ring: "ring-[#0f2540]/15",
+      icon: "bg-[#0f2540]/10 text-[#0f2540]",
+      trend: "text-[#0f2540]",
+    },
   };
 
   const c = palette[color];
 
   return (
     <div className={cn(
-      "bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col justify-between gap-3 ring-1",
+      "bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-5 flex flex-col justify-between gap-3 ring-1",
       c.ring, className
     )}>
       {/* Top: title + icon */}
       <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-gray-500">{title}</p>
-        <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0", c.icon)}>
-          <Icon className="w-5 h-5" />
+        <p className="text-xs sm:text-sm font-medium text-gray-500">{title}</p>
+        <div className={cn("w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0", c.icon)}>
+          <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
         </div>
       </div>
 
       {/* Value + trend */}
       <div className="flex items-end gap-3">
-        <p className="text-3xl font-extrabold text-[#0f1724] leading-none">{value}</p>
+        <p className="text-2xl sm:text-3xl font-extrabold text-[#0f1724] leading-none">{value}</p>
         {trend && (
-          <span className={cn("flex items-center gap-0.5 text-xs font-semibold", trend.up ? "text-green-500" : "text-red-400")}>
+          <span className={cn("flex items-center gap-0.5 text-xs font-semibold", trend.up ? "text-[#1a3a5c]" : "text-[#0f2540]")}>
             {trend.up ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
             {trend.value}
           </span>

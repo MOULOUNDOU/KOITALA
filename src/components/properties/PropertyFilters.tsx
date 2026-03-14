@@ -16,6 +16,31 @@ const PROPERTY_TYPE_OPTS = [
   { value: "duplex",           label: "Duplex" },
 ];
 
+const RENTAL_CATEGORY_OPTS = [
+  { value: "chambre_meublee", label: "Chambre meublée" },
+  { value: "studio", label: "Studio" },
+  { value: "appartement", label: "Appartement" },
+  { value: "mini_studio", label: "Mini studio" },
+  { value: "colocation", label: "Colocation" },
+];
+
+const PAYMENT_PERIOD_OPTS_BY_CATEGORY: Record<string, { value: string; label: string }[]> = {
+  chambre_meublee: [
+    { value: "jour", label: "Par jour" },
+    { value: "mois", label: "Par mois" },
+  ],
+  studio: [
+    { value: "jour", label: "Par jour" },
+    { value: "mois", label: "Par mois" },
+  ],
+  mini_studio: [
+    { value: "jour", label: "Par jour" },
+    { value: "mois", label: "Par mois" },
+  ],
+  appartement: [{ value: "mois", label: "Par mois" }],
+  colocation: [{ value: "mois", label: "Par mois" }],
+};
+
 const SENEGAL_CITIES = [
   "Dakar", "Thiès", "Saint-Louis", "Ziguinchor", "Kaolack",
   "Mbour", "Rufisque", "Diourbel", "Louga", "Fatick",
@@ -38,6 +63,8 @@ export default function PropertyFilters() {
 
   const [filters, setFilters] = useState({
     listing_type: searchParams.get("listing_type") ?? "",
+    rental_category: searchParams.get("rental_category") ?? "",
+    rent_payment_period: searchParams.get("rent_payment_period") ?? "",
     property_type: searchParams.get("property_type") ?? searchParams.get("type") ?? "",
     city: searchParams.get("city") ?? "",
     neighborhood: searchParams.get("neighborhood") ?? "",
@@ -63,6 +90,8 @@ export default function PropertyFilters() {
   const resetFilters = () => {
     setFilters({
       listing_type: "",
+      rental_category: "",
+      rent_payment_period: "",
       property_type: "",
       city: "",
       neighborhood: "",
@@ -78,8 +107,15 @@ export default function PropertyFilters() {
   };
 
   const hasActiveFilters = Object.values(filters).some((v) => v !== "");
+  const paymentPeriodOptions =
+    filters.rental_category && PAYMENT_PERIOD_OPTS_BY_CATEGORY[filters.rental_category]
+      ? PAYMENT_PERIOD_OPTS_BY_CATEGORY[filters.rental_category]
+      : [
+          { value: "jour", label: "Par jour" },
+          { value: "mois", label: "Par mois" },
+        ];
 
-  const FilterContent = () => (
+  const renderFilterContent = () => (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <h3 className="font-semibold text-[#0f1724] flex items-center gap-2">
@@ -109,7 +145,14 @@ export default function PropertyFilters() {
           ].map((opt) => (
             <button
               key={opt.value}
-              onClick={() => setFilters((f) => ({ ...f, listing_type: opt.value }))}
+              onClick={() =>
+                setFilters((f) => ({
+                  ...f,
+                  listing_type: opt.value,
+                  rental_category: opt.value === "location" ? f.rental_category : "",
+                  rent_payment_period: opt.value === "location" ? f.rent_payment_period : "",
+                }))
+              }
               className={cn(
                 "flex-1 py-2 rounded-xl text-xs font-medium border transition-colors",
                 filters.listing_type === opt.value
@@ -136,6 +179,45 @@ export default function PropertyFilters() {
           dropUp
         />
       </div>
+
+      {(filters.listing_type === "location" || filters.rental_category) && (
+        <div>
+          <CustomSelect
+            label="Catégorie location"
+            value={filters.rental_category}
+            onChange={(v) =>
+              setFilters((f) => ({
+                ...f,
+                rental_category: v,
+                listing_type: v ? "location" : f.listing_type,
+                rent_payment_period: v
+                  ? (PAYMENT_PERIOD_OPTS_BY_CATEGORY[v]?.some((opt) => opt.value === f.rent_payment_period) ? f.rent_payment_period : "")
+                  : f.rent_payment_period,
+              }))
+            }
+            options={RENTAL_CATEGORY_OPTS}
+            placeholder="Toutes les locations"
+            icon={<Home className="w-4 h-4" />}
+            clearable
+            dropUp
+          />
+        </div>
+      )}
+
+      {(filters.listing_type === "location" || filters.rental_category) && (
+        <div>
+          <CustomSelect
+            label="Paiement location"
+            value={filters.rent_payment_period}
+            onChange={(v) => setFilters((f) => ({ ...f, rent_payment_period: v, listing_type: v ? "location" : f.listing_type }))}
+            options={paymentPeriodOptions}
+            placeholder="Jour ou mois"
+            icon={<Home className="w-4 h-4" />}
+            clearable
+            dropUp
+          />
+        </div>
+      )}
 
       {/* Ville */}
       <div>
@@ -267,14 +349,14 @@ export default function PropertyFilters() {
         </button>
         {mobileOpen && (
           <div className="mt-3 bg-white rounded-2xl shadow-xl border border-gray-100 p-5">
-            <FilterContent />
+            {renderFilterContent()}
           </div>
         )}
       </div>
 
       {/* Desktop sidebar */}
       <div className="hidden lg:block bg-white rounded-2xl shadow-sm border border-gray-100 p-5 sticky top-24">
-        <FilterContent />
+        {renderFilterContent()}
       </div>
     </>
   );

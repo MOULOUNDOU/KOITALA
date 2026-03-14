@@ -99,11 +99,11 @@ export default function LoginPromptPopup() {
           />
           <div className="relative z-10 flex flex-col items-center justify-center h-full">
             <Image
-              src="/logo-koitala.jpeg"
+              src="/logo-koitala.png"
               alt="KOITALA"
               width={48}
               height={48}
-              className="w-12 h-12 rounded-xl object-contain bg-white/10 backdrop-blur-sm mb-2"
+              className="w-12 h-12 rounded-xl object-cover bg-white/10 backdrop-blur-sm mb-2"
             />
             <p className="text-white font-bold text-lg">
               KOI<span className="text-[#e8b86d]">TALA</span>

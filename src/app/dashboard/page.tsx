@@ -98,7 +98,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* ── Stat Cards ── */}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5">
+      <div className="grid grid-cols-1 min-[420px]:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5">
         <StatsCard
           title="Total annonces"
           value={stats.totalProps}
@@ -134,9 +134,9 @@ export default async function DashboardPage() {
 
       {/* ── Alert Banner ── */}
       {stats.pendingVisits > 0 && (
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 bg-[#f0faf4] border border-green-200 rounded-2xl p-4 sm:p-5">
-          <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center shrink-0">
-            <Bell className="w-5 h-5 text-green-600" />
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 bg-[#f4f6f9] border border-[#1a3a5c]/20 rounded-2xl p-4 sm:p-5">
+          <div className="w-10 h-10 bg-[#1a3a5c]/10 rounded-xl flex items-center justify-center shrink-0">
+            <Bell className="w-5 h-5 text-[#1a3a5c]" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-[#0f1724]">
@@ -148,7 +148,7 @@ export default async function DashboardPage() {
           </div>
           <Link
             href="/dashboard/demandes"
-            className="px-4 py-2 bg-white border border-gray-200 text-sm font-semibold text-[#0f1724] rounded-xl hover:bg-gray-50 transition-colors shrink-0"
+            className="px-4 py-2 bg-[#1a3a5c] border border-[#1a3a5c] text-sm font-semibold text-white rounded-xl hover:bg-[#0f2540] transition-colors shrink-0"
           >
             Voir les demandes
           </Link>
@@ -161,12 +161,12 @@ export default async function DashboardPage() {
           <div className="flex items-center gap-3">
             <h2 className="text-lg font-bold text-[#0f1724]">Listing Board</h2>
             {recentProps.length > 0 && (
-              <span className="px-2 py-0.5 bg-green-50 text-green-600 text-[11px] font-semibold rounded-full">
+              <span className="px-2 py-0.5 bg-[#e8b86d]/20 text-[#1a3a5c] text-[11px] font-semibold rounded-full">
                 Récent
               </span>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Link href="/dashboard/annonces" className="px-3.5 py-1.5 border border-gray-200 text-xs font-semibold text-gray-600 rounded-lg hover:bg-gray-50 transition-colors">
               Toutes les annonces
             </Link>
@@ -189,10 +189,10 @@ export default async function DashboardPage() {
               const img = prop.main_image_url || "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=400&q=80";
               return (
                 <Link key={prop.id} href={`/dashboard/annonces/${prop.id}`} className="group block">
-                  <div className="bg-[#fafbfc] rounded-xl overflow-hidden border border-gray-100 hover:shadow-md hover:border-gray-200 transition-all">
+                  <div className="bg-[#f4f6f9] rounded-xl overflow-hidden border border-gray-100 hover:shadow-md hover:border-gray-200 transition-all">
                     <div className="relative h-36 sm:h-40 overflow-hidden">
                       <Image src={img} alt={prop.title} fill className="object-cover group-hover:scale-105 transition-transform duration-500" sizes="(max-width: 640px) 100vw, 33vw" />
-                      <span className={`absolute top-2.5 left-2.5 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${prop.status === "publie" ? "bg-green-500 text-white" : "bg-gray-200 text-gray-600"}`}>
+                      <span className={`absolute top-2.5 left-2.5 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${prop.status === "publie" ? "bg-[#1a3a5c] text-white" : "bg-[#1a3a5c]/10 text-[#1a3a5c]"}`}>
                         {getStatusLabel(prop.status)}
                       </span>
                     </div>
@@ -255,10 +255,10 @@ export default async function DashboardPage() {
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {recentVisits.map((visit) => (
-                  <tr key={visit.id} className="hover:bg-[#fafbfc] transition-colors">
+                  <tr key={visit.id} className="hover:bg-[#f4f6f9] transition-colors">
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 bg-gradient-to-br from-[#1a3a5c] to-[#2d5a8c] rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0">
+                        <div className="w-9 h-9 bg-gradient-to-br from-[#1a3a5c] to-[#0f2540] rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0">
                           {visit.full_name.charAt(0).toUpperCase()}
                         </div>
                         <div className="min-w-0">
@@ -289,17 +289,19 @@ export default async function DashboardPage() {
       </div>
 
       {/* ── Quick Actions ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 min-[420px]:grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
         {[
-          { href: "/dashboard/annonces/nouvelle", icon: Plus,           label: "Nouvelle annonce",    bg: "bg-[#1a3a5c]" },
-          { href: "/dashboard/demandes",          icon: CalendarCheck,   label: "Demandes de visite",  bg: "bg-green-600" },
-          { href: "/dashboard/messages",          icon: MessageSquare,   label: "Messages",            bg: "bg-amber-500" },
-          { href: "/biens",                       icon: Eye,             label: "Voir le site",        bg: "bg-gray-700" },
+          { href: "/dashboard/annonces/nouvelle", icon: Plus,         label: "Nouvelle annonce",   bg: "bg-[#1a3a5c]", text: "text-white" },
+          { href: "/dashboard/demandes",          icon: CalendarCheck, label: "Demandes de visite", bg: "bg-[#0f2540]", text: "text-white" },
+          { href: "/dashboard/messages",          icon: MessageSquare, label: "Messages",           bg: "bg-[#e8b86d]", text: "text-[#1a3a5c]" },
+          { href: "/",                            icon: Eye,           label: "Voir le site",       bg: "bg-[#1a3a5c]/90", text: "text-white", newTab: true },
         ].map((action) => (
           <Link
             key={action.href}
             href={action.href}
-            className={`${action.bg} text-white rounded-2xl p-4 sm:p-5 flex items-center gap-3 hover:opacity-90 active:scale-[.97] transition-all`}
+            target={action.newTab ? "_blank" : undefined}
+            rel={action.newTab ? "noopener noreferrer" : undefined}
+            className={`${action.bg} ${action.text} rounded-2xl p-4 sm:p-5 flex items-center gap-3 hover:opacity-90 active:scale-[.97] transition-all`}
           >
             <action.icon className="w-5 h-5 shrink-0" />
             <span className="text-sm font-semibold">{action.label}</span>

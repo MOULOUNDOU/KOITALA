@@ -85,11 +85,52 @@ export default async function PropertyDetailPage({ params }: Props) {
   const similar = await getSimilarProperties(property);
 
   const images = property.property_images ?? [];
+  const rentPaymentLabel = property.rent_payment_period ?? "mois";
   const mainImage =
     property.main_image_url ??
     images.find((img) => img.is_main)?.url ??
     images[0]?.url ??
     "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=1200&q=80";
+
+  const mobileStatCards = [
+    property.bedrooms !== null && property.bedrooms !== undefined
+      ? {
+          key: "bedrooms",
+          icon: Bed,
+          value: String(property.bedrooms),
+          label: `Chambre${property.bedrooms !== 1 ? "s" : ""}`,
+        }
+      : null,
+    property.bathrooms !== null && property.bathrooms !== undefined
+      ? {
+          key: "bathrooms",
+          icon: Bath,
+          value: String(property.bathrooms),
+          label: "Sdb",
+        }
+      : null,
+    property.area
+      ? {
+          key: "area",
+          icon: Maximize2,
+          value: formatArea(property.area),
+          label: "Surface",
+        }
+      : null,
+  ].filter(
+    (item): item is { key: string; icon: typeof Bed; value: string; label: string } => item !== null
+  );
+
+  const mobileKeyDetails = [
+    { key: "transaction", label: "Transaction", value: getListingTypeLabel(property.listing_type) },
+    { key: "vues", label: "Vues", value: `${property.views_count}` },
+    { key: "publication", label: "Publié le", value: formatDate(property.created_at) },
+    property.listing_type === "location"
+      ? { key: "paiement", label: "Paiement", value: `Par ${rentPaymentLabel}` }
+      : null,
+    property.is_furnished ? { key: "mobilier", label: "Mobilier", value: "Meublé" } : null,
+    property.country ? { key: "pays", label: "Pays", value: property.country } : null,
+  ].filter((item): item is { key: string; label: string; value: string } => item !== null);
 
   return (
     <>
@@ -106,25 +147,25 @@ export default async function PropertyDetailPage({ params }: Props) {
       </div>
 
       {/* ─── MOBILE HERO IMAGE ─── */}
-      <div className="sm:hidden relative">
-        <div className="relative h-[55vh] min-h-[320px]">
+      <div className="sm:hidden relative pt-20">
+        <div className="relative h-[54svh] min-h-[280px] bg-[#0f1724] overflow-hidden rounded-b-2xl">
           <Image
             src={mainImage}
             alt={property.title}
             fill
-            className="object-cover"
+            className="object-cover object-bottom"
             priority
             sizes="100vw"
           />
           {/* Overlay buttons */}
-          <div className="absolute top-12 left-4 right-4 flex items-center justify-between">
+          <div className="absolute top-3 left-4 right-4 flex items-center justify-between">
             <Link href="/biens" className="w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-md">
               <ArrowLeft className="w-5 h-5 text-[#0f1724]" />
             </Link>
             <div className="flex gap-2">
               {property.is_featured && (
                 <span className="flex items-center gap-1 px-2.5 py-1.5 bg-[#e8b86d] text-[#0f1724] text-[11px] font-bold rounded-full shadow">
-                  <Star className="w-3 h-3 fill-[#0f1724]" /> Coup de c\u0153ur
+                  <Star className="w-3 h-3 fill-[#0f1724]" /> Coup de coeur
                 </span>
               )}
             </div>
@@ -139,7 +180,7 @@ export default async function PropertyDetailPage({ params }: Props) {
 
         {/* Thumbnail strip */}
         {images.length > 1 && (
-          <div className="flex gap-1.5 px-4 -mt-5 relative z-10 overflow-x-auto scrollbar-hide">
+          <div className="mt-2 flex gap-1.5 px-4 overflow-x-auto scrollbar-hide">
             {images.slice(0, 6).map((img, i) => (
               <div key={img.id} className="relative w-14 h-14 rounded-xl overflow-hidden shrink-0 border-2 border-white shadow-sm">
                 <Image src={img.url} alt={img.alt ?? property.title} fill className="object-cover" sizes="56px" />
@@ -158,11 +199,11 @@ export default async function PropertyDetailPage({ params }: Props) {
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
               <span className="text-xs font-semibold text-[#e8b86d]">{getPropertyTypeLabel(property.property_type)}</span>
-              <h1 className="text-xl font-extrabold text-[#0f1724] leading-snug mt-0.5">{property.title}</h1>
+              <h1 className="!text-[1.3rem] font-extrabold text-[#0f1724] leading-snug mt-0.5">{property.title}</h1>
             </div>
             <div className="shrink-0 text-right">
-              <p className="text-xl font-extrabold text-[#1a3a5c]">{formatPrice(property.price)}</p>
-              {property.listing_type === "location" && <p className="text-[11px] text-gray-400">/mois</p>}
+              <p className="!text-[1.3rem] font-extrabold text-[#1a3a5c]">{formatPrice(property.price)}</p>
+              {property.listing_type === "location" && <p className="text-[11px] text-gray-400">/{rentPaymentLabel}</p>}
             </div>
           </div>
           <div className="flex items-center gap-1.5 text-gray-500 text-sm mt-1.5">
@@ -170,40 +211,40 @@ export default async function PropertyDetailPage({ params }: Props) {
             <span className="truncate">{[property.neighborhood, property.city].filter(Boolean).join(", ")}</span>
           </div>
 
-          {/* Stats row with dividers */}
-          <div className="flex items-center justify-around mt-4 py-3 bg-[#f4f6f9] rounded-xl">
-            {property.bedrooms !== null && property.bedrooms !== undefined && (
-              <div className="flex flex-col items-center px-3">
-                <Bed className="w-5 h-5 text-[#1a3a5c] mb-1" />
-                <span className="text-sm font-bold text-[#0f1724]">{property.bedrooms}</span>
-                <span className="text-[10px] text-gray-400">Chambre{property.bedrooms !== 1 ? "s" : ""}</span>
-              </div>
-            )}
-            {property.bathrooms !== null && property.bathrooms !== undefined && (
-              <>
-                <div className="w-px h-8 bg-gray-200" />
-                <div className="flex flex-col items-center px-3">
-                  <Bath className="w-5 h-5 text-[#1a3a5c] mb-1" />
-                  <span className="text-sm font-bold text-[#0f1724]">{property.bathrooms}</span>
-                  <span className="text-[10px] text-gray-400">Sdb</span>
+          {mobileStatCards.length > 0 && (
+            <div className="mt-4 grid grid-cols-1 min-[390px]:grid-cols-3 gap-2">
+              {mobileStatCards.map((item) => (
+                <div
+                  key={item.key}
+                  className="flex items-center gap-2 rounded-xl border border-gray-100 bg-[#f4f6f9] px-3 py-2"
+                >
+                  <item.icon className="w-4 h-4 text-[#1a3a5c] shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-[#0f1724] truncate">{item.value}</p>
+                    <p className="text-[10px] text-gray-400 truncate">{item.label}</p>
+                  </div>
                 </div>
-              </>
-            )}
-            {property.area && (
-              <>
-                <div className="w-px h-8 bg-gray-200" />
-                <div className="flex flex-col items-center px-3">
-                  <Maximize2 className="w-5 h-5 text-[#1a3a5c] mb-1" />
-                  <span className="text-sm font-bold text-[#0f1724]">{formatArea(property.area)}</span>
-                  <span className="text-[10px] text-gray-400">Surface</span>
+              ))}
+            </div>
+          )}
+
+          {mobileKeyDetails.length > 0 && (
+            <div className="mt-2 grid grid-cols-2 gap-2 sm:hidden">
+              {mobileKeyDetails.map((item) => (
+                <div
+                  key={item.key}
+                  className="rounded-lg border border-gray-100 bg-white px-2.5 py-2"
+                >
+                  <p className="text-[10px] uppercase tracking-wide text-gray-400">{item.label}</p>
+                  <p className="text-[12px] font-semibold text-[#0f1724] truncate">{item.value}</p>
                 </div>
-              </>
-            )}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20 sm:pb-16">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-28 sm:pb-16">
         <div className="grid lg:grid-cols-3 gap-8 sm:pt-6">
           {/* ── LEFT COLUMN ── */}
           <div className="lg:col-span-2 space-y-6">
@@ -228,7 +269,7 @@ export default async function PropertyDetailPage({ params }: Props) {
               {property.is_featured && (
                 <div className="absolute top-4 right-4">
                   <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#e8b86d] text-[#0f1724] text-xs font-bold rounded-lg shadow">
-                    <Star className="w-3 h-3 fill-[#0f1724]" /> Coup de c&#x153;ur
+                    <Star className="w-3 h-3 fill-[#0f1724]" /> Coup de coeur
                   </span>
                 </div>
               )}
@@ -259,7 +300,7 @@ export default async function PropertyDetailPage({ params }: Props) {
                 </div>
                 <div className="shrink-0">
                   <p className="text-3xl font-bold text-[#1a3a5c]">{formatPrice(property.price)}</p>
-                  {property.listing_type === "location" && <p className="text-xs text-gray-400 text-right">/mois</p>}
+                  {property.listing_type === "location" && <p className="text-xs text-gray-400 text-right">/{rentPaymentLabel}</p>}
                 </div>
               </div>
               <div className="flex flex-wrap gap-5 mt-5 pt-5 border-t border-gray-100">
@@ -293,8 +334,8 @@ export default async function PropertyDetailPage({ params }: Props) {
 
             {/* Description */}
             {property.description && (
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-                <h2 className="text-lg font-semibold text-[#0f1724] mb-3">
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-6">
+                <h2 className="!text-lg sm:!text-xl font-semibold text-[#0f1724] mb-3">
                   Description
                 </h2>
                 <p className="text-gray-600 leading-relaxed whitespace-pre-line">
@@ -306,11 +347,11 @@ export default async function PropertyDetailPage({ params }: Props) {
             {/* Features */}
             {property.property_features &&
               property.property_features.length > 0 && (
-                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-                  <h2 className="text-lg font-semibold text-[#0f1724] mb-4">
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-6">
+                  <h2 className="!text-lg sm:!text-xl font-semibold text-[#0f1724] mb-4">
                     Caractéristiques
                   </h2>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 min-[420px]:grid-cols-2 sm:grid-cols-3 gap-3">
                     {property.property_features.map((feat) => (
                       <div
                         key={feat.id}
@@ -331,8 +372,8 @@ export default async function PropertyDetailPage({ params }: Props) {
 
             {/* Location */}
             {property.latitude && property.longitude && (
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-                <h2 className="text-lg font-semibold text-[#0f1724] mb-4">Localisation</h2>
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-6">
+                <h2 className="!text-lg sm:!text-xl font-semibold text-[#0f1724] mb-4">Localisation</h2>
                 <MapContainer
                   lat={property.latitude}
                   lng={property.longitude}
@@ -346,13 +387,13 @@ export default async function PropertyDetailPage({ params }: Props) {
             {/* Similar properties */}
             {similar.length > 0 && (
               <div>
-                <h2 className="text-xl font-semibold text-[#0f1724] mb-5">Biens similaires</h2>
+                <h2 className="!text-lg sm:!text-xl font-semibold text-[#0f1724] mb-5">Biens similaires</h2>
                 {/* Desktop */}
                 <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
                   {similar.map((p) => (<PropertyCard key={p.id} property={p} />))}
                 </div>
                 {/* Mobile 2-col */}
-                <div className="grid grid-cols-2 gap-3 sm:hidden">
+                <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-3 sm:hidden">
                   {similar.map((p) => (<PropertyCardMobile key={p.id} property={p} />))}
                 </div>
               </div>
@@ -360,9 +401,9 @@ export default async function PropertyDetailPage({ params }: Props) {
           </div>
 
           {/* ── RIGHT COLUMN ── */}
-          <div className="space-y-5 lg:sticky lg:top-24 lg:self-start">
+          <div className="space-y-4 sm:space-y-5 lg:sticky lg:top-24 lg:self-start">
             {/* Agency info */}
-            <div className="bg-[#0f1724] rounded-2xl p-5 text-white">
+            <div className="bg-[#0f1724] rounded-2xl p-4 sm:p-5 text-white">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-12 h-12 bg-[#1a3a5c] rounded-xl flex items-center justify-center">
                   <span className="text-[#e8b86d] font-bold text-lg">K</span>
@@ -375,14 +416,14 @@ export default async function PropertyDetailPage({ params }: Props) {
               <div className="space-y-3">
                 <a
                   href="tel:+221766752135"
-                  className="flex items-center gap-3 p-3 bg-white/10 rounded-xl hover:bg-white/20 transition-colors text-sm"
+                  className="flex items-center gap-3 p-3 bg-white/10 rounded-xl hover:bg-white/20 transition-colors text-sm break-all"
                 >
                   <Phone className="w-4 h-4 text-[#e8b86d]" />
                   +221 76 675 21 35
                 </a>
                 <a
                   href="mailto:amzakoita@gmail.com"
-                  className="flex items-center gap-3 p-3 bg-white/10 rounded-xl hover:bg-white/20 transition-colors text-sm"
+                  className="flex items-center gap-3 p-3 bg-white/10 rounded-xl hover:bg-white/20 transition-colors text-sm break-all"
                 >
                   <Mail className="w-4 h-4 text-[#e8b86d]" />
                   amzakoita@gmail.com

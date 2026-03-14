@@ -9,8 +9,32 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   icon?: React.ReactNode;
 }
 
+function stabilizeMobileDashboardFocus(target: HTMLElement) {
+  if (typeof window === "undefined") return;
+  if (!window.matchMedia("(max-width: 767px)").matches) return;
+
+  const scrollRoot = target.closest<HTMLElement>("[data-dashboard-scroll-root]");
+  if (!scrollRoot) return;
+
+  const lockedScrollTop = scrollRoot.scrollTop;
+  requestAnimationFrame(() => {
+    scrollRoot.scrollTop = lockedScrollTop;
+    if (window.scrollY !== 0) {
+      window.scrollTo(0, 0);
+    }
+  });
+
+  // iOS keyboard can shift viewport after the first frame.
+  window.setTimeout(() => {
+    scrollRoot.scrollTop = lockedScrollTop;
+    if (window.scrollY !== 0) {
+      window.scrollTo(0, 0);
+    }
+  }, 120);
+}
+
 const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ className, label, error, icon, id, ...props }, ref) => {
+  ({ className, label, error, icon, id, onFocus, ...props }, ref) => {
     const inputId = id ?? label?.toLowerCase().replace(/\s+/g, "-");
 
     return (
@@ -32,6 +56,10 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
           <input
             ref={ref}
             id={inputId}
+            onFocus={(event) => {
+              stabilizeMobileDashboardFocus(event.currentTarget);
+              onFocus?.(event);
+            }}
             className={cn(
               "w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400",
               "focus:outline-none focus:ring-2 focus:ring-[#1a3a5c]/30 focus:border-[#1a3a5c]",

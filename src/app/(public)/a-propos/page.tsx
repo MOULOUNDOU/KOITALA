@@ -70,7 +70,7 @@ export default function AboutPage() {
           />
         </div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-4xl sm:text-5xl font-bold text-white mb-4">
+          <h1 className="text-3xl min-[420px]:text-4xl sm:text-5xl font-bold text-white mb-4">
             À propos de <span className="text-[#e8b86d]">KOITALA</span>
           </h1>
           <p className="text-gray-300 text-lg max-w-2xl mx-auto">
@@ -105,7 +105,7 @@ export default function AboutPage() {
               <p className="text-gray-600 leading-relaxed mb-6">
                 Que vous soyez résident ou expatrié, l&apos;agence KOITALA est votre alliée pour réaliser tous vos projets immobiliers avec succès. Nous allions rigueur, professionnalisme et une parfaite compréhension des besoins de chacun.
               </p>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 min-[420px]:grid-cols-3 gap-4">
                 {[
                   { value: "12+", label: "Ans en immobilier" },
                   { value: "23+", label: "Ans d'expérience" },
@@ -210,4 +210,3 @@ export default function AboutPage() {
     </>
   );
 }
-

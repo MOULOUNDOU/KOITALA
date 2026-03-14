@@ -52,7 +52,7 @@ export default function VisitRequestForm({
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-6">
       <div className="flex items-center gap-3 mb-5">
         <div className="w-10 h-10 bg-[#1a3a5c]/10 rounded-xl flex items-center justify-center">
           <CalendarCheck className="w-5 h-5 text-[#1a3a5c]" />
@@ -89,6 +89,7 @@ export default function VisitRequestForm({
         <Input
           label="Date souhaitée"
           type="date"
+          className="h-11"
           error={errors.preferred_date?.message}
           {...register("preferred_date")}
         />

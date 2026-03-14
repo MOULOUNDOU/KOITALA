@@ -8,6 +8,13 @@ export type PropertyType =
   | "duplex";
 
 export type ListingType = "vente" | "location";
+export type RentalCategory =
+  | "chambre_meublee"
+  | "studio"
+  | "appartement"
+  | "mini_studio"
+  | "colocation";
+export type RentPaymentPeriod = "jour" | "mois";
 
 export type PropertyStatus =
   | "brouillon"
@@ -54,6 +61,8 @@ export interface Property {
   longitude: number | null;
   is_featured: boolean;
   is_furnished: boolean;
+  rental_category: RentalCategory | null;
+  rent_payment_period: RentPaymentPeriod | null;
   main_image_url: string | null;
   video_url: string | null;
   views_count: number;
@@ -149,6 +158,8 @@ export interface DashboardStats {
 export interface SearchFilters {
   query?: string;
   listing_type?: ListingType | "";
+  rental_category?: RentalCategory | "";
+  rent_payment_period?: RentPaymentPeriod | "";
   property_type?: PropertyType | "";
   city?: string;
   neighborhood?: string;

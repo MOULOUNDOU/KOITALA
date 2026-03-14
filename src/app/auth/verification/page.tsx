@@ -144,7 +144,7 @@ function VerificationForm() {
         />
         <div className="relative z-10 flex flex-col justify-between p-10 lg:p-14 h-full">
           <Link href="/" className="inline-flex items-center gap-2 w-fit anim-fade-up">
-            <Image src="/logo-koitala.jpeg" alt="KOITALA" width={44} height={44} className="w-11 h-11 rounded-xl object-contain bg-white/10 backdrop-blur-sm" />
+            <Image src="/logo-koitala.png" alt="KOITALA" width={44} height={44} className="w-11 h-11 rounded-xl object-cover bg-white/10 backdrop-blur-sm" />
             <span className="text-2xl font-bold text-white">
               KOI<span className="text-[#e8b86d]">TALA</span>
             </span>
@@ -167,7 +167,7 @@ function VerificationForm() {
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center justify-between mb-8 anim-fade-up">
             <Link href="/" className="inline-flex items-center gap-2">
-              <Image src="/logo-koitala.jpeg" alt="KOITALA" width={44} height={44} className="w-11 h-11 rounded-xl object-contain" />
+              <Image src="/logo-koitala.png" alt="KOITALA" width={44} height={44} className="w-11 h-11 rounded-xl object-cover" />
               <span className="text-2xl font-bold text-[#1a3a5c]">
                 KOI<span className="text-[#e8b86d]">TALA</span>
               </span>

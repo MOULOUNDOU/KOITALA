@@ -36,12 +36,33 @@ export async function middleware(request: NextRequest) {
   }
 
   if (isAdmin && user) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-    if (!profile || profile.role !== "admin") {
+    let hasAdminRole = false;
+
+    const { data: rpcIsAdmin, error: rpcError } = await supabase.rpc("is_admin");
+    if (!rpcError && typeof rpcIsAdmin === "boolean") {
+      hasAdminRole = rpcIsAdmin;
+    }
+
+    if (!hasAdminRole) {
+      const { data: profileById } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (profileById?.role === "admin") {
+        hasAdminRole = true;
+      } else if (user.email) {
+        const { data: profileByEmail } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("email", user.email)
+          .maybeSingle();
+        hasAdminRole = profileByEmail?.role === "admin";
+      }
+    }
+
+    if (!hasAdminRole) {
       return NextResponse.redirect(new URL("/", request.url));
     }
   }

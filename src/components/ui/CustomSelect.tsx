@@ -25,6 +25,9 @@ interface CustomSelectProps {
   searchable?: boolean;
   clearable?: boolean;
   className?: string;
+  labelClassName?: string;
+  triggerClassName?: string;
+  dropdownClassName?: string;
   disabled?: boolean;
   dropUp?: boolean;
 }
@@ -40,6 +43,9 @@ export default function CustomSelect({
   searchable = false,
   clearable = false,
   className,
+  labelClassName,
+  triggerClassName,
+  dropdownClassName,
   disabled = false,
   dropUp = false,
 }: CustomSelectProps) {
@@ -88,7 +94,12 @@ export default function CustomSelect({
   return (
     <div ref={ref} className={cn("relative", className)}>
       {label && (
-        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+        <label
+          className={cn(
+            "block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2",
+            labelClassName
+          )}
+        >
           {label}
         </label>
       )}
@@ -103,7 +114,8 @@ export default function CustomSelect({
           open
             ? "border-[#1a3a5c] ring-2 ring-[#1a3a5c]/20 shadow-sm"
             : "border-gray-200 hover:border-[#1a3a5c]/50",
-          disabled && "opacity-50 cursor-not-allowed"
+          disabled && "opacity-50 cursor-not-allowed",
+          triggerClassName
         )}
       >
         {icon && <span className="text-gray-400 shrink-0">{icon}</span>}
@@ -138,7 +150,8 @@ export default function CustomSelect({
             ? "opacity-100 scale-y-100 translate-y-0 pointer-events-auto"
             : dropUp
               ? "opacity-0 scale-y-95 translate-y-2 pointer-events-none"
-              : "opacity-0 scale-y-95 -translate-y-2 pointer-events-none"
+              : "opacity-0 scale-y-95 -translate-y-2 pointer-events-none",
+          dropdownClassName
         )}
       >
         {/* Search */}

@@ -1,19 +1,30 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import ClientSidebar from "@/components/layout/ClientSidebar";
+import MobileDashboardViewportLock from "@/components/layout/MobileDashboardViewportLock";
+
+interface ProfileUpdatedEventDetail {
+  full_name?: string;
+}
 
 export default function DashboardClientLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const [userName, setUserName] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
+    let mounted = true;
+
+    const syncUserName = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+
       if (!user) {
+        if (!mounted) return;
+        setReady(false);
         router.push("/auth/login?redirectTo=/dashboard-client");
         return;
       }
@@ -28,11 +39,42 @@ export default function DashboardClientLayout({ children }: { children: React.Re
         .from("profiles")
         .select("full_name")
         .eq("id", user.id)
-        .single();
+        .maybeSingle();
+
+      if (!mounted) return;
+
       setUserName(profile?.full_name?.trim() || metadataName || emailFallback);
       setReady(true);
+    };
+
+    void syncUserName();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+      if (!session?.user) {
+        setUserName(null);
+        setReady(false);
+        router.push("/auth/login?redirectTo=/dashboard-client");
+        return;
+      }
+      void syncUserName();
     });
-  }, [supabase, router]);
+
+    const handleProfileUpdated = (event: Event) => {
+      const customEvent = event as CustomEvent<ProfileUpdatedEventDetail>;
+      const updatedName = customEvent.detail?.full_name?.trim();
+      if (updatedName) {
+        setUserName(updatedName);
+      }
+    };
+
+    window.addEventListener("koitala:profile-updated", handleProfileUpdated as EventListener);
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+      window.removeEventListener("koitala:profile-updated", handleProfileUpdated as EventListener);
+    };
+  }, [router, supabase]);
 
   if (!ready) {
     return (
@@ -43,9 +85,14 @@ export default function DashboardClientLayout({ children }: { children: React.Re
   }
 
   return (
-    <div className="flex min-h-screen bg-[#f4f6f9]">
+    <div className="dashboard-client-scope flex h-[100svh] md:h-screen bg-[#f4f6f9] overflow-hidden">
+      <MobileDashboardViewportLock containerId="dashboard-client-scroll-root" />
       <ClientSidebar userName={userName} />
-      <div className="flex-1 min-w-0 overflow-auto pt-14 md:pt-0">
+      <div
+        id="dashboard-client-scroll-root"
+        data-dashboard-scroll-root
+        className="flex-1 min-w-0 h-full overflow-y-auto overflow-x-hidden pt-14 md:pt-0 [-webkit-overflow-scrolling:touch] [overscroll-behavior-y:contain] [touch-action:pan-y]"
+      >
         {children}
       </div>
     </div>

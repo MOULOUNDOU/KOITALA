@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Plus, Pencil, Trash2, Eye } from "lucide-react";
+import { Plus, Pencil, Eye } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { formatPrice, formatDate, getStatusColor, getStatusLabel, getPropertyTypeLabel } from "@/lib/utils";
 
@@ -72,7 +72,7 @@ export default async function AnnoncesPage() {
                     <td className="px-4 py-3.5">
                       <div className="flex flex-col gap-0.5">
                         <span className="text-gray-600">{getPropertyTypeLabel(prop.property_type)}</span>
-                        <span className={`text-xs font-medium ${prop.listing_type === "vente" ? "text-blue-600" : "text-purple-600"}`}>
+                        <span className={`text-xs font-medium ${prop.listing_type === "vente" ? "text-[#1a3a5c]" : "text-[#e8b86d]"}`}>
                           {prop.listing_type === "vente" ? "Vente" : "Location"}
                         </span>
                       </div>
@@ -114,4 +114,3 @@ export default async function AnnoncesPage() {
     </div>
   );
 }
-

@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import type { Property } from "@/types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -60,6 +61,18 @@ export function getListingTypeLabel(type: string): string {
   return type === "vente" ? "Vente" : "Location";
 }
 
+export function getRentalCategoryLabel(category: string | null | undefined): string {
+  if (!category) return "";
+  const labels: Record<string, string> = {
+    chambre_meublee: "Chambre meublée",
+    studio: "Studio",
+    appartement: "Appartement",
+    mini_studio: "Mini studio",
+    colocation: "Colocation",
+  };
+  return labels[category] ?? category;
+}
+
 export function getStatusLabel(status: string): string {
   const labels: Record<string, string> = {
     brouillon: "Brouillon",
@@ -80,18 +93,18 @@ export function getStatusLabel(status: string): string {
 
 export function getStatusColor(status: string): string {
   const colors: Record<string, string> = {
-    publie: "bg-green-100 text-green-700",
+    publie: "bg-[#1a3a5c]/15 text-[#1a3a5c]",
     brouillon: "bg-gray-100 text-gray-600",
-    vendu: "bg-blue-100 text-blue-700",
-    loue: "bg-purple-100 text-purple-700",
-    archive: "bg-red-100 text-red-700",
-    en_attente: "bg-yellow-100 text-yellow-700",
-    confirme: "bg-green-100 text-green-700",
-    annule: "bg-red-100 text-red-700",
-    realise: "bg-blue-100 text-blue-700",
-    nouveau: "bg-blue-100 text-blue-700",
+    vendu: "bg-[#e8b86d]/25 text-[#1a3a5c]",
+    loue: "bg-[#1a3a5c]/10 text-[#1a3a5c]",
+    archive: "bg-[#0f2540]/10 text-[#0f2540]",
+    en_attente: "bg-[#e8b86d]/25 text-[#1a3a5c]",
+    confirme: "bg-[#e8b86d]/25 text-[#1a3a5c]",
+    annule: "bg-[#0f2540]/10 text-[#0f2540]",
+    realise: "bg-[#e8b86d]/25 text-[#1a3a5c]",
+    nouveau: "bg-[#1a3a5c]/10 text-[#1a3a5c]",
     lu: "bg-gray-100 text-gray-600",
-    traite: "bg-green-100 text-green-700",
+    traite: "bg-[#e8b86d]/25 text-[#1a3a5c]",
   };
   return colors[status] ?? "bg-gray-100 text-gray-600";
 }
@@ -99,4 +112,41 @@ export function getStatusColor(status: string): string {
 export function truncateText(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;
   return text.slice(0, maxLength).trim() + "...";
+}
+
+export function getFakeRating(seed: string): { rating: string; reviews: number } {
+  const value = seed || "koitala";
+  let hash = 0;
+  for (let i = 0; i < value.length; i++) {
+    hash += value.charCodeAt(i) * (i + 1);
+  }
+
+  const rating = (4.2 + (hash % 7) * 0.1).toFixed(1);
+  const reviews = 24 + (hash % 140);
+
+  return { rating, reviews };
+}
+
+export function getPropertyImageUrls(
+  property: Pick<Property, "main_image_url" | "property_images">,
+  fallbackUrl = "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=1200&q=80"
+): string[] {
+  const orderedGalleryUrls = (property.property_images ?? [])
+    .slice()
+    .sort((a, b) => {
+      if (a.is_main !== b.is_main) {
+        return a.is_main ? -1 : 1;
+      }
+      return a.order_index - b.order_index;
+    })
+    .map((img) => img.url)
+    .filter(Boolean);
+
+  const rawUrls = [property.main_image_url, ...orderedGalleryUrls].filter(
+    (url): url is string => Boolean(url)
+  );
+
+  const uniqueUrls = Array.from(new Set(rawUrls));
+
+  return uniqueUrls.length > 0 ? uniqueUrls : [fallbackUrl];
 }

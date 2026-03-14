@@ -46,7 +46,7 @@ export default function ContactPropertyForm({ propertyId }: ContactPropertyFormP
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-6">
       <div className="flex items-center gap-3 mb-5">
         <div className="w-10 h-10 bg-[#e8b86d]/20 rounded-xl flex items-center justify-center">
           <MessageSquare className="w-5 h-5 text-[#9a6d28]" />

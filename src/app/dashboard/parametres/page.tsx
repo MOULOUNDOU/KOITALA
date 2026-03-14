@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Settings, Save, User, Lock, Eye, EyeOff } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Save, User, Lock, Eye, EyeOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
@@ -9,7 +9,7 @@ import toast from "react-hot-toast";
 import type { Profile } from "@/types";
 
 export default function ParametresPage() {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const [profile, setProfile] = useState<Partial<Profile>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -18,25 +18,101 @@ export default function ParametresPage() {
   const [changingPw, setChangingPw] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) return;
-      supabase.from("profiles").select("*").eq("id", user.id).single().then(({ data }) => {
-        setProfile(data ?? {});
-        setLoading(false);
+    let mounted = true;
+
+    const loadProfile = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
+        if (mounted) setLoading(false);
+        return;
+      }
+
+      const metadataName =
+        typeof user.user_metadata?.full_name === "string"
+          ? user.user_metadata.full_name.trim()
+          : "";
+      const emailFallback = user.email ?? "";
+
+      const { data } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (!mounted) return;
+
+      setProfile({
+        ...(data ?? {}),
+        id: user.id,
+        full_name: data?.full_name?.trim() || metadataName || emailFallback.split("@")[0] || "",
+        email: data?.email ?? emailFallback,
+        phone: data?.phone ?? "",
       });
-    });
+      setLoading(false);
+    };
+
+    void loadProfile();
+
+    return () => {
+      mounted = false;
+    };
   }, [supabase]);
 
   const handleSaveProfile = async () => {
     setSaving(true);
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const { error } = await supabase.from("profiles").update({
-      full_name: profile.full_name,
-      phone: profile.phone,
-    }).eq("id", user.id);
+    if (!user) {
+      setSaving(false);
+      toast.error("Session expirée. Reconnectez-vous.");
+      return;
+    }
+
+    const normalizedName = profile.full_name?.trim() ?? "";
+    const normalizedPhone = profile.phone?.toString().trim() ?? "";
+
+    if (!normalizedName) {
+      setSaving(false);
+      toast.error("Le nom complet est requis.");
+      return;
+    }
+
+    const payload = {
+      id: user.id,
+      email: user.email ?? profile.email ?? "",
+      full_name: normalizedName,
+      phone: normalizedPhone || null,
+    };
+
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .upsert(payload, { onConflict: "id" });
+
+    if (profileError) {
+      setSaving(false);
+      toast.error("Erreur lors de la mise à jour du profil.");
+      return;
+    }
+
+    const { error: authError } = await supabase.auth.updateUser({
+      data: {
+        full_name: normalizedName,
+      },
+    });
+
     setSaving(false);
-    if (error) { toast.error("Erreur lors de la mise à jour"); return; }
+
+    if (authError) {
+      toast.error("Profil enregistré, mais le nom de session n'a pas pu être synchronisé.");
+      return;
+    }
+
+    setProfile((prev) => ({
+      ...prev,
+      full_name: normalizedName,
+      phone: normalizedPhone || null,
+      email: payload.email,
+    }));
     toast.success("Profil mis à jour !");
   };
 
@@ -85,6 +161,7 @@ export default function ParametresPage() {
             label="Email"
             type="email"
             value={profile.email ?? ""}
+            className="bg-[#1a3a5c] text-white disabled:bg-[#1a3a5c] disabled:text-white disabled:opacity-100"
             disabled
           />
           <Input
@@ -143,4 +220,3 @@ export default function ParametresPage() {
     </div>
   );
 }
-

@@ -21,10 +21,37 @@ const DAKAR_NEIGHBORHOODS = [
   "Cité Keur Gorgui", "Amitié", "Keur Massar",
 ];
 
+const RENTAL_CATEGORY_OPTS = [
+  { value: "chambre_meublee", label: "Chambre meublée" },
+  { value: "studio", label: "Studio" },
+  { value: "appartement", label: "Appartement" },
+  { value: "mini_studio", label: "Mini studio" },
+  { value: "colocation", label: "Colocation" },
+];
+
+const PAYMENT_PERIOD_OPTS_BY_CATEGORY: Record<string, { value: string; label: string }[]> = {
+  chambre_meublee: [
+    { value: "jour", label: "Par jour" },
+    { value: "mois", label: "Par mois" },
+  ],
+  studio: [
+    { value: "jour", label: "Par jour" },
+    { value: "mois", label: "Par mois" },
+  ],
+  mini_studio: [
+    { value: "jour", label: "Par jour" },
+    { value: "mois", label: "Par mois" },
+  ],
+  appartement: [{ value: "mois", label: "Par mois" }],
+  colocation: [{ value: "mois", label: "Par mois" }],
+};
+
 export default function SearchBar({ className }: { className?: string }) {
   const router = useRouter();
   const [filters, setFilters] = useState({
     listing_type: "",
+    rental_category: "",
+    rent_payment_period: "",
     query: "",
     property_type: "",
     city: "",
@@ -56,6 +83,13 @@ export default function SearchBar({ className }: { className?: string }) {
     { value: "local_commercial", label: "Local commercial" },
     { value: "duplex",      label: "Duplex" },
   ];
+  const paymentPeriodOptions =
+    filters.rental_category && PAYMENT_PERIOD_OPTS_BY_CATEGORY[filters.rental_category]
+      ? PAYMENT_PERIOD_OPTS_BY_CATEGORY[filters.rental_category]
+      : [
+          { value: "jour", label: "Par jour" },
+          { value: "mois", label: "Par mois" },
+        ];
 
   return (
     <div className={cn("bg-white rounded-2xl shadow-2xl", className)}>
@@ -64,7 +98,14 @@ export default function SearchBar({ className }: { className?: string }) {
         {["", "vente", "location"].map((type) => (
           <button
             key={type}
-            onClick={() => setFilters((f) => ({ ...f, listing_type: type }))}
+            onClick={() =>
+              setFilters((f) => ({
+                ...f,
+                listing_type: type,
+                rental_category: type === "location" ? f.rental_category : "",
+                rent_payment_period: type === "location" ? f.rent_payment_period : "",
+              }))
+            }
             className={cn(
               "flex-1 py-3.5 text-sm font-semibold transition-colors",
               filters.listing_type === type
@@ -91,7 +132,7 @@ export default function SearchBar({ className }: { className?: string }) {
         </div>
 
         {/* Row 2: City + Quartier */}
-        <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-3">
+        <div className="grid grid-cols-1 min-[430px]:grid-cols-2 gap-2 sm:gap-3 mb-3">
           <CustomSelect
             value={filters.city}
             onChange={(v) => setFilters((f) => ({ ...f, city: v, neighborhood: "" }))}
@@ -114,8 +155,45 @@ export default function SearchBar({ className }: { className?: string }) {
           />
         </div>
 
+        {(filters.listing_type === "location" || filters.rental_category) && (
+          <div className="mb-3">
+            <CustomSelect
+              value={filters.rental_category}
+              onChange={(v) =>
+                setFilters((f) => ({
+                  ...f,
+                  rental_category: v,
+                  listing_type: v ? "location" : f.listing_type,
+                  rent_payment_period: v
+                    ? (PAYMENT_PERIOD_OPTS_BY_CATEGORY[v]?.some((opt) => opt.value === f.rent_payment_period) ? f.rent_payment_period : "")
+                    : f.rent_payment_period,
+                }))
+              }
+              options={RENTAL_CATEGORY_OPTS}
+              placeholder="Catégorie location"
+              icon={<Home className="w-4 h-4" />}
+              clearable
+              dropUp
+            />
+          </div>
+        )}
+
+        {(filters.listing_type === "location" || filters.rental_category) && (
+          <div className="mb-3">
+            <CustomSelect
+              value={filters.rent_payment_period}
+              onChange={(v) => setFilters((f) => ({ ...f, rent_payment_period: v, listing_type: v ? "location" : f.listing_type }))}
+              options={paymentPeriodOptions}
+              placeholder="Paiement: jour ou mois"
+              icon={<Home className="w-4 h-4" />}
+              clearable
+              dropUp
+            />
+          </div>
+        )}
+
         {/* Row 3: Type + Search button */}
-        <div className="flex gap-2 sm:gap-3">
+        <div className="flex flex-col min-[430px]:flex-row gap-2 sm:gap-3">
           <div className="flex-1">
             <CustomSelect
               value={filters.property_type}
@@ -129,7 +207,7 @@ export default function SearchBar({ className }: { className?: string }) {
           </div>
           <button
             type="submit"
-            className="px-5 sm:px-7 py-3 bg-[#1a3a5c] text-white font-semibold rounded-xl hover:bg-[#0f2540] active:scale-95 transition-all flex items-center gap-2 whitespace-nowrap shadow-md text-sm sm:text-base"
+            className="w-full min-[430px]:w-auto px-5 sm:px-7 py-3 bg-[#1a3a5c] text-white font-semibold rounded-xl hover:bg-[#0f2540] active:scale-95 transition-all flex items-center justify-center gap-2 whitespace-nowrap shadow-md text-sm sm:text-base"
           >
             <Search className="w-5 h-5" />
             <span className="hidden sm:inline">Rechercher</span>
@@ -150,7 +228,7 @@ export default function SearchBar({ className }: { className?: string }) {
 
         {/* Advanced filters */}
         {showAdvanced && (
-          <div className="mt-4 pt-4 border-t border-gray-100 grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="mt-4 pt-4 border-t border-gray-100 grid grid-cols-1 min-[430px]:grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="relative">
               <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
               <input

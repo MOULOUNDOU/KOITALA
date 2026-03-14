@@ -16,18 +16,36 @@ export async function GET(request: Request) {
       }
 
       // Otherwise redirect based on user role
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", user.id)
-          .single();
-        if (profile?.role === "admin") {
-          return NextResponse.redirect(new URL("/dashboard", request.url));
+      let isAdmin = false;
+
+      const { data: rpcIsAdmin, error: rpcError } = await supabase.rpc("is_admin");
+      if (!rpcError && typeof rpcIsAdmin === "boolean") {
+        isAdmin = rpcIsAdmin;
+      }
+
+      if (!isAdmin) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: profileById } = await supabase
+            .from("profiles")
+            .select("role")
+            .eq("id", user.id)
+            .maybeSingle();
+
+          if (profileById?.role === "admin") {
+            isAdmin = true;
+          } else if (user.email) {
+            const { data: profileByEmail } = await supabase
+              .from("profiles")
+              .select("role")
+              .eq("email", user.email)
+              .maybeSingle();
+            isAdmin = profileByEmail?.role === "admin";
+          }
         }
       }
-      return NextResponse.redirect(new URL("/dashboard-client", request.url));
+
+      return NextResponse.redirect(new URL(isAdmin ? "/dashboard" : "/dashboard-client", request.url));
     }
   }
 

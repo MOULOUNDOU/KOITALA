@@ -12,18 +12,73 @@ import { loginSchema, type LoginInput } from "@/lib/validations";
 import SocialAuthButtons from "@/components/auth/SocialAuthButtons";
 import toast from "react-hot-toast";
 
+const PASSWORD_RULES = [
+  { test: (value: string) => value.length >= 6 },
+  { test: (value: string) => /[a-zA-Z]/.test(value) },
+  { test: (value: string) => /[0-9]/.test(value) },
+  { test: (value: string) => value.trim().length > 0 },
+];
+
+function getPasswordStrength(password: string) {
+  const passed = PASSWORD_RULES.filter((rule) => rule.test(password)).length;
+  const percent = (passed / PASSWORD_RULES.length) * 100;
+
+  if (passed <= 1) {
+    return { label: "Faible", barClass: "bg-red-500", textClass: "text-red-600", percent };
+  }
+  if (passed === 2) {
+    return { label: "Moyen", barClass: "bg-[#e8b86d]", textClass: "text-[#d9a45a]", percent };
+  }
+  if (passed === 3) {
+    return { label: "Bon", barClass: "bg-[#1a3a5c]", textClass: "text-[#1a3a5c]", percent };
+  }
+
+  return { label: "Fort", barClass: "bg-emerald-600", textClass: "text-emerald-700", percent };
+}
+
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get("redirectTo") ?? "/";
   const supabase = createClient();
   const [showPassword, setShowPassword] = useState(false);
+  const [passwordValue, setPasswordValue] = useState("");
+
+  const resolveIsAdmin = async (userId: string, email?: string | null): Promise<boolean> => {
+    const { data: rpcIsAdmin, error: rpcError } = await supabase.rpc("is_admin");
+    if (!rpcError && typeof rpcIsAdmin === "boolean") {
+      return rpcIsAdmin;
+    }
+
+    const { data: profileById } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (profileById?.role === "admin") {
+      return true;
+    }
+
+    if (email) {
+      const { data: profileByEmail } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("email", email)
+        .maybeSingle();
+      return profileByEmail?.role === "admin";
+    }
+
+    return false;
+  };
 
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<LoginInput>({ resolver: zodResolver(loginSchema) });
+  const passwordField = register("password");
+  const passwordStrength = getPasswordStrength(passwordValue);
 
   const onSubmit = async (data: LoginInput) => {
     try {
@@ -82,25 +137,22 @@ function LoginForm() {
 
       toast.success("Connexion réussie !");
 
+      const goTo = (path: string) => {
+        router.replace(path);
+        router.refresh();
+      };
+
       // Redirect based on role if no specific redirectTo
       if (redirectTo === "/") {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("role")
-            .eq("id", user.id)
-            .single();
-          if (profile?.role === "admin") {
-            window.location.href = "/dashboard";
-          } else {
-            window.location.href = "/dashboard-client";
-          }
+          const isAdmin = await resolveIsAdmin(user.id, user.email);
+          goTo(isAdmin ? "/dashboard" : "/dashboard-client");
         } else {
-          window.location.href = "/";
+          goTo("/");
         }
       } else {
-        window.location.href = redirectTo;
+        goTo(redirectTo);
       }
     } catch {
       toast.error("Une erreur inattendue est survenue. Veuillez réessayer.");
@@ -120,7 +172,7 @@ function LoginForm() {
         />
         <div className="relative z-10 flex flex-col justify-between p-10 lg:p-14 h-full">
           <Link href="/" className="inline-flex items-center gap-2 w-fit anim-fade-up">
-            <Image src="/logo-koitala.jpeg" alt="KOITALA" width={44} height={44} className="w-11 h-11 rounded-xl object-contain bg-white/10 backdrop-blur-sm" />
+            <Image src="/logo-koitala.png" alt="KOITALA" width={44} height={44} className="w-11 h-11 rounded-xl object-cover bg-white/10 backdrop-blur-sm" />
             <span className="text-2xl font-bold text-white">
               KOI<span className="text-[#e8b86d]">TALA</span>
             </span>
@@ -160,7 +212,7 @@ function LoginForm() {
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center justify-between mb-8 anim-fade-up">
             <Link href="/" className="inline-flex items-center gap-2">
-              <Image src="/logo-koitala.jpeg" alt="KOITALA" width={44} height={44} className="w-11 h-11 rounded-xl object-contain" />
+              <Image src="/logo-koitala.png" alt="KOITALA" width={44} height={44} className="w-11 h-11 rounded-xl object-cover" />
               <span className="text-2xl font-bold text-[#1a3a5c]">
                 KOI<span className="text-[#e8b86d]">TALA</span>
               </span>
@@ -209,7 +261,11 @@ function LoginForm() {
                     placeholder="••••••••"
                     autoComplete="current-password"
                     className="w-full pl-11 pr-12 py-3 rounded-xl border border-gray-200 bg-[#fafbfc] text-[15px] text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1a3a5c]/20 focus:border-[#1a3a5c] transition-all"
-                    {...register("password")}
+                    {...passwordField}
+                    onChange={(e) => {
+                      passwordField.onChange(e);
+                      setPasswordValue(e.target.value);
+                    }}
                   />
                   <button
                     type="button"
@@ -219,6 +275,22 @@ function LoginForm() {
                     {showPassword ? <EyeOff className="w-[18px] h-[18px]" /> : <Eye className="w-[18px] h-[18px]" />}
                   </button>
                 </div>
+                {passwordValue.length > 0 && (
+                  <div className="mt-2 animate-fade-in">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <p className="text-xs font-medium text-gray-500">Progression du mot de passe</p>
+                      <span className={`text-xs font-semibold ${passwordStrength.textClass}`}>
+                        {passwordStrength.label}
+                      </span>
+                    </div>
+                    <div className="h-2 w-full rounded-full bg-gray-100 overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-300 ${passwordStrength.barClass}`}
+                        style={{ width: `${passwordStrength.percent}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
                 {errors.password && <p className="mt-1 text-xs text-red-500">{errors.password.message}</p>}
               </div>
 
@@ -273,4 +345,3 @@ export default function LoginPage() {
     </Suspense>
   );
 }
-

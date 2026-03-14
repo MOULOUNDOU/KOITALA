@@ -12,12 +12,37 @@ import { registerSchema, type RegisterInput } from "@/lib/validations";
 import SocialAuthButtons from "@/components/auth/SocialAuthButtons";
 import toast from "react-hot-toast";
 
+const PASSWORD_RULES = [
+  { label: "Au moins 6 caractères", test: (value: string) => value.length >= 6 },
+  { label: "Contient une lettre", test: (value: string) => /[a-zA-Z]/.test(value) },
+  { label: "Contient un chiffre", test: (value: string) => /[0-9]/.test(value) },
+  { label: "Pas uniquement des espaces", test: (value: string) => value.trim().length > 0 },
+];
+
+function getPasswordStrength(password: string) {
+  const passed = PASSWORD_RULES.filter((rule) => rule.test(password)).length;
+  const percent = (passed / PASSWORD_RULES.length) * 100;
+
+  if (passed <= 1) {
+    return { label: "Faible", barClass: "bg-red-500", textClass: "text-red-600", percent };
+  }
+  if (passed === 2) {
+    return { label: "Moyen", barClass: "bg-[#e8b86d]", textClass: "text-[#d9a45a]", percent };
+  }
+  if (passed === 3) {
+    return { label: "Bon", barClass: "bg-[#1a3a5c]", textClass: "text-[#1a3a5c]", percent };
+  }
+
+  return { label: "Fort", barClass: "bg-emerald-600", textClass: "text-emerald-700", percent };
+}
+
 function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const prefillEmail = searchParams.get("email") ?? "";
   const supabase = createClient();
   const [showPassword, setShowPassword] = useState(false);
+  const [passwordValue, setPasswordValue] = useState("");
 
   const {
     register,
@@ -27,6 +52,8 @@ function RegisterForm() {
     resolver: zodResolver(registerSchema),
     defaultValues: { full_name: "", email: prefillEmail, password: "", confirm_password: "" },
   });
+  const passwordField = register("password");
+  const passwordStrength = getPasswordStrength(passwordValue);
 
   const onSubmit = async (data: RegisterInput) => {
     try {
@@ -102,7 +129,7 @@ function RegisterForm() {
         />
         <div className="relative z-10 flex flex-col justify-between p-10 lg:p-14 h-full">
           <Link href="/" className="inline-flex items-center gap-2 w-fit anim-fade-up">
-            <Image src="/logo-koitala.jpeg" alt="KOITALA" width={44} height={44} className="w-11 h-11 rounded-xl object-contain bg-white/10 backdrop-blur-sm" />
+            <Image src="/logo-koitala.png" alt="KOITALA" width={44} height={44} className="w-11 h-11 rounded-xl object-cover bg-white/10 backdrop-blur-sm" />
             <span className="text-2xl font-bold text-white">
               KOI<span className="text-[#e8b86d]">TALA</span>
             </span>
@@ -137,7 +164,7 @@ function RegisterForm() {
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center justify-between mb-8 anim-fade-up">
             <Link href="/" className="inline-flex items-center gap-2">
-              <Image src="/logo-koitala.jpeg" alt="KOITALA" width={44} height={44} className="w-11 h-11 rounded-xl object-contain" />
+              <Image src="/logo-koitala.png" alt="KOITALA" width={44} height={44} className="w-11 h-11 rounded-xl object-cover" />
               <span className="text-2xl font-bold text-[#1a3a5c]">
                 KOI<span className="text-[#e8b86d]">TALA</span>
               </span>
@@ -197,7 +224,11 @@ function RegisterForm() {
                     placeholder="••••••••"
                     autoComplete="new-password"
                     className="w-full pl-11 pr-12 py-3 rounded-xl border border-gray-200 bg-[#fafbfc] text-[15px] text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1a3a5c]/20 focus:border-[#1a3a5c] transition-all"
-                    {...register("password")}
+                    {...passwordField}
+                    onChange={(e) => {
+                      passwordField.onChange(e);
+                      setPasswordValue(e.target.value);
+                    }}
                   />
                   <button
                     type="button"
@@ -207,6 +238,35 @@ function RegisterForm() {
                     {showPassword ? <EyeOff className="w-[18px] h-[18px]" /> : <Eye className="w-[18px] h-[18px]" />}
                   </button>
                 </div>
+                {passwordValue.length > 0 && (
+                  <div className="mt-2.5 animate-fade-in">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <p className="text-xs font-medium text-gray-500">Force du mot de passe</p>
+                      <span className={`text-xs font-semibold ${passwordStrength.textClass}`}>
+                        {passwordStrength.label}
+                      </span>
+                    </div>
+                    <div className="h-2 w-full rounded-full bg-gray-100 overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-300 ${passwordStrength.barClass}`}
+                        style={{ width: `${passwordStrength.percent}%` }}
+                      />
+                    </div>
+                    <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-1">
+                      {PASSWORD_RULES.map((rule) => {
+                        const passed = rule.test(passwordValue);
+                        return (
+                          <p
+                            key={rule.label}
+                            className={`text-[11px] ${passed ? "text-emerald-700" : "text-gray-400"}`}
+                          >
+                            {passed ? "✓" : "•"} {rule.label}
+                          </p>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
                 {errors.password && <p className="mt-1 text-xs text-red-500">{errors.password.message}</p>}
               </div>
 

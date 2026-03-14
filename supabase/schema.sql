@@ -63,6 +63,8 @@ CREATE TABLE IF NOT EXISTS public.properties (
   longitude       DOUBLE PRECISION,
   is_featured     BOOLEAN NOT NULL DEFAULT FALSE,
   is_furnished    BOOLEAN NOT NULL DEFAULT FALSE,
+  rental_category TEXT CHECK (rental_category IN ('chambre_meublee','studio','appartement','mini_studio','colocation')),
+  rent_payment_period TEXT CHECK (rent_payment_period IN ('jour','mois')),
   main_image_url  TEXT,
   video_url       TEXT,
   views_count     INTEGER NOT NULL DEFAULT 0,
@@ -74,8 +76,36 @@ CREATE TABLE IF NOT EXISTS public.properties (
 CREATE INDEX IF NOT EXISTS properties_status_idx      ON public.properties(status);
 CREATE INDEX IF NOT EXISTS properties_city_idx        ON public.properties(city);
 CREATE INDEX IF NOT EXISTS properties_listing_type_idx ON public.properties(listing_type);
+CREATE INDEX IF NOT EXISTS properties_rental_category_idx ON public.properties(rental_category);
 CREATE INDEX IF NOT EXISTS properties_slug_idx        ON public.properties(slug);
 CREATE INDEX IF NOT EXISTS properties_is_featured_idx ON public.properties(is_featured);
+
+-- Compatibilité base existante (ajout des colonnes si absentes)
+ALTER TABLE public.properties ADD COLUMN IF NOT EXISTS latitude DOUBLE PRECISION;
+ALTER TABLE public.properties ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION;
+ALTER TABLE public.properties ADD COLUMN IF NOT EXISTS rental_category TEXT;
+ALTER TABLE public.properties ADD COLUMN IF NOT EXISTS rent_payment_period TEXT;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'properties_rental_category_check'
+  ) THEN
+    ALTER TABLE public.properties
+      ADD CONSTRAINT properties_rental_category_check
+      CHECK (rental_category IN ('chambre_meublee','studio','appartement','mini_studio','colocation') OR rental_category IS NULL);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'properties_rent_payment_period_check'
+  ) THEN
+    ALTER TABLE public.properties
+      ADD CONSTRAINT properties_rent_payment_period_check
+      CHECK (rent_payment_period IN ('jour','mois') OR rent_payment_period IS NULL);
+  END IF;
+END $$;
 
 -- ─────────────────────────────────────────────
 -- 3. PROPERTY IMAGES (max 5 par annonce)
@@ -204,6 +234,26 @@ BEGIN
   END LOOP;
 END;
 $$;
+
+-- ============================================================
+-- GRANTS (permissions SQL)
+-- ============================================================
+-- Sans ces GRANT, vous pouvez avoir:
+-- "permission denied for table properties"
+
+GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO authenticated;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
+
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+GRANT SELECT ON TABLES TO anon;
+
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO authenticated;
+
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+GRANT USAGE, SELECT ON SEQUENCES TO anon, authenticated;
 
 -- ============================================================
 -- ROW LEVEL SECURITY (RLS)

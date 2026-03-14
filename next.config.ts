@@ -16,6 +16,18 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "images.unsplash.com",
       },
+      {
+        protocol: "https",
+        hostname: "cf.bstatic.com",
+      },
+      {
+        protocol: "https",
+        hostname: "gaitsimmo.sn",
+      },
+      {
+        protocol: "https",
+        hostname: "www.gaitsimmo.sn",
+      },
     ],
   },
   experimental: {

@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { BookOpen, Plus, Pencil, Trash2, Eye } from "lucide-react";
+import { BookOpen, Plus, Trash2, Eye } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { formatDate, getStatusColor, getStatusLabel } from "@/lib/utils";
 import type { BlogPost } from "@/types";
 
 export default function DashboardBlogPage() {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -17,16 +17,19 @@ export default function DashboardBlogPage() {
   });
   const [saving, setSaving] = useState(false);
 
-  const fetchPosts = async () => {
+  const fetchPosts = useCallback(async () => {
     const { data } = await supabase
       .from("blog_posts")
       .select("*, author:profiles(full_name)")
       .order("created_at", { ascending: false });
     setPosts((data as BlogPost[]) ?? []);
     setLoading(false);
-  };
+  }, [supabase]);
 
-  useEffect(() => { fetchPosts(); }, []);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void fetchPosts();
+  }, [fetchPosts]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -40,13 +43,13 @@ export default function DashboardBlogPage() {
     setForm({ title: "", excerpt: "", content: "", category: "", status: "brouillon" });
     setShowForm(false);
     setSaving(false);
-    fetchPosts();
+    await fetchPosts();
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm("Supprimer cet article ?")) return;
     await supabase.from("blog_posts").delete().eq("id", id);
-    fetchPosts();
+    await fetchPosts();
   };
 
   const toggleStatus = async (post: BlogPost) => {
@@ -55,7 +58,7 @@ export default function DashboardBlogPage() {
       status: newStatus,
       published_at: newStatus === "publie" ? new Date().toISOString() : null,
     }).eq("id", post.id);
-    fetchPosts();
+    await fetchPosts();
   };
 
   return (
@@ -161,7 +164,7 @@ export default function DashboardBlogPage() {
                   )}
                   <button
                     onClick={() => toggleStatus(post)}
-                    className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-gray-100 rounded-lg text-xs px-2"
+                    className="p-1.5 text-gray-400 hover:text-[#1a3a5c] hover:bg-gray-100 rounded-lg text-xs px-2"
                     title={post.status === "publie" ? "Dépublier" : "Publier"}
                   >
                     {post.status === "publie" ? "Dépublier" : "Publier"}
@@ -181,4 +184,3 @@ export default function DashboardBlogPage() {
     </div>
   );
 }
-

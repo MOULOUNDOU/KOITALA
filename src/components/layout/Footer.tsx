@@ -10,7 +10,7 @@ export default function Footer() {
           {/* Brand */}
           <div className="lg:col-span-1">
             <Link href="/" className="flex items-center gap-2 mb-5">
-              <Image src="/logo-koitala.jpeg" alt="KOITALA" width={40} height={40} className="w-10 h-10 rounded-xl object-contain" />
+              <Image src="/logo-koitala.png" alt="KOITALA" width={40} height={40} className="w-10 h-10 rounded-xl object-cover" />
               <span className="text-xl font-bold text-white tracking-wide">
                 KOI<span className="text-[#e8b86d]">TALA</span>
               </span>

@@ -43,28 +43,52 @@ const CATEGORIES = [
 
 export default function CategoryIcons() {
   return (
-    <div className="overflow-x-auto scrollbar-hide -mx-4 px-4">
-      <div className="flex gap-2.5 pb-1 min-w-max">
+    <>
+      <div className="sm:hidden overflow-x-auto scrollbar-hide -mx-4 px-4">
+        <div className="flex gap-2.5 pb-1 min-w-max">
+          {CATEGORIES.map((cat) => (
+            <Link
+              key={cat.type}
+              href={`/biens?type=${cat.type}`}
+              className="relative w-[82px] h-[100px] rounded-xl overflow-hidden shrink-0 group active:scale-[.97] transition-transform"
+            >
+              <Image
+                src={cat.img}
+                alt={cat.label}
+                fill
+                className="object-cover transition-transform duration-300 group-hover:scale-110"
+                sizes="82px"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+              <span className="absolute bottom-2 left-0 right-0 text-center text-[11px] font-bold text-white leading-tight drop-shadow-md">
+                {cat.label}
+              </span>
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      <div className="hidden sm:grid sm:grid-cols-3 lg:grid-cols-7 gap-3">
         {CATEGORIES.map((cat) => (
           <Link
             key={cat.type}
             href={`/biens?type=${cat.type}`}
-            className="relative w-[82px] h-[100px] rounded-xl overflow-hidden shrink-0 group active:scale-[.97] transition-transform"
+            className="relative h-28 rounded-2xl overflow-hidden group hover:-translate-y-0.5 transition-transform"
           >
             <Image
               src={cat.img}
               alt={cat.label}
               fill
               className="object-cover transition-transform duration-300 group-hover:scale-110"
-              sizes="82px"
+              sizes="(max-width: 1024px) 33vw, 14vw"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-            <span className="absolute bottom-2 left-0 right-0 text-center text-[11px] font-bold text-white leading-tight drop-shadow-md">
+            <span className="absolute bottom-2 left-0 right-0 text-center text-xs font-bold text-white leading-tight drop-shadow-md">
               {cat.label}
             </span>
           </Link>
         ))}
       </div>
-    </div>
+    </>
   );
 }

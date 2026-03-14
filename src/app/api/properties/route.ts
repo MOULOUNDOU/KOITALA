@@ -14,6 +14,8 @@ export async function GET(request: NextRequest) {
 
   const status = searchParams.get("status");
   const listing_type = searchParams.get("listing_type");
+  const rental_category = searchParams.get("rental_category");
+  const rent_payment_period = searchParams.get("rent_payment_period");
   const property_type = searchParams.get("property_type");
   const city = searchParams.get("city");
   const featured = searchParams.get("featured");
@@ -21,7 +23,37 @@ export async function GET(request: NextRequest) {
   if (status) query = query.eq("status", status);
   else query = query.eq("status", "publie");
 
-  if (listing_type) query = query.eq("listing_type", listing_type);
+  if (rental_category) {
+    query = query.eq("listing_type", "location");
+  } else if (listing_type) {
+    query = query.eq("listing_type", listing_type);
+  }
+
+  if (rental_category) {
+    switch (rental_category) {
+      case "chambre_meublee":
+        query = query
+          .eq("is_furnished", true)
+          .or("rental_category.eq.chambre_meublee,title.ilike.%chambre meubl%,description.ilike.%chambre meubl%,title.ilike.%meubl%,description.ilike.%meubl%");
+        break;
+      case "studio":
+        query = query.or("rental_category.eq.studio,title.ilike.%studio%,description.ilike.%studio%");
+        break;
+      case "appartement":
+        query = query.eq("property_type", "appartement").or("rental_category.eq.appartement");
+        break;
+      case "mini_studio":
+        query = query.or("rental_category.eq.mini_studio,title.ilike.%mini%studio%,description.ilike.%mini%studio%,title.ilike.%ministudio%,description.ilike.%ministudio%");
+        break;
+      case "colocation":
+        query = query.or("rental_category.eq.colocation,title.ilike.%colocation%,description.ilike.%colocation%,title.ilike.%co-location%,description.ilike.%co-location%");
+        break;
+      default:
+        break;
+    }
+  }
+  if (rent_payment_period) query = query.eq("rent_payment_period", rent_payment_period);
+
   if (property_type) query = query.eq("property_type", property_type);
   if (city) query = query.ilike("city", `%${city}%`);
   if (featured === "true") query = query.eq("is_featured", true);

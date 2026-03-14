@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { MessageSquare, Mail, Phone, Building2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { formatDate, getStatusColor, getStatusLabel } from "@/lib/utils";
@@ -9,13 +9,13 @@ import type { Contact } from "@/types";
 const STATUSES = ["nouveau", "lu", "traite", "archive"] as const;
 
 export default function MessagesPage() {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
 
-  const fetchContacts = async () => {
+  const fetchContacts = useCallback(async () => {
     let q = supabase
       .from("contacts")
       .select("*, property:properties(title)")
@@ -24,13 +24,16 @@ export default function MessagesPage() {
     const { data } = await q;
     setContacts((data as Contact[]) ?? []);
     setLoading(false);
-  };
+  }, [filter, supabase]);
 
-  useEffect(() => { fetchContacts(); }, [filter]);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void fetchContacts();
+  }, [fetchContacts]);
 
   const updateStatus = async (id: string, status: string) => {
     await supabase.from("contacts").update({ status }).eq("id", id);
-    fetchContacts();
+    await fetchContacts();
   };
 
   return (
@@ -75,12 +78,12 @@ export default function MessagesPage() {
                   if (contact.status === "nouveau") updateStatus(contact.id, "lu");
                 }}
               >
-                <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${contact.status === "nouveau" ? "bg-blue-500" : "bg-gray-200"}`} />
+                <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${contact.status === "nouveau" ? "bg-[#1a3a5c]" : "bg-gray-200"}`} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-3">
                     <p className="font-semibold text-[#0f1724]">{contact.full_name}</p>
                     {contact.subject && (
-                      <span className="text-sm text-gray-500 truncate">� {contact.subject}</span>
+                      <span className="text-sm text-gray-500 truncate">- {contact.subject}</span>
                     )}
                   </div>
                   <div className="flex items-center gap-4 mt-0.5">
@@ -136,4 +139,3 @@ export default function MessagesPage() {
     </div>
   );
 }
-

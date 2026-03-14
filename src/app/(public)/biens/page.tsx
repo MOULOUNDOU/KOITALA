@@ -2,10 +2,11 @@ export const dynamic = 'force-dynamic';
 
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import PropertyCard from "@/components/properties/PropertyCard";
 import PropertyFilters from "@/components/properties/PropertyFilters";
-import { Building2, SlidersHorizontal } from "lucide-react";
+import { Building2 } from "lucide-react";
 import type { Property, SearchFilters } from "@/types";
 
 export const metadata: Metadata = {
@@ -14,19 +15,53 @@ export const metadata: Metadata = {
     "Parcourez toutes nos annonces immobilières : appartements, maisons, villas, terrains et bureaux.",
 };
 
-async function getProperties(filters: SearchFilters): Promise<Property[]> {
+async function getProperties(
+  filters: SearchFilters,
+  page: number,
+  pageSize: number
+): Promise<{ properties: Property[]; total: number }> {
   const supabase = await createClient();
 
   let query = supabase
     .from("properties")
-    .select("*, property_images(*)")
+    .select("*, property_images(*)", { count: "exact" })
     .eq("status", "publie")
     .order("is_featured", { ascending: false })
     .order("created_at", { ascending: false });
 
-  if (filters.listing_type) {
+  if (filters.rental_category) {
+    query = query.eq("listing_type", "location");
+  } else if (filters.listing_type) {
     query = query.eq("listing_type", filters.listing_type);
   }
+
+  if (filters.rental_category) {
+    switch (filters.rental_category) {
+      case "chambre_meublee":
+        query = query
+          .eq("is_furnished", true)
+          .or("rental_category.eq.chambre_meublee,title.ilike.%chambre meubl%,description.ilike.%chambre meubl%,title.ilike.%meubl%,description.ilike.%meubl%");
+        break;
+      case "studio":
+        query = query.or("rental_category.eq.studio,title.ilike.%studio%,description.ilike.%studio%");
+        break;
+      case "appartement":
+        query = query.eq("property_type", "appartement").or("rental_category.eq.appartement");
+        break;
+      case "mini_studio":
+        query = query.or("rental_category.eq.mini_studio,title.ilike.%mini%studio%,description.ilike.%mini%studio%,title.ilike.%ministudio%,description.ilike.%ministudio%");
+        break;
+      case "colocation":
+        query = query.or("rental_category.eq.colocation,title.ilike.%colocation%,description.ilike.%colocation%,title.ilike.%co-location%,description.ilike.%co-location%");
+        break;
+      default:
+        break;
+    }
+  }
+  if (filters.rent_payment_period) {
+    query = query.eq("rent_payment_period", filters.rent_payment_period);
+  }
+
   if (filters.property_type) {
     query = query.eq("property_type", filters.property_type);
   }
@@ -57,8 +92,11 @@ async function getProperties(filters: SearchFilters): Promise<Property[]> {
     );
   }
 
-  const { data } = await query.limit(50);
-  return data ?? [];
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
+  const { data, count } = await query.range(from, to);
+  return { properties: data ?? [], total: count ?? 0 };
 }
 
 interface BienPageProps {
@@ -67,9 +105,12 @@ interface BienPageProps {
 
 export default async function BiensPage({ searchParams }: BienPageProps) {
   const params = await searchParams;
+  const PAGE_SIZE = 9;
 
   const filters: SearchFilters = {
     listing_type: (params.listing_type as SearchFilters["listing_type"]) ?? "",
+    rental_category: (params.rental_category as SearchFilters["rental_category"]) ?? "",
+    rent_payment_period: (params.rent_payment_period as SearchFilters["rent_payment_period"]) ?? "",
     property_type:
       (params.property_type as SearchFilters["property_type"]) ??
       (params.type as SearchFilters["property_type"]) ??
@@ -84,7 +125,42 @@ export default async function BiensPage({ searchParams }: BienPageProps) {
     query: params.query ?? "",
   };
 
-  const properties = await getProperties(filters);
+  const parsedPage = Number(params.page ?? "1");
+  let currentPage = Number.isFinite(parsedPage) && parsedPage > 0 ? Math.floor(parsedPage) : 1;
+
+  let { properties, total } = await getProperties(filters, currentPage, PAGE_SIZE);
+  const computedTotalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  if (total > 0 && currentPage > computedTotalPages) {
+    currentPage = computedTotalPages;
+    const fallbackQuery = await getProperties(filters, currentPage, PAGE_SIZE);
+    properties = fallbackQuery.properties;
+    total = fallbackQuery.total;
+  }
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const resultStart = total === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
+  const resultEnd = Math.min(currentPage * PAGE_SIZE, total);
+
+  const firstVisiblePage = Math.max(1, Math.min(currentPage - 2, totalPages - 4));
+  const lastVisiblePage = Math.min(totalPages, firstVisiblePage + 4);
+  const visiblePages = Array.from(
+    { length: lastVisiblePage - firstVisiblePage + 1 },
+    (_, i) => firstVisiblePage + i
+  );
+
+  const buildPageHref = (page: number): string => {
+    const nextParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (!value || key === "page") return;
+      nextParams.set(key, value);
+    });
+    if (page > 1) {
+      nextParams.set("page", String(page));
+    }
+    const query = nextParams.toString();
+    return query ? `/biens?${query}` : "/biens";
+  };
 
   return (
     <>
@@ -93,8 +169,8 @@ export default async function BiensPage({ searchParams }: BienPageProps) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <h1 className="text-3xl font-bold text-white mb-2">Nos biens</h1>
           <p className="text-gray-400">
-            {properties.length} bien{properties.length !== 1 ? "s" : ""}{" "}
-            disponible{properties.length !== 1 ? "s" : ""}
+            {total} bien{total !== 1 ? "s" : ""}{" "}
+            disponible{total !== 1 ? "s" : ""}
           </p>
         </div>
       </div>
@@ -115,9 +191,9 @@ export default async function BiensPage({ searchParams }: BienPageProps) {
                 <div className="flex items-center justify-between mb-5">
                   <p className="text-sm text-gray-500">
                     <span className="font-semibold text-[#0f1724]">
-                      {properties.length}
+                      {resultStart} - {resultEnd}
                     </span>{" "}
-                    résultat{properties.length !== 1 ? "s" : ""}
+                    sur {total} résultat{total !== 1 ? "s" : ""}
                   </p>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
@@ -125,6 +201,74 @@ export default async function BiensPage({ searchParams }: BienPageProps) {
                     <PropertyCard key={property.id} property={property} />
                   ))}
                 </div>
+
+                {totalPages > 1 && (
+                  <div className="mt-8 space-y-3">
+                    <div className="flex items-center justify-between sm:hidden">
+                      <Link
+                        href={buildPageHref(currentPage - 1)}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium border ${
+                          currentPage === 1
+                            ? "pointer-events-none border-gray-200 text-gray-300"
+                            : "border-[#1a3a5c]/30 text-[#1a3a5c]"
+                        }`}
+                      >
+                        Précédent
+                      </Link>
+                      <span className="text-sm text-gray-500">
+                        Page <span className="font-semibold text-[#0f1724]">{currentPage}</span> / {totalPages}
+                      </span>
+                      <Link
+                        href={buildPageHref(currentPage + 1)}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium border ${
+                          currentPage === totalPages
+                            ? "pointer-events-none border-gray-200 text-gray-300"
+                            : "border-[#1a3a5c]/30 text-[#1a3a5c]"
+                        }`}
+                      >
+                        Suivant
+                      </Link>
+                    </div>
+
+                    <div className="hidden sm:flex items-center justify-center gap-2">
+                      <Link
+                        href={buildPageHref(currentPage - 1)}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium border ${
+                          currentPage === 1
+                            ? "pointer-events-none border-gray-200 text-gray-300"
+                            : "border-[#1a3a5c]/30 text-[#1a3a5c] hover:bg-[#1a3a5c] hover:text-white"
+                        }`}
+                      >
+                        Précédent
+                      </Link>
+
+                      {visiblePages.map((page) => (
+                        <Link
+                          key={`page-${page}`}
+                          href={buildPageHref(page)}
+                          className={`w-10 h-10 rounded-lg text-sm font-semibold inline-flex items-center justify-center border transition-colors ${
+                            page === currentPage
+                              ? "bg-[#1a3a5c] border-[#1a3a5c] text-white"
+                              : "border-gray-200 text-gray-600 hover:border-[#1a3a5c]/40 hover:text-[#1a3a5c]"
+                          }`}
+                        >
+                          {page}
+                        </Link>
+                      ))}
+
+                      <Link
+                        href={buildPageHref(currentPage + 1)}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium border ${
+                          currentPage === totalPages
+                            ? "pointer-events-none border-gray-200 text-gray-300"
+                            : "border-[#1a3a5c]/30 text-[#1a3a5c] hover:bg-[#1a3a5c] hover:text-white"
+                        }`}
+                      >
+                        Suivant
+                      </Link>
+                    </div>
+                  </div>
+                )}
               </>
             ) : (
               <div className="flex flex-col items-center justify-center py-20 text-center">

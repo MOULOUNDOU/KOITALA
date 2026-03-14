@@ -1,15 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { User, Save, Lock, Eye, EyeOff } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  Eye,
+  EyeOff,
+  Lock,
+  Mail,
+  Phone,
+  Save,
+  ShieldCheck,
+  User,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
+import { formatDate } from "@/lib/utils";
 import toast from "react-hot-toast";
 import type { Profile } from "@/types";
 
 export default function ProfilPage() {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const [profile, setProfile] = useState<Partial<Profile>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -18,9 +28,13 @@ export default function ProfilPage() {
   const [changingPw, setChangingPw] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    let mounted = true;
+
+    const loadProfile = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+
       if (!user) {
-        setLoading(false);
+        if (mounted) setLoading(false);
         return;
       }
 
@@ -30,40 +44,118 @@ export default function ProfilPage() {
           : "";
       const emailFallback = user.email ?? "";
 
-      supabase.from("profiles").select("*").eq("id", user.id).single().then(({ data }) => {
-        const safeName = data?.full_name?.trim() || metadataName || emailFallback.split("@")[0] || "";
-        setProfile({
-          ...(data ?? {}),
-          full_name: safeName,
-          email: data?.email ?? emailFallback,
-        });
-        setLoading(false);
+      const { data } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (!mounted) return;
+
+      const safeName = data?.full_name?.trim() || metadataName || emailFallback.split("@")[0] || "Client";
+
+      setProfile({
+        ...(data ?? {}),
+        id: user.id,
+        full_name: safeName,
+        email: data?.email ?? emailFallback,
+        phone: data?.phone ?? "",
       });
-    });
+      setLoading(false);
+    };
+
+    void loadProfile();
+
+    return () => {
+      mounted = false;
+    };
   }, [supabase]);
 
   const handleSaveProfile = async () => {
-    setSaving(true);
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const { error } = await supabase.from("profiles").update({
-      full_name: profile.full_name,
-      phone: profile.phone,
-    }).eq("id", user.id);
+    if (!user) {
+      toast.error("Session expirée. Reconnectez-vous.");
+      return;
+    }
+
+    const normalizedName = profile.full_name?.trim() ?? "";
+    const normalizedPhone = profile.phone?.toString().trim() ?? "";
+
+    if (!normalizedName) {
+      toast.error("Le nom complet est requis.");
+      return;
+    }
+
+    setSaving(true);
+
+    const payload = {
+      id: user.id,
+      email: user.email ?? profile.email ?? "",
+      full_name: normalizedName,
+      phone: normalizedPhone || null,
+    };
+
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .upsert(payload, { onConflict: "id" });
+
+    if (profileError) {
+      setSaving(false);
+      toast.error("Impossible d'enregistrer votre profil.");
+      return;
+    }
+
+    const { error: authError } = await supabase.auth.updateUser({
+      data: {
+        full_name: normalizedName,
+      },
+    });
+
     setSaving(false);
-    if (error) { toast.error("Erreur lors de la mise à jour"); return; }
-    toast.success("Profil mis à jour !");
+
+    if (authError) {
+      toast.error("Profil enregistré, mais le nom de session n'a pas pu être synchronisé.");
+    } else {
+      toast.success("Profil mis à jour avec succès.");
+    }
+
+    setProfile((prev) => ({
+      ...prev,
+      full_name: normalizedName,
+      phone: normalizedPhone || null,
+      email: payload.email,
+    }));
+
+    window.dispatchEvent(
+      new CustomEvent("koitala:profile-updated", {
+        detail: { full_name: normalizedName },
+      })
+    );
   };
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password.new !== password.confirm) { toast.error("Les mots de passe ne correspondent pas"); return; }
-    if (password.new.length < 6) { toast.error("Mot de passe trop court (6 caractères min.)"); return; }
+
+    if (password.new !== password.confirm) {
+      toast.error("Les mots de passe ne correspondent pas.");
+      return;
+    }
+
+    if (password.new.length < 6) {
+      toast.error("Mot de passe trop court (6 caractères minimum).");
+      return;
+    }
+
     setChangingPw(true);
     const { error } = await supabase.auth.updateUser({ password: password.new });
     setChangingPw(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Mot de passe mis à jour !");
+
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    toast.success("Mot de passe mis à jour.");
     setPassword({ new: "", confirm: "" });
   };
 
@@ -75,78 +167,117 @@ export default function ProfilPage() {
     );
   }
 
+  const userName = profile.full_name?.trim() || "Client";
+
   return (
-    <div className="p-6 lg:p-8 max-w-2xl">
-      <div className="mb-7">
-        <h1 className="text-2xl font-bold text-[#0f1724]">Mon profil</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Gérez vos informations personnelles</p>
-      </div>
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6">
+      <section className="rounded-3xl border border-[#1a3a5c]/30 bg-[#1a3a5c] shadow-sm">
+        <div className="p-6 sm:p-8 lg:p-10 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
+          <div className="w-16 h-16 rounded-2xl bg-[#e8b86d] text-[#1a3a5c] text-2xl font-bold flex items-center justify-center shrink-0">
+            {userName.charAt(0).toUpperCase()}
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-2xl sm:text-3xl font-bold text-white truncate">{userName}</h1>
+            <p className="text-white/80 text-sm truncate mt-1">{profile.email ?? "Email non renseigné"}</p>
+            <p className="text-white/60 text-xs mt-1">
+              Membre depuis {profile.created_at ? formatDate(profile.created_at) : "récemment"}
+            </p>
+          </div>
+        </div>
+      </section>
 
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
-        <div className="flex items-center gap-3 mb-5">
-          <div className="w-9 h-9 bg-[#1a3a5c]/10 rounded-xl flex items-center justify-center">
-            <User className="w-4 h-4 text-[#1a3a5c]" />
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
+        <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-10 h-10 bg-[#1a3a5c]/10 rounded-xl flex items-center justify-center">
+              <User className="w-5 h-5 text-[#1a3a5c]" />
+            </div>
+            <div>
+              <h2 className="font-semibold text-[#0f1724]">Informations personnelles</h2>
+              <p className="text-xs text-gray-500">Ces données seront utilisées sur votre espace client.</p>
+            </div>
           </div>
-          <h2 className="font-semibold text-[#0f1724]">Informations personnelles</h2>
-        </div>
-        <div className="space-y-4">
-          <Input
-            label="Nom complet"
-            value={profile.full_name ?? ""}
-            onChange={(e) => setProfile((p) => ({ ...p, full_name: e.target.value }))}
-          />
-          <Input label="Email" type="email" value={profile.email ?? ""} disabled />
-          <Input
-            label="Téléphone"
-            type="tel"
-            value={profile.phone ?? ""}
-            onChange={(e) => setProfile((p) => ({ ...p, phone: e.target.value }))}
-          />
-          <div className="flex justify-end">
-            <Button loading={saving} onClick={handleSaveProfile}>
-              <Save className="w-4 h-4" /> Enregistrer
-            </Button>
-          </div>
-        </div>
-      </div>
 
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-        <div className="flex items-center gap-3 mb-5">
-          <div className="w-9 h-9 bg-[#1a3a5c]/10 rounded-xl flex items-center justify-center">
-            <Lock className="w-4 h-4 text-[#1a3a5c]" />
-          </div>
-          <h2 className="font-semibold text-[#0f1724]">Changer le mot de passe</h2>
-        </div>
-        <form onSubmit={handleChangePassword} className="space-y-4">
-          <div className="relative">
+          <div className="space-y-4">
             <Input
-              label="Nouveau mot de passe"
-              type={showPw ? "text" : "password"}
-              placeholder="••••••••"
-              value={password.new}
-              onChange={(e) => setPassword((p) => ({ ...p, new: e.target.value }))}
+              label="Nom complet"
+              value={profile.full_name ?? ""}
+              icon={<User className="w-4 h-4" />}
+              onChange={(e) => setProfile((prev) => ({ ...prev, full_name: e.target.value }))}
             />
-            <button
-              type="button"
-              onClick={() => setShowPw(!showPw)}
-              className="absolute right-3 top-9 text-gray-400 hover:text-gray-600"
-            >
-              {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
+
+            <Input
+              label="Email"
+              type="email"
+              value={profile.email ?? ""}
+              icon={<Mail className="w-4 h-4" />}
+              disabled
+            />
+
+            <Input
+              label="Téléphone"
+              type="tel"
+              value={profile.phone ?? ""}
+              icon={<Phone className="w-4 h-4" />}
+              placeholder="Ex: +221 77 000 00 00"
+              onChange={(e) => setProfile((prev) => ({ ...prev, phone: e.target.value }))}
+            />
+
+            <div className="pt-2 flex justify-end">
+              <Button loading={saving} onClick={handleSaveProfile}>
+                <Save className="w-4 h-4" /> Enregistrer les modifications
+              </Button>
+            </div>
           </div>
-          <Input
-            label="Confirmer le mot de passe"
-            type="password"
-            placeholder="••••••••"
-            value={password.confirm}
-            onChange={(e) => setPassword((p) => ({ ...p, confirm: e.target.value }))}
-          />
-          <div className="flex justify-end">
-            <Button type="submit" loading={changingPw}>
-              <Lock className="w-4 h-4" /> Modifier le mot de passe
-            </Button>
+        </section>
+
+        <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-10 h-10 bg-[#1a3a5c]/10 rounded-xl flex items-center justify-center">
+              <Lock className="w-5 h-5 text-[#1a3a5c]" />
+            </div>
+            <div>
+              <h2 className="font-semibold text-[#0f1724]">Sécurité du compte</h2>
+              <p className="text-xs text-gray-500">Mettez à jour votre mot de passe à tout moment.</p>
+            </div>
           </div>
-        </form>
+
+          <form onSubmit={handleChangePassword} className="space-y-4">
+            <div className="relative">
+              <Input
+                label="Nouveau mot de passe"
+                type={showPw ? "text" : "password"}
+                placeholder="••••••••"
+                icon={<Lock className="w-4 h-4" />}
+                value={password.new}
+                onChange={(e) => setPassword((prev) => ({ ...prev, new: e.target.value }))}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPw((prev) => !prev)}
+                className="absolute right-3 top-9 text-gray-400 hover:text-gray-600"
+                aria-label={showPw ? "Masquer" : "Afficher"}
+              >
+                {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+
+            <Input
+              label="Confirmer le mot de passe"
+              type="password"
+              placeholder="••••••••"
+              icon={<ShieldCheck className="w-4 h-4" />}
+              value={password.confirm}
+              onChange={(e) => setPassword((prev) => ({ ...prev, confirm: e.target.value }))}
+            />
+
+            <div className="pt-2 flex justify-end">
+              <Button type="submit" loading={changingPw}>
+                <Lock className="w-4 h-4" /> Modifier le mot de passe
+              </Button>
+            </div>
+          </form>
+        </section>
       </div>
     </div>
   );

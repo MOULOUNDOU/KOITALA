@@ -62,6 +62,14 @@ const SERVICES = [
   { icon: Scale, title: "Conseils & Accompagnement", description: "Services adaptés aux expatriés avec un accompagnement complet pour faciliter l'intégration dans le marché immobilier local." },
 ];
 
+const RENTAL_CATEGORY_LINKS = [
+  { label: "Chambre meublée", href: "/biens?listing_type=location&rental_category=chambre_meublee" },
+  { label: "Studio", href: "/biens?listing_type=location&rental_category=studio" },
+  { label: "Appartement", href: "/biens?listing_type=location&rental_category=appartement" },
+  { label: "Mini studio", href: "/biens?listing_type=location&rental_category=mini_studio" },
+  { label: "Colocation", href: "/biens?listing_type=location&rental_category=colocation" },
+];
+
 export default async function HomePage() {
   const [featured, recent] = await Promise.all([getFeaturedProperties(), getRecentProperties()]);
 
@@ -71,7 +79,7 @@ export default async function HomePage() {
       <LoginPromptPopup />
       <main>
         {/* HERO */}
-        <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
+        <section className="relative min-h-[100svh] flex items-center justify-center overflow-hidden">
           <HeroCarousel />
           <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 sm:pt-28 pb-24">
             <div className="text-center mb-8 sm:mb-10">
@@ -87,13 +95,27 @@ export default async function HomePage() {
           </div>
         </section>
 
-        {/* CATEGORY ICONS — mobile only */}
-        <section className="sm:hidden pt-6 pb-4 bg-white">
-          <div className="px-4 mb-3">
-            <h2 className="text-[15px] font-bold text-[#0f1724]">Explorer par catégorie</h2>
+        {/* CATEGORY ICONS */}
+        <section className="pt-6 sm:pt-10 pb-6 sm:pb-8 bg-white">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-3 sm:mb-5">
+            <h2 className="text-[15px] sm:text-xl font-bold text-[#0f1724]">Explorer par catégorie</h2>
           </div>
-          <div className="px-4">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <CategoryIcons />
+            <div className="mt-5 sm:mt-6">
+              <p className="text-xs sm:text-sm font-semibold text-[#1a3a5c] mb-2.5">Maisons à louer</p>
+              <div className="flex flex-wrap gap-2">
+                {RENTAL_CATEGORY_LINKS.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium bg-[#1a3a5c]/10 text-[#1a3a5c] hover:bg-[#1a3a5c] hover:text-white transition-colors"
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
           </div>
         </section>
 
@@ -101,12 +123,12 @@ export default async function HomePage() {
         {featured.length > 0 && (
           <section className="py-8 sm:py-20 bg-white" data-login-trigger>
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="flex items-end justify-between mb-5 sm:mb-10">
+              <div className="flex flex-col gap-2 min-[420px]:flex-row min-[420px]:items-end min-[420px]:justify-between mb-5 sm:mb-10">
                 <div>
                   <span className="hidden sm:block text-[#e8b86d] text-sm font-semibold uppercase tracking-widest">Coups de cœur</span>
-                  <h2 className="text-xl sm:text-3xl font-extrabold text-[#0f1724] sm:mt-1">Biens recommandés</h2>
+                  <h2 className="text-lg min-[420px]:text-xl sm:text-3xl font-extrabold text-[#0f1724] sm:mt-1">Biens recommandés</h2>
                 </div>
-                <Link href="/biens" className="flex items-center gap-1 text-sm font-semibold text-[#1a3a5c] hover:text-[#e8b86d] transition-colors shrink-0">
+                <Link href="/biens" className="inline-flex w-fit items-center gap-1 text-xs min-[420px]:text-sm font-semibold text-[#1a3a5c] hover:text-[#e8b86d] transition-colors shrink-0">
                   Voir tout <ArrowRight className="w-4 h-4" />
                 </Link>
               </div>
@@ -119,7 +141,7 @@ export default async function HomePage() {
                 ))}
               </div>
               {/* Mobile: 2-col compact grid */}
-              <div className="grid grid-cols-2 gap-3 sm:hidden">
+              <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-3 sm:hidden">
                 {featured.map((property) => (
                   <PropertyCardMobile key={property.id} property={property} />
                 ))}
@@ -131,12 +153,12 @@ export default async function HomePage() {
         {/* RECENT */}
         <section className="py-8 sm:py-20 bg-[#f4f6f9]">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-end justify-between mb-5 sm:mb-10">
+            <div className="flex flex-col gap-2 min-[420px]:flex-row min-[420px]:items-end min-[420px]:justify-between mb-5 sm:mb-10">
               <div>
                 <span className="hidden sm:block text-[#e8b86d] text-sm font-semibold uppercase tracking-widest">Nouveautés</span>
-                <h2 className="text-xl sm:text-3xl font-extrabold text-[#0f1724] sm:mt-1">À proximité</h2>
+                <h2 className="text-lg min-[420px]:text-xl sm:text-3xl font-extrabold text-[#0f1724] sm:mt-1">À proximité</h2>
               </div>
-              <Link href="/biens" className="flex items-center gap-1 text-sm font-semibold text-[#1a3a5c] hover:text-[#e8b86d] transition-colors shrink-0">
+              <Link href="/biens" className="inline-flex w-fit items-center gap-1 text-xs min-[420px]:text-sm font-semibold text-[#1a3a5c] hover:text-[#e8b86d] transition-colors shrink-0">
                 Voir tout <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
@@ -337,4 +359,3 @@ export default async function HomePage() {
     </>
   );
 }
-
