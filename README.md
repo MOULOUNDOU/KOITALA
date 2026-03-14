@@ -1,36 +1,165 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+﻿# KOITALA – Agence Immobiliere
 
-## Getting Started
+Application web complete pour une agence immobiliere personnelle.
 
-First, run the development server:
+## Stack technique
+- **Next.js 15** (App Router) + TypeScript
+- **Tailwind CSS** + design system premium
+- **Supabase** (base de données, auth, storage, RLS)
+- **React Hook Form** + Zod (validation)
+- **Lucide React** (icones)
+
+## Structure du projet
+
+```
+src/
+  app/
+    page.tsx                    # Page d accueil (/)
+    layout.tsx                  # Layout racine
+    (public)/                   # Groupe de routes publiques
+      layout.tsx                # Navbar + Footer
+      biens/page.tsx            # Liste des annonces
+      biens/[slug]/page.tsx     # Detail d un bien
+      contact/page.tsx          # Contact
+      a-propos/page.tsx         # A propos
+      blog/page.tsx             # Blog
+      blog/[slug]/page.tsx      # Article de blog
+    auth/
+      login/page.tsx
+      register/page.tsx
+      mot-de-passe-oublie/page.tsx
+    dashboard/                  # Espace admin (protege)
+      layout.tsx
+      page.tsx                  # Tableau de bord
+      annonces/page.tsx
+      annonces/nouvelle/page.tsx
+      annonces/[id]/page.tsx
+      demandes/page.tsx
+      messages/page.tsx
+      utilisateurs/page.tsx
+      blog/page.tsx
+      parametres/page.tsx
+    mon-compte/page.tsx         # Profil utilisateur
+    favoris/page.tsx            # Favoris
+    api/
+      properties/route.ts
+      visits/route.ts
+      contacts/route.ts
+  components/
+    ui/                         # Button, Input, Badge, Select, Textarea
+    layout/                     # Navbar, Footer, DashboardSidebar
+    properties/                 # PropertyCard, SearchBar, PropertyFilters, etc.
+    dashboard/                  # StatsCard
+  lib/
+    supabase/client.ts          # Client browser
+    supabase/server.ts          # Client server
+    utils.ts
+    validations.ts
+  middleware.ts                 # Protection des routes
+  types/index.ts
+supabase/
+  schema.sql                    # Schema SQL complet + RLS
+```
+
+## Installation
+
+### 1. Cloner / ouvrir le projet
+
+```bash
+cd koitala
+npm install
+```
+
+### 2. Creer le projet Supabase
+
+1. Allez sur [supabase.com](https://supabase.com) et creez un nouveau projet
+2. Notez votre **Project URL** et votre **anon public key**
+3. Notez aussi votre **service_role key** (Settings > API)
+
+### 3. Configurer les variables d environnement
+
+Creez un fichier `.env.local` a la racine du projet :
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://VOTRE_PROJECT_ID.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=votre_anon_key_ici
+SUPABASE_SERVICE_ROLE_KEY=votre_service_role_key_ici
+```
+
+### 4. Executer le schema SQL
+
+1. Allez dans **Supabase > SQL Editor**
+2. Copiez-collez le contenu de `supabase/schema.sql`
+3. Cliquez **Run**
+
+Cela va creer :
+- Toutes les tables (profiles, properties, property_images, property_features, favorites, visit_requests, contacts, blog_posts)
+- Les triggers (auto-creation de profil, updated_at)
+- Les politiques RLS
+- Les buckets de stockage
+
+### 5. Creer votre compte admin
+
+1. Allez sur votre app : `http://localhost:3000/auth/register`
+2. Creez votre compte avec votre email
+3. Dans Supabase > SQL Editor, executez :
+
+```sql
+UPDATE public.profiles 
+SET role = 'admin' 
+WHERE email = 'votre@email.com';
+```
+
+4. Vous avez maintenant acces au dashboard : `http://localhost:3000/dashboard`
+
+### 6. Lancer le serveur de developpement
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Ouvrez [http://localhost:3000](http://localhost:3000)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Pages principales
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| URL | Description |
+|-----|-------------|
+| `/` | Page d accueil avec hero, recherche, annonces |
+| `/biens` | Liste de toutes les annonces avec filtres |
+| `/biens/[slug]` | Detail d un bien |
+| `/contact` | Formulaire de contact |
+| `/a-propos` | Page a propos |
+| `/blog` | Blog immobilier |
+| `/auth/login` | Connexion |
+| `/auth/register` | Inscription |
+| `/dashboard` | Tableau de bord admin |
+| `/dashboard/annonces` | Gestion des annonces |
+| `/dashboard/annonces/nouvelle` | Creer une annonce |
+| `/dashboard/demandes` | Demandes de visite |
+| `/dashboard/messages` | Messages recus |
+| `/dashboard/utilisateurs` | Gestion des utilisateurs |
+| `/dashboard/blog` | Gestion du blog |
+| `/dashboard/parametres` | Parametres du compte |
+| `/mon-compte` | Profil utilisateur |
+| `/favoris` | Annonces sauvegardees |
 
-## Learn More
+## Build pour la production
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm run build
+npm start
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Notes importantes
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- **app/(public)/page.tsx** : Ce fichier contient uniquement `notFound()`. La vraie page d accueil est dans `app/page.tsx` pour eviter un conflit de route Next.js.
+- Les images Unsplash sont utilisees comme placeholder. Remplacez-les par vos vraies photos via le formulaire d upload dans le dashboard.
+- La carte de localisation utilise OpenStreetMap (aucune cle API requise).
+- Le blog supporte le HTML basique dans le champ content.
 
-## Deploy on Vercel
+## Personnalisation
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Couleurs** : Modifiez les variables CSS dans `src/app/globals.css`
+- **Informations de contact** : Mettez a jour `src/components/layout/Footer.tsx` et `src/components/layout/Navbar.tsx`
+- **Nom de l agence** : Recherchez "KOITALA" dans le projet pour remplacer
+- **Devise** : Modifiez `formatPrice()` dans `src/lib/utils.ts`
