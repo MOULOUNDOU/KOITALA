@@ -12,9 +12,15 @@ interface Props {
   property: Property;
   className?: string;
   preferVideoBubble?: boolean;
+  showFavoriteButton?: boolean;
 }
 
-export default function PropertyCardMobile({ property, className, preferVideoBubble = false }: Props) {
+export default function PropertyCardMobile({
+  property,
+  className,
+  preferVideoBubble = false,
+  showFavoriteButton = true,
+}: Props) {
   const [favorited, setFavorited] = useState(false);
   const [loadingFav, setLoadingFav] = useState(false);
   const supabase = createClient();
@@ -64,20 +70,21 @@ export default function PropertyCardMobile({ property, className, preferVideoBub
             <div className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-md bg-[#1a3a5c] text-white text-[10px] font-bold uppercase">
               {getListingTypeLabel(property.listing_type)}
             </div>
-            {/* Favorite */}
-            <div
-              role="button"
-              tabIndex={0}
-              onClick={handleFavorite}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleFavorite(e as unknown as React.MouseEvent); }}
-              aria-disabled={loadingFav}
-              className={cn(
-                "absolute top-2.5 right-2.5 w-8 h-8 rounded-full flex items-center justify-center shadow-md transition-all cursor-pointer",
-                favorited ? "bg-red-500 text-white" : "bg-white/90 text-gray-500"
-              )}
-            >
-              <Heart className={cn("w-4 h-4", favorited && "fill-current")} />
-            </div>
+            {showFavoriteButton && (
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={handleFavorite}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleFavorite(e as unknown as React.MouseEvent); }}
+                aria-disabled={loadingFav}
+                className={cn(
+                  "absolute top-2.5 right-2.5 w-8 h-8 rounded-full flex items-center justify-center shadow-md transition-all cursor-pointer",
+                  favorited ? "bg-red-500 text-white" : "bg-white/90 text-gray-500"
+                )}
+              >
+                <Heart className={cn("w-4 h-4", favorited && "fill-current")} />
+              </div>
+            )}
           </PropertyCardMedia>
         </div>
 

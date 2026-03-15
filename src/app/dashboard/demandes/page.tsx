@@ -563,19 +563,19 @@ export default function DemandesPage() {
                       Actions rapides
                     </p>
 
-                    <div className="mt-3 grid grid-cols-1 gap-2">
+                    <div className="mt-3 grid grid-cols-2 gap-2">
                       <a
                         href={`mailto:${visit.email}`}
-                        className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-[#1a3a5c]/15 bg-white px-4 text-sm font-semibold text-[#1a3a5c] transition-all hover:border-[#1a3a5c] hover:bg-[#1a3a5c]/5"
+                        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-[#1a3a5c]/15 bg-white px-3 py-3 text-center text-[13px] font-semibold leading-tight text-[#1a3a5c] transition-all hover:border-[#1a3a5c] hover:bg-[#1a3a5c]/5 sm:px-4 sm:text-sm"
                       >
                         <Mail className="h-4 w-4" />
-                        Envoyer un email
+                        Email
                       </a>
 
                       {visit.phone && (
                         <a
                           href={`tel:${visit.phone}`}
-                          className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-[#1a3a5c]/15 bg-white px-4 text-sm font-semibold text-[#1a3a5c] transition-all hover:border-[#1a3a5c] hover:bg-[#1a3a5c]/5"
+                          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-[#1a3a5c]/15 bg-white px-3 py-3 text-center text-[13px] font-semibold leading-tight text-[#1a3a5c] transition-all hover:border-[#1a3a5c] hover:bg-[#1a3a5c]/5 sm:px-4 sm:text-sm"
                         >
                           <Phone className="h-4 w-4" />
                           Appeler
@@ -585,10 +585,13 @@ export default function DemandesPage() {
                       <button
                         type="button"
                         onClick={() => handleSendToAgencyWhatsapp(visit, property)}
-                        className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-[#25D366]/25 bg-[#25D366]/10 px-4 text-sm font-semibold text-[#128C7E] transition-all hover:border-[#25D366] hover:bg-[#25D366]/15"
+                        className={cn(
+                          "inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-[#25D366]/25 bg-[#25D366]/10 px-3 py-3 text-center text-[13px] font-semibold leading-tight text-[#128C7E] transition-all hover:border-[#25D366] hover:bg-[#25D366]/15 sm:px-4 sm:text-sm",
+                          visit.phone ? "col-span-2" : "col-span-1"
+                        )}
                       >
                         <MessageCircle className="h-4 w-4" />
-                        Envoyer sur WhatsApp
+                        WhatsApp
                       </button>
                     </div>
 

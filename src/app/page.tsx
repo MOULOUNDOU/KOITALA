@@ -9,7 +9,6 @@ import HeroTextAnimation from "@/components/layout/HeroTextAnimation";
 import AnimatedSection from "@/components/layout/AnimatedSection";
 import NewsletterForm from "@/components/layout/NewsletterForm";
 import StatsCarousel from "@/components/layout/StatsCarousel";
-import { createClient } from "@/lib/supabase/server";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import PropertyCard from "@/components/properties/PropertyCard";
@@ -22,45 +21,12 @@ import SitePagination from "@/components/ui/SitePagination";
 import HowItWorksMobileCarousel from "@/components/layout/HowItWorksMobileCarousel";
 import { HOW_IT_WORKS_STEPS } from "@/components/layout/howItWorksData";
 import TestimonialsMobileCarousel from "@/components/layout/TestimonialsMobileCarousel";
-import type { Property } from "@/types";
+import { getFeaturedProperties, getRecentProperties } from "@/lib/properties";
 
 export const metadata: Metadata = {
   title: "KOITALA - Agence Immobilière | Achat, Vente, Construction & Location",
   description: "Agence Immobilière KOITALA : votre partenaire pour tous vos projets immobiliers, y compris pour les expatriés. Achat, vente, construction clé en main et gestion locative.",
 };
-
-async function getFeaturedProperties(
-  page: number,
-  pageSize: number
-): Promise<{ properties: Property[]; total: number }> {
-  const supabase = await createClient();
-  const from = (page - 1) * pageSize;
-  const to = from + pageSize - 1;
-
-  const { data, count } = await supabase
-    .from("properties")
-    .select("*, property_images(*)", { count: "exact" })
-    .eq("status", "publie")
-    .eq("is_featured", true)
-    .order("created_at", { ascending: false })
-    .order("id", { ascending: false })
-    .range(from, to);
-
-  return { properties: data ?? [], total: count ?? 0 };
-}
-
-async function getRecentProperties(limit: number): Promise<Property[]> {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("properties")
-    .select("*, property_images(*)")
-    .eq("status", "publie")
-    .order("created_at", { ascending: false })
-    .order("id", { ascending: false })
-    .limit(limit);
-
-  return data ?? [];
-}
 
 const STATS = [
   { label: "Années dans l'immobilier", value: "12+", icon: "Building2" },
@@ -203,50 +169,50 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   };
 
   return (
-    <>
+    <div className="public-motion-scope overflow-x-hidden">
       <Navbar />
       <LoginPromptPopup />
       <main>
-        {/* HERO */}
-        <section className="relative min-h-[100svh] flex items-center justify-center overflow-hidden">
-          <HeroCarousel />
-          <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 sm:pt-28 pb-24">
-            <div className="text-center mb-8 sm:mb-10">
-              <HeroTextAnimation />
-              <p className="animate-fade-up stagger-1 text-base sm:text-lg text-gray-300 max-w-2xl mx-auto leading-relaxed px-1">
-                Fort de 23 ans d&apos;expérience et 12 années d&apos;expertise dans l&apos;immobilier, KOITALA vous accompagne dans l&apos;achat, la vente, la construction et la location. Résidents et expatriés.
-              </p>
+          {/* HERO */}
+          <section className="relative min-h-[100svh] flex items-center justify-center overflow-hidden">
+            <HeroCarousel />
+            <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 sm:pt-28 pb-24">
+              <div className="text-center mb-8 sm:mb-10">
+                <HeroTextAnimation />
+                <p className="animate-fade-up stagger-1 text-base sm:text-lg text-gray-300 max-w-2xl mx-auto leading-relaxed px-1">
+                  Fort de 23 ans d&apos;expérience et 12 années d&apos;expertise dans l&apos;immobilier, KOITALA vous accompagne dans l&apos;achat, la vente, la construction et la location. Résidents et expatriés.
+                </p>
+              </div>
+              <SearchBar className="max-w-4xl mx-auto" />
             </div>
-            <SearchBar className="max-w-4xl mx-auto" />
-          </div>
-          <div className="absolute bottom-0 left-0 right-0">
-            <StatsCarousel stats={STATS} />
-          </div>
-        </section>
+            <div className="absolute bottom-0 left-0 right-0">
+              <StatsCarousel stats={STATS} />
+            </div>
+          </section>
 
-        {/* CATEGORY ICONS */}
-        <section className="pt-6 sm:pt-10 pb-6 sm:pb-8 bg-white">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-3 sm:mb-5">
-            <h2 className="text-[15px] sm:text-xl font-bold text-[#0f1724]">Explorer par catégorie</h2>
-          </div>
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <CategoryIcons />
-            <div className="mt-5 sm:mt-6">
-              <p className="text-xs sm:text-sm font-semibold text-[#1a3a5c] mb-2.5">Maisons à louer</p>
-              <div className="flex flex-wrap gap-2">
-                {RENTAL_CATEGORY_LINKS.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className="px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium bg-[#1a3a5c]/10 text-[#1a3a5c] hover:bg-[#1a3a5c] hover:text-white transition-colors"
-                  >
-                    {item.label}
-                  </Link>
-                ))}
+          {/* CATEGORY ICONS */}
+          <section className="pt-6 sm:pt-10 pb-6 sm:pb-8 bg-white">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-3 sm:mb-5">
+              <h2 className="text-[15px] sm:text-xl font-bold text-[#0f1724]">Explorer par catégorie</h2>
+            </div>
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <CategoryIcons />
+              <div className="mt-5 sm:mt-6">
+                <p className="text-xs sm:text-sm font-semibold text-[#1a3a5c] mb-2.5">Maisons à louer</p>
+                <div className="flex flex-wrap gap-2">
+                  {RENTAL_CATEGORY_LINKS.map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className="px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium bg-[#1a3a5c]/10 text-[#1a3a5c] hover:bg-[#1a3a5c] hover:text-white transition-colors"
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
-        </section>
+          </section>
 
         {/* FEATURED */}
         {displayedFeatured.length > 0 && (
@@ -563,6 +529,6 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         </AnimatedSection>
       </main>
       <Footer />
-    </>
+    </div>
   );
 }

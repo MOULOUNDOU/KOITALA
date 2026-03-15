@@ -1,6 +1,5 @@
 import type { Viewport } from "next";
 import DashboardSidebar from "@/components/layout/DashboardSidebar";
-import PageTransition from "@/components/layout/PageTransition";
 import MobileDashboardViewportLock from "@/components/layout/MobileDashboardViewportLock";
 
 export const viewport: Viewport = {
@@ -24,7 +23,7 @@ export default function DashboardLayout({
         data-dashboard-scroll-root
         className="flex-1 min-w-0 min-h-0 h-full overflow-y-auto overflow-x-hidden pt-14 md:pt-0 [-webkit-overflow-scrolling:touch] [overscroll-behavior-y:contain] [touch-action:pan-y]"
       >
-        <PageTransition>{children}</PageTransition>
+        {children}
       </div>
     </div>
   );

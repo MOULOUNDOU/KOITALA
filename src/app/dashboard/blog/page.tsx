@@ -77,7 +77,7 @@ export default function DashboardBlogPage() {
       </div>
 
       {showForm && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6 space-y-4">
+        <div className="mb-6 space-y-4 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-6">
           <h2 className="font-semibold text-[#0f1724]">Nouvel article</h2>
           <input
             placeholder="Titre *"
@@ -104,29 +104,38 @@ export default function DashboardBlogPage() {
             onChange={(e) => setForm((f) => ({ ...f, content: e.target.value }))}
             className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a3a5c]/30 focus:border-[#1a3a5c] resize-y"
           />
-          <div className="flex items-center gap-3">
-            <select
-              value={form.status}
-              onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}
-              className="px-4 py-2.5 rounded-xl border border-gray-200 text-sm bg-white focus:outline-none"
-            >
-              <option value="brouillon">Brouillon</option>
-              <option value="publie">Publié</option>
-            </select>
-            <div className="flex gap-2 ml-auto">
-              <button
-                onClick={() => setShowForm(false)}
-                className="px-4 py-2.5 text-sm text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50"
-              >
-                Annuler
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={saving || !form.title || !form.content}
-                className="px-5 py-2.5 text-sm font-semibold bg-[#1a3a5c] text-white rounded-xl hover:bg-[#0f2540] disabled:opacity-60 transition-colors"
-              >
-                {saving ? "Enregistrement..." : "Publier l'article"}
-              </button>
+          <div className="rounded-2xl bg-[#f8fafc] p-3 sm:bg-transparent sm:p-0">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-1">
+                <label htmlFor="blog-status" className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Statut de l&apos;article
+                </label>
+                <select
+                  id="blog-status"
+                  value={form.status}
+                  onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}
+                  className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a3a5c]/20 sm:min-w-[180px]"
+                >
+                  <option value="brouillon">Brouillon</option>
+                  <option value="publie">Publié</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-1 gap-2 sm:flex sm:items-center sm:justify-end">
+                <button
+                  onClick={() => setShowForm(false)}
+                  className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 sm:w-auto"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={saving || !form.title || !form.content}
+                  className="w-full rounded-xl bg-[#1a3a5c] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#0f2540] disabled:opacity-60 sm:w-auto"
+                >
+                  {saving ? "Enregistrement..." : "Publier l'article"}
+                </button>
+              </div>
             </div>
           </div>
         </div>

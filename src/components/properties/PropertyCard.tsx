@@ -14,6 +14,7 @@ interface PropertyCardProps {
   onFavoriteToggle?: (id: string) => void;
   className?: string;
   preferVideoBubble?: boolean;
+  showFavoriteButton?: boolean;
 }
 
 export default function PropertyCard({
@@ -22,6 +23,7 @@ export default function PropertyCard({
   onFavoriteToggle,
   className,
   preferVideoBubble = false,
+  showFavoriteButton = true,
 }: PropertyCardProps) {
   const [favorited, setFavorited] = useState(isFavorite);
   const [loadingFav, setLoadingFav] = useState(false);
@@ -117,22 +119,23 @@ export default function PropertyCard({
               )}
             </div>
 
-            {/* Favorite button */}
-            <div
-              role="button"
-              tabIndex={0}
-              onClick={handleFavorite}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleFavorite(e as unknown as React.MouseEvent); }}
-              aria-disabled={loadingFav}
-              className={cn(
-                "absolute top-3 right-3 w-11 h-11 sm:w-9 sm:h-9 rounded-full flex items-center justify-center shadow-md transition-all cursor-pointer",
-                favorited
-                  ? "bg-red-500 text-white"
-                  : "bg-white text-gray-400 hover:text-red-500"
-              )}
-            >
-              <Heart className={cn("w-5 h-5 sm:w-4 sm:h-4", favorited && "fill-current")} />
-            </div>
+            {showFavoriteButton && (
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={handleFavorite}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleFavorite(e as unknown as React.MouseEvent); }}
+                aria-disabled={loadingFav}
+                className={cn(
+                  "absolute top-3 right-3 w-11 h-11 sm:w-9 sm:h-9 rounded-full flex items-center justify-center shadow-md transition-all cursor-pointer",
+                  favorited
+                    ? "bg-red-500 text-white"
+                    : "bg-white text-gray-400 hover:text-red-500"
+                )}
+              >
+                <Heart className={cn("w-5 h-5 sm:w-4 sm:h-4", favorited && "fill-current")} />
+              </div>
+            )}
 
             {/* Price */}
             <div className="absolute bottom-3 left-3">

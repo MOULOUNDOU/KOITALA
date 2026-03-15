@@ -1,43 +1,45 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 
 interface Props {
   children: React.ReactNode;
 }
 
 export default function PageTransition({ children }: Props) {
+  const EXIT_DURATION_MS = 260;
   const pathname = usePathname();
   const [displayChildren, setDisplayChildren] = useState(children);
+  const [displayPath, setDisplayPath] = useState(pathname);
   const [phase, setPhase] = useState<"enter" | "exit">("enter");
-  const prevPath = useRef(pathname);
 
   useEffect(() => {
-    if (pathname !== prevPath.current) {
-      // Route changed — trigger exit then enter
-      setPhase("exit");
+    if (pathname !== displayPath) {
+      const exitFrame = requestAnimationFrame(() => {
+        setPhase("exit");
+      });
       const timeout = setTimeout(() => {
         setDisplayChildren(children);
+        setDisplayPath(pathname);
         setPhase("enter");
-        prevPath.current = pathname;
-      }, 200);
-      return () => clearTimeout(timeout);
-    } else {
-      // Same route, just update children
-      setDisplayChildren(children);
+      }, EXIT_DURATION_MS);
+      return () => {
+        cancelAnimationFrame(exitFrame);
+        clearTimeout(timeout);
+      };
     }
-  }, [pathname, children]);
+  }, [pathname, children, displayPath]);
 
   return (
     <div
       className={
         phase === "enter"
-          ? "min-h-full animate-page-enter"
-          : "min-h-full animate-page-exit"
+          ? "page-transition-shell min-h-full animate-page-enter"
+          : "page-transition-shell min-h-full animate-page-exit"
       }
     >
-      {displayChildren}
+      {pathname === displayPath ? children : displayChildren}
     </div>
   );
 }

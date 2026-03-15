@@ -203,11 +203,7 @@ export default function VisitContractGenerator({ visit }: VisitContractGenerator
   }
 
   if (!isEligible) {
-    return (
-      <div className="rounded-2xl border border-dashed border-gray-200 bg-white px-4 py-3 text-xs text-gray-500">
-        Le contrat de logement PDF est disponible uniquement pour les annonces en location.
-      </div>
-    );
+    return null;
   }
 
   return (

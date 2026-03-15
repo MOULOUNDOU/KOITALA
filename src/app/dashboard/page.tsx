@@ -1,27 +1,29 @@
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 import {
+  ArrowRight,
+  Bell,
   Building2,
   CalendarCheck,
-  MessageSquare,
-  Heart,
-  Plus,
-  ArrowRight,
   Eye,
-  Bell,
-  MapPin,
-  Bed,
-  Bath,
-  Maximize2,
+  Heart,
+  MessageSquare,
+  Pencil,
+  Plus,
 } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
 import StatsCard from "@/components/dashboard/StatsCard";
-import { formatPrice, formatDate, formatArea, getStatusColor, getStatusLabel, getPropertyTypeLabel } from "@/lib/utils";
+import PropertyCard from "@/components/properties/PropertyCard";
+import PropertyCardMobile from "@/components/properties/PropertyCardMobile";
+import SitePagination from "@/components/ui/SitePagination";
+import { getRecentPropertiesPage } from "@/lib/properties";
+import { createClient } from "@/lib/supabase/server";
+import { formatDate, getStatusColor, getStatusLabel } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Tableau de bord" };
+
+const LISTING_PAGE_SIZE = 6;
 
 async function getStats() {
   const supabase = await createClient();
@@ -42,6 +44,7 @@ async function getStats() {
     supabase.from("contacts").select("*", { count: "exact", head: true }).eq("status", "nouveau"),
     supabase.from("favorites").select("*", { count: "exact", head: true }),
   ]);
+
   return {
     totalProps: totalProps ?? 0,
     publishedProps: publishedProps ?? 0,
@@ -53,17 +56,6 @@ async function getStats() {
   };
 }
 
-async function getRecentProperties() {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("properties")
-    .select("id, title, slug, city, price, status, listing_type, property_type, main_image_url, bedrooms, bathrooms, area, created_at")
-    .order("created_at", { ascending: false })
-    .order("id", { ascending: false })
-    .limit(6);
-  return data ?? [];
-}
-
 async function getRecentVisits() {
   const supabase = await createClient();
   const { data } = await supabase
@@ -71,35 +63,86 @@ async function getRecentVisits() {
     .select("id, full_name, email, phone, status, created_at, property:properties(title)")
     .order("created_at", { ascending: false })
     .limit(5);
+
   return data ?? [];
 }
 
-export default async function DashboardPage() {
-  const [stats, recentProps, recentVisits] = await Promise.all([
+interface DashboardPageProps {
+  searchParams: Promise<Record<string, string>>;
+}
+
+export default async function DashboardPage({ searchParams }: DashboardPageProps) {
+  const params = await searchParams;
+  const parsedListingPage = Number(params.listing_page ?? "1");
+  let currentListingPage =
+    Number.isFinite(parsedListingPage) && parsedListingPage > 0
+      ? Math.floor(parsedListingPage)
+      : 1;
+
+  const [stats, listingQuery, recentVisits] = await Promise.all([
     getStats(),
-    getRecentProperties(),
+    getRecentPropertiesPage(currentListingPage, LISTING_PAGE_SIZE),
     getRecentVisits(),
   ]);
 
+  let listingProperties = listingQuery.properties;
+  let totalListingProperties = listingQuery.total;
+  const computedListingTotalPages = Math.max(
+    1,
+    Math.ceil(totalListingProperties / LISTING_PAGE_SIZE)
+  );
+
+  if (totalListingProperties > 0 && currentListingPage > computedListingTotalPages) {
+    currentListingPage = computedListingTotalPages;
+    const fallbackListingQuery = await getRecentPropertiesPage(
+      currentListingPage,
+      LISTING_PAGE_SIZE
+    );
+    listingProperties = fallbackListingQuery.properties;
+    totalListingProperties = fallbackListingQuery.total;
+  }
+
+  const listingTotalPages = Math.max(
+    1,
+    Math.ceil(totalListingProperties / LISTING_PAGE_SIZE)
+  );
+
+  const buildListingPageHref = (page: number): string => {
+    const nextParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (!value || key === "listing_page") return;
+      nextParams.set(key, value);
+    });
+
+    if (page > 1) {
+      nextParams.set("listing_page", String(page));
+    }
+
+    const query = nextParams.toString();
+    return query ? `/dashboard?${query}#listing-board` : "/dashboard#listing-board";
+  };
+
   return (
-    <div className="min-h-full p-4 pb-8 sm:p-6 sm:pb-10 lg:p-8 max-w-[1400px] mx-auto space-y-6">
-      {/* ── Header ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="mx-auto max-w-[1400px] space-y-6 p-4 pb-8 sm:p-6 sm:pb-10 lg:p-8">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-[#0f1724] tracking-tight">Overview</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Bienvenue dans votre espace KOITALA</p>
+          <h1 className="text-2xl font-extrabold tracking-tight text-[#0f1724] sm:text-3xl">
+            Tableau de bord
+          </h1>
+          <p className="mt-0.5 text-sm text-gray-500">
+            Vue d&apos;ensemble de l&apos;activité de l&apos;agence.
+          </p>
         </div>
         <Link
           href="/dashboard/annonces/nouvelle"
-          className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#1a3a5c] text-white text-sm font-semibold rounded-xl hover:bg-[#0f2540] active:scale-[.97] transition-all shadow-sm w-fit"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#1a3a5c] px-5 py-3 text-sm font-semibold text-white transition-all hover:bg-[#0f2540] sm:w-auto"
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="h-4 w-4" />
           Nouvelle annonce
         </Link>
       </div>
 
-      {/* ── Stat Cards ── */}
-      <div className="grid grid-cols-1 min-[420px]:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5">
+      <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 sm:gap-5 xl:grid-cols-4">
         <StatsCard
           title="Total annonces"
           value={stats.totalProps}
@@ -133,110 +176,149 @@ export default async function DashboardPage() {
         />
       </div>
 
-      {/* ── Alert Banner ── */}
       {stats.pendingVisits > 0 && (
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 bg-[#f4f6f9] border border-[#1a3a5c]/20 rounded-2xl p-4 sm:p-5">
-          <div className="w-10 h-10 bg-[#1a3a5c]/10 rounded-xl flex items-center justify-center shrink-0">
-            <Bell className="w-5 h-5 text-[#1a3a5c]" />
+        <div className="flex flex-col items-start gap-3 rounded-2xl border border-[#1a3a5c]/20 bg-[#f4f6f9] p-4 sm:flex-row sm:items-center sm:gap-4 sm:p-5">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#1a3a5c]/10">
+            <Bell className="h-5 w-5 text-[#1a3a5c]" />
           </div>
-          <div className="flex-1 min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-[#0f1724]">
               {stats.pendingVisits} demande{stats.pendingVisits > 1 ? "s" : ""} de visite en attente
             </p>
-            <p className="text-xs text-gray-500 mt-0.5">
-              Des demandes nécessitent votre attention. Consultez et répondez rapidement.
+            <p className="mt-0.5 text-xs text-gray-500">
+              Des demandes nécessitent votre attention. Consultez-les rapidement.
             </p>
           </div>
           <Link
             href="/dashboard/demandes"
-            className="px-4 py-2 bg-[#1a3a5c] border border-[#1a3a5c] text-sm font-semibold text-white rounded-xl hover:bg-[#0f2540] transition-colors shrink-0"
+            className="inline-flex items-center justify-center rounded-xl border border-[#1a3a5c] bg-[#1a3a5c] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#0f2540]"
           >
             Voir les demandes
           </Link>
         </div>
       )}
 
-      {/* ── Listing Board ── */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between px-5 sm:px-6 py-4 border-b border-gray-100 gap-3">
-          <div className="flex items-center gap-3">
-            <h2 className="text-lg font-bold text-[#0f1724]">Listing Board</h2>
-            {recentProps.length > 0 && (
-              <span className="px-2 py-0.5 bg-[#e8b86d]/20 text-[#1a3a5c] text-[11px] font-semibold rounded-full">
-                Récent
-              </span>
-            )}
+      <section
+        id="listing-board"
+        className="rounded-3xl border border-gray-100 bg-white shadow-sm"
+      >
+        <div className="flex flex-col gap-4 border-b border-gray-100 px-4 py-4 sm:px-5 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-[#0f1724] sm:text-xl">
+              Annonces récentes
+            </h2>
+            <p className="mt-1 text-sm text-gray-500">
+              Annonces publiées visibles sur la page d&apos;accueil.
+            </p>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <Link href="/dashboard/annonces" className="px-3.5 py-1.5 border border-gray-200 text-xs font-semibold text-gray-600 rounded-lg hover:bg-gray-50 transition-colors">
+
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
+            <Link
+              href="/dashboard/annonces"
+              className="inline-flex items-center justify-center rounded-xl border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-600 transition-colors hover:bg-gray-50 sm:px-3.5 sm:text-sm"
+            >
               Toutes les annonces
             </Link>
-            <Link href="/dashboard/annonces/nouvelle" className="px-3.5 py-1.5 bg-[#1a3a5c] text-white text-xs font-semibold rounded-lg hover:bg-[#0f2540] transition-colors">
-              + Ajouter
+            <Link
+              href="/dashboard/annonces/nouvelle"
+              className="inline-flex items-center justify-center rounded-xl bg-[#1a3a5c] px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#0f2540] sm:px-3.5 sm:text-sm"
+            >
+              Ajouter
             </Link>
           </div>
         </div>
-        {recentProps.length === 0 ? (
+
+        {listingProperties.length === 0 ? (
           <div className="px-6 py-12 text-center">
-            <Building2 className="w-12 h-12 text-gray-200 mx-auto mb-3" />
-            <p className="text-gray-400 text-sm">Aucune annonce pour le moment.</p>
-            <Link href="/dashboard/annonces/nouvelle" className="text-sm font-semibold text-[#1a3a5c] hover:underline mt-2 inline-block">
-              Créer votre première annonce →
+            <Building2 className="mx-auto mb-3 h-12 w-12 text-gray-200" />
+            <p className="text-sm text-gray-400">Aucune annonce pour le moment.</p>
+            <Link
+              href="/dashboard/annonces/nouvelle"
+              className="mt-2 inline-block text-sm font-semibold text-[#1a3a5c] hover:underline"
+            >
+              Créer votre première annonce
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 p-4 sm:p-5">
-            {recentProps.map((prop) => {
-              const img = prop.main_image_url || "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=400&q=80";
-              return (
-                <Link key={prop.id} href={`/dashboard/annonces/${prop.id}`} className="group block">
-                  <div className="bg-[#f4f6f9] rounded-xl overflow-hidden border border-gray-100 hover:shadow-md hover:border-gray-200 transition-all">
-                    <div className="relative h-36 sm:h-40 overflow-hidden">
-                      <Image src={img} alt={prop.title} fill className="object-cover group-hover:scale-105 transition-transform duration-500" sizes="(max-width: 640px) 100vw, 33vw" />
-                      <span className={`absolute top-2.5 left-2.5 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${prop.status === "publie" ? "bg-[#1a3a5c] text-white" : "bg-[#1a3a5c]/10 text-[#1a3a5c]"}`}>
-                        {getStatusLabel(prop.status)}
-                      </span>
-                    </div>
-                    <div className="p-3.5">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-[11px] font-semibold text-[#e8b86d]">{getPropertyTypeLabel(prop.property_type)}</span>
-                        <span className="text-[10px] text-gray-400">{formatDate(prop.created_at)}</span>
-                      </div>
-                      <h3 className="text-sm font-bold text-[#0f1724] leading-snug line-clamp-1">{prop.title}</h3>
-                      <div className="flex items-center gap-1 mt-1 mb-2">
-                        <MapPin className="w-3 h-3 text-gray-400" />
-                        <span className="text-[11px] text-gray-500 truncate">{prop.city}</span>
-                      </div>
-                      <p className="text-sm font-extrabold text-[#1a3a5c] mb-2">
-                        {formatPrice(prop.price)}
-                        {prop.listing_type === "location" && <span className="text-[10px] text-gray-400 font-normal"> /mois</span>}
-                      </p>
-                      <div className="flex items-center gap-3 pt-2 border-t border-gray-100 text-[11px] text-gray-500">
-                        {prop.bedrooms != null && (
-                          <span className="flex items-center gap-1"><Bed className="w-3 h-3" /> {prop.bedrooms}</span>
-                        )}
-                        {prop.bathrooms != null && (
-                          <span className="flex items-center gap-1"><Bath className="w-3 h-3" /> {prop.bathrooms}</span>
-                        )}
-                        {prop.area != null && (
-                          <span className="flex items-center gap-1"><Maximize2 className="w-3 h-3" /> {formatArea(prop.area)}</span>
-                        )}
-                      </div>
-                    </div>
+          <>
+            <div className="hidden gap-6 p-4 sm:grid sm:grid-cols-2 sm:p-5 xl:grid-cols-3">
+              {listingProperties.map((property) => (
+                <div key={property.id} className="space-y-3">
+                  <PropertyCard
+                    property={property}
+                    preferVideoBubble
+                    showFavoriteButton={false}
+                  />
+                  <div className="grid grid-cols-2 gap-3">
+                    <Link
+                      href={`/biens/${property.slug}`}
+                      className="inline-flex items-center justify-center gap-1.5 rounded-2xl border border-[#1a3a5c]/15 bg-white px-3 py-2.5 text-xs font-semibold text-[#1a3a5c] transition-all hover:border-[#1a3a5c] hover:bg-[#1a3a5c]/5 sm:px-4 sm:text-sm"
+                    >
+                      <Eye className="h-4 w-4" />
+                      Voir
+                    </Link>
+                    <Link
+                      href={`/dashboard/annonces/${property.id}`}
+                      className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-[#1a3a5c] px-3 py-2.5 text-xs font-semibold text-white transition-all hover:bg-[#0f2540] sm:px-4 sm:text-sm"
+                    >
+                      <Pencil className="h-4 w-4" />
+                      Modifier
+                    </Link>
                   </div>
-                </Link>
-              );
-            })}
-          </div>
-        )}
-      </div>
+                </div>
+              ))}
+            </div>
 
-      {/* ── Recent Visits Table ── */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
-        <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-gray-100">
+            <div className="grid grid-cols-1 gap-4 p-4 sm:hidden">
+              {listingProperties.map((property) => (
+                <div key={`${property.id}-mobile`} className="space-y-3">
+                  <PropertyCardMobile
+                    property={property}
+                    preferVideoBubble
+                    showFavoriteButton={false}
+                  />
+                  <div className="grid grid-cols-2 gap-3">
+                    <Link
+                      href={`/biens/${property.slug}`}
+                      className="inline-flex items-center justify-center gap-1.5 rounded-2xl border border-[#1a3a5c]/15 bg-white px-3 py-2.5 text-xs font-semibold text-[#1a3a5c] transition-all hover:border-[#1a3a5c] hover:bg-[#1a3a5c]/5"
+                    >
+                      <Eye className="h-4 w-4" />
+                      Voir
+                    </Link>
+                    <Link
+                      href={`/dashboard/annonces/${property.id}`}
+                      className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-[#1a3a5c] px-3 py-2.5 text-xs font-semibold text-white transition-all hover:bg-[#0f2540]"
+                    >
+                      <Pencil className="h-4 w-4" />
+                      Modifier
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {listingTotalPages > 1 && (
+              <div className="px-4 pb-4 sm:px-5 sm:pb-5">
+                <SitePagination
+                  currentPage={currentListingPage}
+                  totalPages={listingTotalPages}
+                  buildHref={buildListingPageHref}
+                  pageKeyPrefix="dashboard-listing-board"
+                />
+              </div>
+            )}
+          </>
+        )}
+      </section>
+
+      <div className="rounded-2xl border border-gray-100 bg-white shadow-sm">
+        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4 sm:px-6">
           <h2 className="text-lg font-bold text-[#0f1724]">Demandes récentes</h2>
-          <Link href="/dashboard/demandes" className="text-xs font-semibold text-[#1a3a5c] hover:underline flex items-center gap-1">
-            Tout voir <ArrowRight className="w-3 h-3" />
+          <Link
+            href="/dashboard/demandes"
+            className="flex items-center gap-1 text-xs font-semibold text-[#1a3a5c] hover:underline"
+          >
+            Tout voir <ArrowRight className="h-3 w-3" />
           </Link>
         </div>
         {recentVisits.length === 0 ? (
@@ -248,28 +330,40 @@ export default async function DashboardPage() {
             <table className="w-full min-w-[500px]">
               <thead>
                 <tr className="border-b border-gray-50">
-                  <th className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider px-5 py-3">Nom</th>
-                  <th className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider px-3 py-3">Bien</th>
-                  <th className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider px-3 py-3">Date</th>
-                  <th className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider px-3 py-3">Statut</th>
+                  <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                    Nom
+                  </th>
+                  <th className="px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                    Bien
+                  </th>
+                  <th className="px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                    Date
+                  </th>
+                  <th className="px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                    Statut
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {recentVisits.map((visit) => (
-                  <tr key={visit.id} className="hover:bg-[#f4f6f9] transition-colors">
+                  <tr key={visit.id} className="transition-colors hover:bg-[#f4f6f9]">
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 bg-gradient-to-br from-[#1a3a5c] to-[#0f2540] rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#1a3a5c] to-[#0f2540] text-xs font-bold text-white">
                           {visit.full_name.charAt(0).toUpperCase()}
                         </div>
                         <div className="min-w-0">
-                          <p className="text-sm font-semibold text-[#0f1724] truncate">{visit.full_name}</p>
-                          <p className="text-[11px] text-gray-400 truncate">{visit.email}</p>
+                          <p className="truncate text-sm font-semibold text-[#0f1724]">
+                            {visit.full_name}
+                          </p>
+                          <p className="truncate text-[11px] text-gray-400">
+                            {visit.email}
+                          </p>
                         </div>
                       </div>
                     </td>
                     <td className="px-3 py-3">
-                      <p className="text-sm text-gray-600 truncate max-w-[200px]">
+                      <p className="max-w-[200px] truncate text-sm text-gray-600">
                         {(visit.property as unknown as { title: string } | null)?.title ?? "—"}
                       </p>
                     </td>
@@ -277,7 +371,9 @@ export default async function DashboardPage() {
                       <p className="text-xs text-gray-400">{formatDate(visit.created_at)}</p>
                     </td>
                     <td className="px-3 py-3">
-                      <span className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-semibold ${getStatusColor(visit.status)}`}>
+                      <span
+                        className={`inline-block rounded-full px-2.5 py-1 text-[11px] font-semibold ${getStatusColor(visit.status)}`}
+                      >
                         {getStatusLabel(visit.status)}
                       </span>
                     </td>
@@ -289,26 +385,38 @@ export default async function DashboardPage() {
         )}
       </div>
 
-      {/* ── Quick Actions ── */}
-      <div className="grid grid-cols-1 min-[420px]:grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-        {[
-          { href: "/dashboard/annonces/nouvelle", icon: Plus,         label: "Nouvelle annonce",   bg: "bg-[#1a3a5c]", text: "text-white" },
-          { href: "/dashboard/demandes",          icon: CalendarCheck, label: "Demandes de visite", bg: "bg-[#0f2540]", text: "text-white" },
-          { href: "/dashboard/messages",          icon: MessageSquare, label: "Messages",           bg: "bg-[#e8b86d]", text: "text-[#1a3a5c]" },
-          { href: "/",                            icon: Eye,           label: "Voir le site",       bg: "bg-[#1a3a5c]/90", text: "text-white", newTab: true },
-        ].map((action) => (
-          <Link
-            key={action.href}
-            href={action.href}
-            target={action.newTab ? "_blank" : undefined}
-            rel={action.newTab ? "noopener noreferrer" : undefined}
-            className={`${action.bg} ${action.text} rounded-2xl p-4 sm:p-5 flex items-center gap-3 hover:opacity-90 active:scale-[.97] transition-all`}
-          >
-            <action.icon className="w-5 h-5 shrink-0" />
-            <span className="text-sm font-semibold">{action.label}</span>
-          </Link>
-        ))}
-      </div>
+      <section className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
+        <h2 className="text-base font-semibold text-[#0f1724] sm:text-lg">
+          Actions rapides
+        </h2>
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          {[
+            {
+              href: "/dashboard/annonces/nouvelle",
+              icon: Plus,
+              label: "Nouvelle annonce",
+              bg: "bg-[#1a3a5c]",
+              text: "text-white",
+            },
+            {
+              href: "/dashboard/demandes",
+              icon: CalendarCheck,
+              label: "Demandes de visite",
+              bg: "bg-[#0f2540]",
+              text: "text-white",
+            },
+          ].map((action) => (
+            <Link
+              key={action.href}
+              href={action.href}
+              className={`${action.bg} ${action.text} flex items-center justify-center gap-3 rounded-2xl px-4 py-4 text-center transition-all hover:opacity-92`}
+            >
+              <action.icon className="h-5 w-5 shrink-0" />
+              <span className="text-sm font-semibold">{action.label}</span>
+            </Link>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }

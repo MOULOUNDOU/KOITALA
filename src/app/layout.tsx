@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { Viewport } from "next";
 import { Cormorant_Garamond, Plus_Jakarta_Sans } from "next/font/google";
 import { Toaster } from "react-hot-toast";
+import PageTransition from "@/components/layout/PageTransition";
 import ScrollToTop from "@/components/layout/ScrollToTop";
 import StickyContactBar from "@/components/layout/StickyContactBar";
 import "./globals.css";
@@ -48,7 +49,7 @@ export default function RootLayout({
   return (
     <html lang="fr" className="scroll-smooth" suppressHydrationWarning>
       <body className={`${jakarta.variable} ${display.variable} antialiased`} suppressHydrationWarning>
-        {children}
+        <PageTransition>{children}</PageTransition>
         <ScrollToTop />
         <StickyContactBar />
         <Toaster

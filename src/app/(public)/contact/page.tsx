@@ -3,7 +3,6 @@ export const dynamic = 'force-dynamic';
 import type { Metadata } from "next";
 import { Phone, Mail, MapPin, Clock } from "lucide-react";
 import ContactPropertyForm from "@/components/properties/ContactPropertyForm";
-import MapContainer from "@/components/ui/MapContainer";
 
 export const metadata: Metadata = {
   title: "Contact",
@@ -67,18 +66,19 @@ export default function ContactPage() {
           <div className="grid lg:grid-cols-2 gap-10 items-start">
             <ContactPropertyForm />
 
-            <MapContainer
-              lat={14.6928}
-              lng={-17.4467}
-              label="KOITALA – Plateau, Dakar"
-              zoom={15}
-              height="380px"
-              className="w-full"
-            />
+            <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+              <iframe
+                src="https://www.google.com/maps/embed?pb=!1m14!1m12!1m3!1d15435.945269107686!2d-17.4915584!3d14.71336565!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!5e0!3m2!1sfr!2ssn!4v1773614550534!5m2!1sfr!2ssn"
+                title="Localisation KOITALA"
+                loading="lazy"
+                allowFullScreen
+                referrerPolicy="no-referrer-when-downgrade"
+                className="h-[380px] w-full"
+              />
+            </div>
           </div>
         </div>
       </section>
     </>
   );
 }
-

@@ -8,6 +8,9 @@ import {
   ArrowLeft,
   Save,
   Trash2,
+  Upload,
+  X,
+  Video,
   Building2,
   Megaphone,
   BadgeCheck,
@@ -17,6 +20,7 @@ import {
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { propertySchema, type PropertyInput } from "@/lib/validations";
+import { getEmbeddedVideoUrl, isDirectVideoUrl } from "@/lib/utils";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Textarea from "@/components/ui/Textarea";
@@ -72,6 +76,7 @@ const FORM_MOBILE_BUTTON_CLASS = "w-full sm:w-auto h-11 text-sm";
 const HERO_FORM_SELECT_LABEL_CLASS = "text-sm font-medium text-gray-700 normal-case tracking-normal mb-1.5";
 const HERO_FORM_SELECT_TRIGGER_CLASS = "py-3.5";
 const HERO_FORM_SELECT_DROPDOWN_CLASS = "rounded-2xl border border-gray-100 shadow-2xl";
+const MAX_VIDEO_SIZE_BYTES = 100 * 1024 * 1024;
 
 export default function EditAnnoncePage() {
   const router = useRouter();
@@ -79,6 +84,9 @@ export default function EditAnnoncePage() {
   const supabase = createClient();
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [videoPreview, setVideoPreview] = useState<string | null>(null);
+  const [videoFallbackUrl, setVideoFallbackUrl] = useState<string | null>(null);
 
   const {
     register,
@@ -96,6 +104,9 @@ export default function EditAnnoncePage() {
   const listingType = watch("listing_type");
   const rentalCategory = watch("rental_category") ?? "";
   const rentPaymentPeriod = watch("rent_payment_period") ?? "";
+  const currentVideoUrl = watch("video_url")?.trim() || "";
+  const directVideoPreview = videoPreview || (currentVideoUrl && isDirectVideoUrl(currentVideoUrl) ? currentVideoUrl : null);
+  const embeddedVideoPreview = !videoPreview ? getEmbeddedVideoUrl(currentVideoUrl) : null;
   const paymentPeriodOptions = useMemo(
     () =>
       rentalCategory && PAYMENT_PERIOD_OPTIONS_BY_CATEGORY[rentalCategory]
@@ -120,6 +131,9 @@ export default function EditAnnoncePage() {
             rental_category: data.rental_category ?? undefined,
             rent_payment_period: data.rent_payment_period ?? undefined,
           });
+          setVideoFile(null);
+          setVideoPreview(null);
+          setVideoFallbackUrl(null);
         }
         setLoading(false);
       });
@@ -141,6 +155,41 @@ export default function EditAnnoncePage() {
     }
   }, [listingType, paymentPeriodOptions, rentPaymentPeriod, setValue]);
 
+  useEffect(() => {
+    return () => {
+      if (videoPreview) {
+        URL.revokeObjectURL(videoPreview);
+      }
+    };
+  }, [videoPreview]);
+
+  const handleVideoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (file.size > MAX_VIDEO_SIZE_BYTES) {
+      toast.error("La vidéo ne doit pas dépasser 100 MB");
+      return;
+    }
+    if (videoPreview) {
+      URL.revokeObjectURL(videoPreview);
+    }
+    setVideoFallbackUrl(currentVideoUrl || null);
+    setVideoFile(file);
+    setVideoPreview(URL.createObjectURL(file));
+  };
+
+  const removeVideo = () => {
+    const fallbackVideoUrl = videoFile ? (videoFallbackUrl ?? "") : "";
+    setVideoFile(null);
+    if (videoPreview) {
+      URL.revokeObjectURL(videoPreview);
+    }
+    setVideoPreview(null);
+    setVideoFallbackUrl(null);
+    setValue("video_url", fallbackVideoUrl);
+  };
+
   const onSubmit = async (data: PropertyInput) => {
     const currentListingType = data.listing_type ?? getValues("listing_type");
     const currentRentalCategory = data.rental_category ?? getValues("rental_category");
@@ -153,7 +202,8 @@ export default function EditAnnoncePage() {
 
     const hasMainImageUrl = Boolean(data.main_image_url?.trim());
     const hasVideoUrl = Boolean(data.video_url?.trim());
-    if (!hasMainImageUrl && !hasVideoUrl) {
+    const hasPendingVideoUpload = Boolean(videoFile);
+    if (!hasMainImageUrl && !hasVideoUrl && !hasPendingVideoUpload) {
       toast.error("Ajoutez au moins un media: une photo ou une video.");
       return;
     }
@@ -189,6 +239,36 @@ export default function EditAnnoncePage() {
     }
 
     if (error) { toast.error("Erreur lors de la mise à jour"); return; }
+
+    if (videoFile) {
+      const ext = videoFile.name.split(".").pop();
+      const videoPath = `properties/${params.id}/video-${Date.now()}.${ext}`;
+      const { data: videoUploaded, error: videoUploadError } = await supabase.storage
+        .from("property-videos")
+        .upload(videoPath, videoFile, { upsert: true });
+
+      if (videoUploadError || !videoUploaded) {
+        toast.error("Annonce mise à jour, mais l'envoi de la vidéo vers Supabase a échoué.");
+        return;
+      }
+
+      const { data: videoPublicUrl } = supabase.storage
+        .from("property-videos")
+        .getPublicUrl(videoPath);
+      const { error: videoSaveError } = await supabase
+        .from("properties")
+        .update({ video_url: videoPublicUrl.publicUrl })
+        .eq("id", params.id);
+
+      if (videoSaveError) {
+        toast.error("Annonce mise à jour, mais l'URL de la vidéo n'a pas pu être enregistrée.");
+        return;
+      }
+
+      setValue("video_url", videoPublicUrl.publicUrl);
+      setVideoFallbackUrl(null);
+    }
+
     toast.success("Annonce mise à jour !");
     router.push("/dashboard/annonces");
   };
@@ -391,24 +471,83 @@ export default function EditAnnoncePage() {
         </div>
 
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-          <h2 className="font-semibold text-[#0f1724] mb-5">Médias (URL)</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <h2 className="font-semibold text-[#0f1724] mb-5">Médias</h2>
+          <div className="grid grid-cols-1 gap-6">
             <Input
               label="URL image principale"
               type="url"
               placeholder="https://exemple.com/image.jpg"
               {...register("main_image_url")}
             />
-            <Input
-              label="URL vidéo"
-              type="url"
-              placeholder="https://exemple.com/video.mp4 ou https://youtube.com/..."
-              {...register("video_url")}
-            />
+
+            <div>
+              <input type="hidden" {...register("video_url")} />
+              <p className="block text-sm font-medium text-gray-700 mb-1.5">Vidéo du bien</p>
+              <p className="mb-4 text-xs text-gray-400">
+                La vidéo est téléversée dans le stockage Supabase. Ajoutez au moins un media: une photo ou une video.
+              </p>
+              {!directVideoPreview && !embeddedVideoPreview ? (
+                <label className="flex flex-col items-center justify-center w-full h-36 border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-[#1a3a5c]/50 hover:bg-gray-50 transition-colors">
+                  <Upload className="w-8 h-8 text-gray-300 mb-2" />
+                  <span className="text-sm text-gray-500">Cliquez pour ajouter une vidéo</span>
+                  <span className="text-xs text-gray-400 mt-0.5">MP4, MOV, WEBM jusqu&apos;à 100 MB</span>
+                  <input
+                    type="file"
+                    accept="video/mp4,video/mov,video/webm,video/quicktime"
+                    className="hidden"
+                    onChange={handleVideoUpload}
+                  />
+                </label>
+              ) : (
+                <div className="relative">
+                  {directVideoPreview ? (
+                    <video
+                      src={directVideoPreview}
+                      controls
+                      className="w-full max-h-52 rounded-xl bg-black"
+                    />
+                  ) : (
+                    <iframe
+                      src={embeddedVideoPreview ?? undefined}
+                      title="Vidéo du bien"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                      className="w-full aspect-video rounded-xl border-0 bg-black"
+                      referrerPolicy="strict-origin-when-cross-origin"
+                    />
+                  )}
+                  <button
+                    type="button"
+                    onClick={removeVideo}
+                    className="absolute top-2 right-2 w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-all duration-200 active:scale-[0.96]"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-gray-400">
+                    <span>
+                      {videoFile ? `${videoFile.name} (${(videoFile.size / (1024 * 1024)).toFixed(1)} MB)` : "Vidéo enregistrée"}
+                    </span>
+                    {videoFile ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-[#1a3a5c]/8 px-2 py-1 text-[#1a3a5c]">
+                        <Video className="w-3 h-3" />
+                        Remplacement prêt
+                      </span>
+                    ) : null}
+                  </div>
+                  <label className="mt-3 inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-[#1a3a5c] hover:text-[#0f2540]">
+                    <Upload className="w-4 h-4" />
+                    Remplacer la vidéo
+                    <input
+                      type="file"
+                      accept="video/mp4,video/mov,video/webm,video/quicktime"
+                      className="hidden"
+                      onChange={handleVideoUpload}
+                    />
+                  </label>
+                </div>
+              )}
+            </div>
           </div>
-          <p className="mt-3 text-xs text-gray-400">
-            Ajoutez au moins un media: une photo ou une video.
-          </p>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3 justify-end">

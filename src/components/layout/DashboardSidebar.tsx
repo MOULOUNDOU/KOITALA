@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 
 const navItems = [
-  { label: "Overview",           href: "/dashboard",              icon: LayoutDashboard, exact: true },
+  { label: "Tableau de bord",    href: "/dashboard",              icon: LayoutDashboard, exact: true },
   { label: "Annonces",           href: "/dashboard/annonces",     icon: Building2 },
   { label: "Demandes",           href: "/dashboard/demandes",     icon: CalendarCheck },
   { label: "Messages",           href: "/dashboard/messages",     icon: MessageSquare },

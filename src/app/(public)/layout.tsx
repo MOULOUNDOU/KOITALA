@@ -1,6 +1,5 @@
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
-import PageTransition from "@/components/layout/PageTransition";
 
 export default function PublicLayout({
   children,
@@ -8,12 +7,12 @@ export default function PublicLayout({
   children: React.ReactNode;
 }) {
   return (
-    <>
+    <div className="public-motion-scope min-h-screen overflow-x-hidden">
       <Navbar />
       <main className="min-h-screen overflow-x-hidden">
-        <PageTransition>{children}</PageTransition>
+        {children}
       </main>
       <Footer />
-    </>
+    </div>
   );
 }

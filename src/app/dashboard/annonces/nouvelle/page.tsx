@@ -85,6 +85,7 @@ const FORM_MOBILE_BUTTON_CLASS = "w-full sm:w-auto h-11 text-sm";
 const HERO_FORM_SELECT_LABEL_CLASS = "text-sm font-medium text-gray-700 normal-case tracking-normal mb-1.5";
 const HERO_FORM_SELECT_TRIGGER_CLASS = "py-3.5";
 const HERO_FORM_SELECT_DROPDOWN_CLASS = "rounded-2xl border border-gray-100 shadow-2xl";
+const MAX_VIDEO_SIZE_BYTES = 100 * 1024 * 1024;
 
 export default function NouvelleAnnoncePage() {
   const router = useRouter();
@@ -159,6 +160,14 @@ export default function NouvelleAnnoncePage() {
     }
   }, [listingType, paymentPeriodOptions, rentPaymentPeriod, setValue]);
 
+  useEffect(() => {
+    return () => {
+      if (videoPreview) {
+        URL.revokeObjectURL(videoPreview);
+      }
+    };
+  }, [videoPreview]);
+
   const parseOptionalNumber = (value: unknown) => {
     if (value === "" || value === null || value === undefined) return undefined;
     const num = Number(value);
@@ -221,10 +230,14 @@ export default function NouvelleAnnoncePage() {
 
   const handleVideoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = "";
     if (!file) return;
-    if (file.size > 100 * 1024 * 1024) {
+    if (file.size > MAX_VIDEO_SIZE_BYTES) {
       toast.error("La vidéo ne doit pas dépasser 100 MB");
       return;
+    }
+    if (videoPreview) {
+      URL.revokeObjectURL(videoPreview);
     }
     setVideoFile(file);
     setVideoPreview(URL.createObjectURL(file));
@@ -234,6 +247,7 @@ export default function NouvelleAnnoncePage() {
     setVideoFile(null);
     if (videoPreview) URL.revokeObjectURL(videoPreview);
     setVideoPreview(null);
+    setValue("video_url", "");
   };
 
   const removeImage = (index: number) => {
@@ -293,8 +307,7 @@ export default function NouvelleAnnoncePage() {
     const hasUploadedImage = images.length > 0;
     const hasMainImageUrl = Boolean(data.main_image_url?.trim());
     const hasUploadedVideo = Boolean(videoFile);
-    const hasVideoUrl = Boolean(data.video_url?.trim());
-    if (!hasUploadedImage && !hasMainImageUrl && !hasUploadedVideo && !hasVideoUrl) {
+    if (!hasUploadedImage && !hasMainImageUrl && !hasUploadedVideo) {
       setStepDirection("forward");
       setStep(4);
       toast.error("Ajoutez au moins un media: une photo ou une video.");
@@ -315,7 +328,7 @@ export default function NouvelleAnnoncePage() {
       rental_category: currentListingType === "location" ? (currentRentalCategory || null) : null,
       rent_payment_period: currentListingType === "location" ? (currentRentPaymentPeriod || null) : null,
       main_image_url: data.main_image_url?.trim() || null,
-      video_url: data.video_url?.trim() || null,
+      video_url: null,
     };
 
     // Insert property
@@ -398,18 +411,30 @@ export default function NouvelleAnnoncePage() {
     if (videoFile) {
       const ext = videoFile.name.split(".").pop();
       const videoPath = `properties/${property.id}/video-${Date.now()}.${ext}`;
-      const { data: videoUploaded } = await supabase.storage
+      const { data: videoUploaded, error: videoUploadError } = await supabase.storage
         .from("property-videos")
         .upload(videoPath, videoFile, { upsert: true });
-      if (videoUploaded) {
-        const { data: videoPublicUrl } = supabase.storage
-          .from("property-videos")
-          .getPublicUrl(videoPath);
-        await supabase
-          .from("properties")
-          .update({ video_url: videoPublicUrl.publicUrl })
-          .eq("id", property.id);
+      if (videoUploadError || !videoUploaded) {
+        toast.error("Annonce créée, mais l'envoi de la vidéo vers Supabase a échoué. Réessayez depuis l'édition.");
+        router.push(`/dashboard/annonces/${property.id}`);
+        return;
       }
+
+      const { data: videoPublicUrl } = supabase.storage
+        .from("property-videos")
+        .getPublicUrl(videoPath);
+      const { error: videoSaveError } = await supabase
+        .from("properties")
+        .update({ video_url: videoPublicUrl.publicUrl })
+        .eq("id", property.id);
+
+      if (videoSaveError) {
+        toast.error("Annonce créée, mais l'URL de la vidéo n'a pas pu être enregistrée. Réessayez depuis l'édition.");
+        router.push(`/dashboard/annonces/${property.id}`);
+        return;
+      }
+
+      setValue("video_url", videoPublicUrl.publicUrl);
     }
 
     // Insert features
@@ -785,17 +810,10 @@ export default function NouvelleAnnoncePage() {
               {/* Video */}
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
                 <h2 className="font-semibold text-[#0f1724] mb-5">Vidéo du bien</h2>
-                <div className="mb-4">
-                  <Input
-                    label="URL vidéo (optionnel)"
-                    type="url"
-                    placeholder="https://exemple.com/video.mp4 ou https://youtube.com/..."
-                    {...register("video_url")}
-                  />
-                  <p className="text-xs text-gray-400 mt-1">
-                    Ajoutez au moins un media: photo ou video.
-                  </p>
-                </div>
+                <input type="hidden" {...register("video_url")} />
+                <p className="mb-4 text-xs text-gray-400">
+                  La vidéo est téléversée dans le stockage Supabase. Ajoutez au moins un media: photo ou video.
+                </p>
                 {!videoPreview ? (
                   <label className="flex flex-col items-center justify-center w-full h-36 border-2 border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-[#1a3a5c]/50 hover:bg-gray-50 transition-colors">
                     <Video className="w-8 h-8 text-gray-300 mb-2" />
