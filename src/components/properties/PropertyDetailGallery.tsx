@@ -3,14 +3,25 @@
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft, ChevronLeft, ChevronRight, Expand, Star, X } from "lucide-react";
-import { getListingTypeLabel, getPropertyTypeLabel } from "@/lib/utils";
+import { ArrowLeft, ChevronLeft, ChevronRight, Expand, Play, Star, X } from "lucide-react";
+import {
+  getEmbeddedVideoUrl,
+  getListingTypeLabel,
+  getPropertyTypeLabel,
+  isDirectVideoUrl,
+} from "@/lib/utils";
 import type { ListingType, PropertyType } from "@/types";
 
-interface GalleryImage {
+interface GalleryMedia {
   id: string;
+  type: "image" | "video";
   url: string;
   alt: string;
+  posterUrl?: string | null;
+}
+
+interface PreparedGalleryMedia extends GalleryMedia {
+  embedUrl: string | null;
 }
 
 interface PropertyDetailGalleryProps {
@@ -18,8 +29,23 @@ interface PropertyDetailGalleryProps {
   listingType: ListingType;
   propertyType: PropertyType;
   isFeatured: boolean;
-  images: GalleryImage[];
+  media: GalleryMedia[];
   variant?: "mobile" | "desktop" | "both";
+}
+
+function VideoPlaceholder({ label = "Video" }: { label?: string }) {
+  return (
+    <div className="absolute inset-0 flex items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(232,184,109,0.22),_transparent_38%),linear-gradient(145deg,_#132740,_#09111d)]">
+      <div className="flex flex-col items-center gap-3 text-white">
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10 shadow-[0_16px_35px_rgba(0,0,0,0.24)] backdrop-blur-sm">
+          <Play className="h-6 w-6 fill-current" />
+        </div>
+        <span className="text-xs font-semibold uppercase tracking-[0.22em] text-white/90">
+          {label}
+        </span>
+      </div>
+    </div>
+  );
 }
 
 export default function PropertyDetailGallery({
@@ -27,29 +53,31 @@ export default function PropertyDetailGallery({
   listingType,
   propertyType,
   isFeatured,
-  images,
+  media,
   variant = "both",
 }: PropertyDetailGalleryProps) {
-  const galleryImages = useMemo(() => {
+  const galleryItems = useMemo(() => {
     const seen = new Set<string>();
-    return images.filter((image) => {
-      if (!image.url || seen.has(image.url)) {
-        return false;
-      }
-      seen.add(image.url);
-      return true;
-    });
-  }, [images]);
+
+    return media
+      .filter((item) => {
+        const mediaKey = `${item.type}:${item.url}`;
+        if (!item.url || seen.has(mediaKey)) {
+          return false;
+        }
+        seen.add(mediaKey);
+        return true;
+      })
+      .map((item) => ({
+        ...item,
+        embedUrl: item.type === "video" ? getEmbeddedVideoUrl(item.url) : null,
+      }));
+  }, [media]);
 
   const [activeIndex, setActiveIndex] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
-
-  useEffect(() => {
-    if (activeIndex < galleryImages.length) {
-      return;
-    }
-    setActiveIndex(0);
-  }, [activeIndex, galleryImages.length]);
+  const safeActiveIndex = activeIndex < galleryItems.length ? activeIndex : 0;
+  const activeMedia = galleryItems[safeActiveIndex];
 
   useEffect(() => {
     if (!isOpen) {
@@ -65,12 +93,12 @@ export default function PropertyDetailGallery({
       }
       if (event.key === "ArrowLeft") {
         setActiveIndex((current) =>
-          current === 0 ? galleryImages.length - 1 : current - 1
+          current === 0 ? galleryItems.length - 1 : current - 1
         );
       }
       if (event.key === "ArrowRight") {
         setActiveIndex((current) =>
-          current === galleryImages.length - 1 ? 0 : current + 1
+          current === galleryItems.length - 1 ? 0 : current + 1
         );
       }
     };
@@ -81,53 +109,192 @@ export default function PropertyDetailGallery({
       document.body.style.overflow = originalOverflow;
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [galleryImages.length, isOpen]);
+  }, [galleryItems.length, isOpen]);
 
-  const activeImage = galleryImages[activeIndex];
-
-  if (!activeImage) {
+  if (!activeMedia) {
     return null;
   }
 
-  const openLightbox = (index = activeIndex) => {
+  const openLightbox = (index = safeActiveIndex) => {
     setActiveIndex(index);
     setIsOpen(true);
   };
 
   const showPrevious = () => {
     setActiveIndex((current) =>
-      current === 0 ? galleryImages.length - 1 : current - 1
+      current === 0 ? galleryItems.length - 1 : current - 1
     );
   };
 
   const showNext = () => {
     setActiveIndex((current) =>
-      current === galleryImages.length - 1 ? 0 : current + 1
+      current === galleryItems.length - 1 ? 0 : current + 1
     );
   };
 
   const showMobile = variant === "both" || variant === "mobile";
   const showDesktop = variant === "both" || variant === "desktop";
 
+  const renderMainMedia = (
+    item: PreparedGalleryMedia,
+    sizes: string,
+    mode: "mobile" | "desktop"
+  ) => {
+    if (item.type === "image") {
+      return (
+        <Image
+          src={item.url}
+          alt={item.alt}
+          fill
+          className={mode === "mobile" ? "object-cover object-bottom" : "object-cover transition-transform duration-500 group-hover:scale-[1.015]"}
+          priority
+          sizes={sizes}
+        />
+      );
+    }
+
+    if (isDirectVideoUrl(item.url)) {
+      return (
+        <video
+          src={item.url}
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          poster={item.posterUrl ?? undefined}
+          className="pointer-events-none h-full w-full object-cover"
+        />
+      );
+    }
+
+    if (item.embedUrl) {
+      return (
+        <iframe
+          src={item.embedUrl}
+          title={item.alt}
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowFullScreen
+          className="pointer-events-none h-full w-full border-0"
+          referrerPolicy="strict-origin-when-cross-origin"
+        />
+      );
+    }
+
+    return <VideoPlaceholder />;
+  };
+
+  const renderThumbnailMedia = (item: PreparedGalleryMedia) => {
+    if (item.type === "image") {
+      return (
+        <Image
+          src={item.url}
+          alt={item.alt}
+          fill
+          className="object-cover"
+          sizes="80px"
+        />
+      );
+    }
+
+    if (isDirectVideoUrl(item.url)) {
+      return (
+        <>
+          <video
+            src={item.url}
+            muted
+            playsInline
+            preload="metadata"
+            poster={item.posterUrl ?? undefined}
+            className="h-full w-full object-cover"
+          />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+        </>
+      );
+    }
+
+    if (item.posterUrl) {
+      return (
+        <>
+          <Image
+            src={item.posterUrl}
+            alt={item.alt}
+            fill
+            className="object-cover"
+            sizes="80px"
+          />
+          <div className="pointer-events-none absolute inset-0 bg-black/35" />
+        </>
+      );
+    }
+
+    return <VideoPlaceholder label="Media" />;
+  };
+
+  const renderLightboxMedia = (item: PreparedGalleryMedia) => {
+    if (item.type === "image") {
+      return (
+        <Image
+          src={item.url}
+          alt={item.alt}
+          width={1800}
+          height={1200}
+          className="max-h-[82vh] w-auto max-w-full rounded-2xl object-contain shadow-2xl"
+          priority
+        />
+      );
+    }
+
+    if (isDirectVideoUrl(item.url)) {
+      return (
+        <video
+          src={item.url}
+          controls
+          autoPlay
+          playsInline
+          poster={item.posterUrl ?? undefined}
+          className="max-h-[82vh] w-auto max-w-full rounded-2xl bg-black shadow-2xl"
+        />
+      );
+    }
+
+    if (item.embedUrl) {
+      return (
+        <div className="aspect-video w-full max-w-5xl overflow-hidden rounded-2xl bg-black shadow-2xl">
+          <iframe
+            src={item.embedUrl}
+            title={item.alt}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+            className="h-full w-full border-0"
+            referrerPolicy="strict-origin-when-cross-origin"
+          />
+        </div>
+      );
+    }
+
+    return (
+      <div className="relative h-[70vh] w-full max-w-5xl overflow-hidden rounded-2xl shadow-2xl">
+        <VideoPlaceholder label="Video" />
+      </div>
+    );
+  };
+
   return (
     <>
       {showMobile && (
         <div className="sm:hidden relative pt-20">
           <div className="relative h-[54svh] min-h-[280px] overflow-hidden rounded-b-2xl bg-[#0f1724]">
-            <button
-              type="button"
-              onClick={() => openLightbox()}
-              className="absolute inset-0 z-10 cursor-zoom-in"
-              aria-label="Ouvrir la photo en plein ecran"
-            />
-            <Image
-              src={activeImage.url}
-              alt={activeImage.alt}
-              fill
-              className="object-cover object-bottom"
-              priority
-              sizes="100vw"
-            />
+            {activeMedia.type === "image" && (
+              <button
+                type="button"
+                onClick={() => openLightbox()}
+                className="absolute inset-0 z-10 cursor-zoom-in"
+                aria-label="Ouvrir le media en plein ecran"
+              />
+            )}
+
+            {renderMainMedia(activeMedia, "100vw", "mobile")}
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/20" />
 
             <div className="absolute top-3 left-4 right-4 z-20 flex items-center justify-between">
@@ -156,42 +323,55 @@ export default function PropertyDetailGallery({
               >
                 {getListingTypeLabel(listingType)}
               </span>
-              <button
-                type="button"
-                onClick={() => openLightbox()}
-                className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-white/90 px-3 py-2 text-xs font-semibold text-[#0f1724] shadow-md backdrop-blur-sm transition-transform duration-300 active:scale-[0.98]"
-              >
-                <Expand className="h-3.5 w-3.5" />
-                Voir la photo
-              </button>
+
+              {activeMedia.type === "image" ? (
+                <button
+                  type="button"
+                  onClick={() => openLightbox()}
+                  className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-white/90 px-3 py-2 text-xs font-semibold text-[#0f1724] shadow-md backdrop-blur-sm transition-transform duration-300 active:scale-[0.98]"
+                >
+                  <Expand className="h-3.5 w-3.5" />
+                  Voir la photo
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => openLightbox()}
+                  className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-white/90 px-3 py-2 text-xs font-semibold text-[#0f1724] shadow-md backdrop-blur-sm transition-transform duration-300 active:scale-[0.98]"
+                >
+                  <Play className="h-3.5 w-3.5 fill-current" />
+                  Voir la video
+                </button>
+              )}
             </div>
           </div>
 
-          {galleryImages.length > 1 && (
+          {galleryItems.length > 1 && (
             <div className="mt-2 flex gap-1.5 overflow-x-auto px-4 scrollbar-hide">
-              {galleryImages.slice(0, 6).map((image, index) => (
-              <button
-                key={image.id}
-                type="button"
-                onClick={() => openLightbox(index)}
-                className={`relative h-14 w-14 shrink-0 overflow-hidden rounded-xl border-2 shadow-sm transition-transform duration-300 ${
-                  index === activeIndex
-                    ? "scale-[0.98] border-[#1a3a5c]"
+              {galleryItems.slice(0, 6).map((item, index) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setActiveIndex(index)}
+                  className={`relative h-14 w-14 shrink-0 overflow-hidden rounded-xl border-2 shadow-sm transition-transform duration-300 ${
+                    index === safeActiveIndex
+                      ? "scale-[0.98] border-[#1a3a5c]"
                       : "border-white"
                   }`}
-                  aria-label={`Afficher la photo ${index + 1}`}
+                  aria-label={`Afficher le media ${index + 1}`}
                 >
-                  <Image
-                    src={image.url}
-                    alt={image.alt}
-                    fill
-                    className="object-cover"
-                    sizes="56px"
-                  />
-                  {index === 5 && galleryImages.length > 6 && (
+                  {renderThumbnailMedia(item)}
+                  {item.type === "video" && (
+                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                      <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-black/55 text-white">
+                        <Play className="h-3 w-3 fill-current" />
+                      </span>
+                    </div>
+                  )}
+                  {index === 5 && galleryItems.length > 6 && (
                     <div className="absolute inset-0 flex items-center justify-center bg-black/55">
                       <span className="text-xs font-bold text-white">
-                        +{galleryImages.length - 6}
+                        +{galleryItems.length - 6}
                       </span>
                     </div>
                   )}
@@ -204,21 +384,17 @@ export default function PropertyDetailGallery({
 
       {showDesktop && (
         <div className="hidden sm:block">
-          <div className="group relative h-[28rem] overflow-hidden rounded-2xl shadow-md">
-            <button
-              type="button"
-              onClick={() => openLightbox()}
-              className="absolute inset-0 z-10 cursor-zoom-in"
-              aria-label="Ouvrir la photo en plein ecran"
-            />
-            <Image
-              src={activeImage.url}
-              alt={activeImage.alt}
-              fill
-              className="object-cover transition-transform duration-500 group-hover:scale-[1.015]"
-              priority
-              sizes="66vw"
-            />
+          <div className="group relative h-[28rem] overflow-hidden rounded-2xl bg-[#0f1724] shadow-md">
+            {activeMedia.type === "image" && (
+              <button
+                type="button"
+                onClick={() => openLightbox()}
+                className="absolute inset-0 z-10 cursor-zoom-in"
+                aria-label="Ouvrir le media en plein ecran"
+              />
+            )}
+
+            {renderMainMedia(activeMedia, "66vw", "desktop")}
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-black/10" />
 
             <div className="absolute top-4 left-4 z-20 flex gap-2">
@@ -234,6 +410,11 @@ export default function PropertyDetailGallery({
               <span className="rounded-lg bg-white/90 px-3 py-1.5 text-xs font-medium text-gray-700">
                 {getPropertyTypeLabel(propertyType)}
               </span>
+              {activeMedia.type === "video" && (
+                <span className="rounded-lg bg-white/90 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-[#0f1724]">
+                  Video
+                </span>
+              )}
             </div>
 
             {isFeatured && (
@@ -250,37 +431,42 @@ export default function PropertyDetailGallery({
                 onClick={() => openLightbox()}
                 className="inline-flex items-center gap-2 rounded-full bg-white/92 px-4 py-2.5 text-sm font-semibold text-[#0f1724] shadow-lg backdrop-blur-sm transition-transform duration-300 hover:scale-[1.02]"
               >
-                <Expand className="h-4 w-4" />
-                Ouvrir en grand
+                {activeMedia.type === "image" ? (
+                  <Expand className="h-4 w-4" />
+                ) : (
+                  <Play className="h-4 w-4 fill-current" />
+                )}
+                {activeMedia.type === "image" ? "Ouvrir en grand" : "Voir la video"}
               </button>
             </div>
           </div>
 
-          {galleryImages.length > 1 && (
+          {galleryItems.length > 1 && (
             <div className="mt-2 grid grid-cols-6 gap-2">
-              {galleryImages.slice(0, 8).map((image, index) => (
-              <button
-                key={image.id}
-                type="button"
-                onClick={() => openLightbox(index)}
-                className={`relative h-16 overflow-hidden rounded-lg border transition-all duration-300 ${
-                  index === activeIndex
-                    ? "border-[#1a3a5c] ring-2 ring-[#1a3a5c]/15"
+              {galleryItems.slice(0, 8).map((item, index) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setActiveIndex(index)}
+                  className={`relative h-16 overflow-hidden rounded-lg border transition-all duration-300 ${
+                    index === safeActiveIndex
+                      ? "border-[#1a3a5c] ring-2 ring-[#1a3a5c]/15"
                       : "border-transparent hover:border-[#1a3a5c]/30"
                   }`}
-                  aria-label={`Afficher la photo ${index + 1}`}
+                  aria-label={`Afficher le media ${index + 1}`}
                 >
-                  <Image
-                    src={image.url}
-                    alt={image.alt}
-                    fill
-                    className="object-cover"
-                    sizes="80px"
-                  />
-                  {index === 7 && galleryImages.length > 8 && (
+                  {renderThumbnailMedia(item)}
+                  {item.type === "video" && (
+                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                      <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-black/55 text-white">
+                        <Play className="h-3.5 w-3.5 fill-current" />
+                      </span>
+                    </div>
+                  )}
+                  {index === 7 && galleryItems.length > 8 && (
                     <div className="absolute inset-0 flex items-center justify-center bg-black/55">
                       <span className="text-sm font-bold text-white">
-                        +{galleryImages.length - 8}
+                        +{galleryItems.length - 8}
                       </span>
                     </div>
                   )}
@@ -296,7 +482,7 @@ export default function PropertyDetailGallery({
           className="fixed inset-0 z-[100] bg-[#020711]/95 backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
-          aria-label={`Galerie photo de ${title}`}
+          aria-label={`Galerie media de ${title}`}
           onClick={() => setIsOpen(false)}
         >
           <div className="flex h-full flex-col">
@@ -304,7 +490,7 @@ export default function PropertyDetailGallery({
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold text-white">{title}</p>
                 <p className="text-xs text-white/60">
-                  Photo {activeIndex + 1} sur {galleryImages.length}
+                  Media {safeActiveIndex + 1} sur {galleryItems.length}
                 </p>
               </div>
               <button
@@ -318,7 +504,7 @@ export default function PropertyDetailGallery({
             </div>
 
             <div className="flex flex-1 items-center justify-center gap-3 px-3 pb-4 sm:px-6">
-              {galleryImages.length > 1 && (
+              {galleryItems.length > 1 && (
                 <button
                   type="button"
                   onClick={(event) => {
@@ -326,7 +512,7 @@ export default function PropertyDetailGallery({
                     showPrevious();
                   }}
                   className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/10 text-white transition-colors duration-300 hover:bg-white/20 sm:flex"
-                  aria-label="Photo precedente"
+                  aria-label="Media precedent"
                 >
                   <ChevronLeft className="h-6 w-6" />
                 </button>
@@ -336,22 +522,15 @@ export default function PropertyDetailGallery({
                 className="relative flex max-h-[82vh] w-full max-w-6xl items-center justify-center"
                 onClick={(event) => event.stopPropagation()}
               >
-                <Image
-                  src={activeImage.url}
-                  alt={activeImage.alt}
-                  width={1800}
-                  height={1200}
-                  className="max-h-[82vh] w-auto max-w-full rounded-2xl object-contain shadow-2xl"
-                  priority
-                />
+                {renderLightboxMedia(activeMedia)}
 
-                {galleryImages.length > 1 && (
+                {galleryItems.length > 1 && (
                   <>
                     <button
                       type="button"
                       onClick={showPrevious}
                       className="absolute left-3 flex h-11 w-11 items-center justify-center rounded-full bg-black/35 text-white transition-colors duration-300 hover:bg-black/55 sm:hidden"
-                      aria-label="Photo precedente"
+                      aria-label="Media precedent"
                     >
                       <ChevronLeft className="h-5 w-5" />
                     </button>
@@ -359,7 +538,7 @@ export default function PropertyDetailGallery({
                       type="button"
                       onClick={showNext}
                       className="absolute right-3 flex h-11 w-11 items-center justify-center rounded-full bg-black/35 text-white transition-colors duration-300 hover:bg-black/55 sm:hidden"
-                      aria-label="Photo suivante"
+                      aria-label="Media suivant"
                     >
                       <ChevronRight className="h-5 w-5" />
                     </button>
@@ -367,7 +546,7 @@ export default function PropertyDetailGallery({
                 )}
               </div>
 
-              {galleryImages.length > 1 && (
+              {galleryItems.length > 1 && (
                 <button
                   type="button"
                   onClick={(event) => {
@@ -375,37 +554,38 @@ export default function PropertyDetailGallery({
                     showNext();
                   }}
                   className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/10 text-white transition-colors duration-300 hover:bg-white/20 sm:flex"
-                  aria-label="Photo suivante"
+                  aria-label="Media suivant"
                 >
                   <ChevronRight className="h-6 w-6" />
                 </button>
               )}
             </div>
 
-            {galleryImages.length > 1 && (
+            {galleryItems.length > 1 && (
               <div
                 className="flex gap-2 overflow-x-auto px-4 pb-5 sm:px-6"
                 onClick={(event) => event.stopPropagation()}
               >
-                {galleryImages.map((image, index) => (
+                {galleryItems.map((item, index) => (
                   <button
-                    key={image.id}
+                    key={item.id}
                     type="button"
                     onClick={() => setActiveIndex(index)}
                     className={`relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border transition-all duration-300 sm:h-20 sm:w-20 ${
-                      index === activeIndex
+                      index === safeActiveIndex
                         ? "border-white ring-2 ring-white/25"
                         : "border-white/15 opacity-75 hover:opacity-100"
                     }`}
-                    aria-label={`Afficher la photo ${index + 1}`}
+                    aria-label={`Afficher le media ${index + 1}`}
                   >
-                    <Image
-                      src={image.url}
-                      alt={image.alt}
-                      fill
-                      className="object-cover"
-                      sizes="80px"
-                    />
+                    {renderThumbnailMedia(item)}
+                    {item.type === "video" && (
+                      <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                        <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-black/55 text-white">
+                          <Play className="h-3.5 w-3.5 fill-current" />
+                        </span>
+                      </div>
+                    )}
                   </button>
                 ))}
               </div>

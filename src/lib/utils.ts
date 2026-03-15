@@ -161,3 +161,39 @@ export function isDirectVideoUrl(videoUrl?: string | null): boolean {
   if (!videoUrl) return false;
   return /\.(mp4|webm|ogg|mov|m4v)(?:$|[?#])/i.test(videoUrl);
 }
+
+export function getEmbeddedVideoUrl(videoUrl?: string | null): string | null {
+  if (!videoUrl) return null;
+
+  try {
+    const parsedUrl = new URL(videoUrl);
+    const hostname = parsedUrl.hostname.replace(/^www\./, "");
+
+    if (hostname === "youtu.be") {
+      const videoId = parsedUrl.pathname.split("/").filter(Boolean)[0];
+      return videoId ? `https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1` : null;
+    }
+
+    if (hostname.endsWith("youtube.com")) {
+      const pathSegments = parsedUrl.pathname.split("/").filter(Boolean);
+      const watchVideoId = parsedUrl.searchParams.get("v");
+      const embeddedVideoId =
+        pathSegments[0] === "embed" || pathSegments[0] === "shorts"
+          ? pathSegments[1]
+          : watchVideoId;
+
+      return embeddedVideoId
+        ? `https://www.youtube.com/embed/${embeddedVideoId}?rel=0&modestbranding=1`
+        : null;
+    }
+
+    if (hostname === "vimeo.com" || hostname.endsWith(".vimeo.com")) {
+      const videoId = parsedUrl.pathname.split("/").filter(Boolean).pop();
+      return videoId ? `https://player.vimeo.com/video/${videoId}` : null;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}

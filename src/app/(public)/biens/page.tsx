@@ -167,7 +167,7 @@ export default async function BiensPage({ searchParams }: BienPageProps) {
             className="mb-5 inline-flex w-fit items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white transition-all duration-300 hover:border-[#e8b86d]/60 hover:bg-white/10 hover:text-[#e8b86d]"
           >
             <ArrowLeft className="h-4 w-4" />
-            Retour à l'accueil
+            Retour à l&apos;accueil
           </Link>
           <h1 className="text-3xl font-bold text-white mb-2">Nos biens</h1>
           <p className="text-gray-400">
@@ -200,7 +200,7 @@ export default async function BiensPage({ searchParams }: BienPageProps) {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
                   {properties.map((property) => (
-                    <PropertyCard key={property.id} property={property} />
+                    <PropertyCard key={property.id} property={property} preferVideoBubble />
                   ))}
                 </div>
 

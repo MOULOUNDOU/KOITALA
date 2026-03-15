@@ -87,36 +87,64 @@ export default async function PropertyDetailPage({ params }: Props) {
 
   const images = property.property_images ?? [];
   const rentPaymentLabel = property.rent_payment_period ?? "mois";
-  const galleryImages = [
-    property.main_image_url
-      ? {
-          id: "main-image",
-          url: property.main_image_url,
-          alt: property.title,
-        }
-      : null,
-    ...images
-      .slice()
-      .sort((a, b) => {
-        if (a.is_main !== b.is_main) {
-          return a.is_main ? -1 : 1;
-        }
-        return a.order_index - b.order_index;
-      })
-      .map((img) => ({
-        id: img.id,
-        url: img.url,
-        alt: img.alt ?? property.title,
-      })),
-  ].filter(
-    (image): image is { id: string; url: string; alt: string } => Boolean(image?.url)
-  );
+  const sortedImages = images
+    .slice()
+    .sort((a, b) => {
+      if (a.is_main !== b.is_main) {
+        return a.is_main ? -1 : 1;
+      }
+      return a.order_index - b.order_index;
+    });
 
-  if (galleryImages.length === 0) {
-    galleryImages.push({
+  const galleryMedia: Array<{
+    id: string;
+    type: "image" | "video";
+    url: string;
+    alt: string;
+    posterUrl: string | null;
+  }> = [];
+
+  if (property.video_url) {
+    galleryMedia.push({
+      id: "main-video",
+      type: "video",
+      url: property.video_url,
+      alt: `${property.title} - vidéo`,
+      posterUrl: property.main_image_url ?? sortedImages[0]?.url ?? null,
+    });
+  }
+
+  if (property.main_image_url) {
+    galleryMedia.push({
+      id: "main-image",
+      type: "image",
+      url: property.main_image_url,
+      alt: property.title,
+      posterUrl: null,
+    });
+  }
+
+  sortedImages.forEach((img) => {
+    if (!img.url) {
+      return;
+    }
+
+    galleryMedia.push({
+      id: img.id,
+      type: "image",
+      url: img.url,
+      alt: img.alt ?? property.title,
+      posterUrl: null,
+    });
+  });
+
+  if (galleryMedia.length === 0) {
+    galleryMedia.push({
       id: "fallback-image",
+      type: "image",
       url: "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=1200&q=80",
       alt: property.title,
+      posterUrl: null,
     });
   }
 
@@ -179,7 +207,7 @@ export default async function PropertyDetailPage({ params }: Props) {
         listingType={property.listing_type}
         propertyType={property.property_type}
         isFeatured={property.is_featured}
-        images={galleryImages}
+        media={galleryMedia}
         variant="mobile"
       />
 
@@ -243,7 +271,7 @@ export default async function PropertyDetailPage({ params }: Props) {
               listingType={property.listing_type}
               propertyType={property.property_type}
               isFeatured={property.is_featured}
-              images={galleryImages}
+              media={galleryMedia}
               variant="desktop"
             />
 
@@ -351,11 +379,11 @@ export default async function PropertyDetailPage({ params }: Props) {
                 <h2 className="!text-lg sm:!text-xl font-semibold text-[#0f1724] mb-5">Biens similaires</h2>
                 {/* Desktop */}
                 <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                  {similar.map((p) => (<PropertyCard key={p.id} property={p} />))}
+                  {similar.map((p) => (<PropertyCard key={p.id} property={p} preferVideoBubble />))}
                 </div>
                 {/* Mobile 2-col */}
                 <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-3 sm:hidden">
-                  {similar.map((p) => (<PropertyCardMobile key={p.id} property={p} />))}
+                  {similar.map((p) => (<PropertyCardMobile key={p.id} property={p} preferVideoBubble />))}
                 </div>
               </div>
             )}

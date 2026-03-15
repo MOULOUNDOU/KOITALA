@@ -29,20 +29,7 @@ export const metadata: Metadata = {
   description: "Agence Immobilière KOITALA : votre partenaire pour tous vos projets immobiliers, y compris pour les expatriés. Achat, vente, construction clé en main et gestion locative.",
 };
 
-async function getFeaturedProperties(): Promise<Property[]> {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("properties")
-    .select("*, property_images(*)")
-    .eq("status", "publie")
-    .eq("is_featured", true)
-    .order("created_at", { ascending: false })
-    .order("id", { ascending: false })
-    .limit(3);
-  return data ?? [];
-}
-
-async function getRecentProperties(
+async function getFeaturedProperties(
   page: number,
   pageSize: number
 ): Promise<{ properties: Property[]; total: number }> {
@@ -54,11 +41,25 @@ async function getRecentProperties(
     .from("properties")
     .select("*, property_images(*)", { count: "exact" })
     .eq("status", "publie")
+    .eq("is_featured", true)
     .order("created_at", { ascending: false })
     .order("id", { ascending: false })
     .range(from, to);
 
   return { properties: data ?? [], total: count ?? 0 };
+}
+
+async function getRecentProperties(limit: number): Promise<Property[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("properties")
+    .select("*, property_images(*)")
+    .eq("status", "publie")
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(limit);
+
+  return data ?? [];
 }
 
 const STATS = [
@@ -159,43 +160,46 @@ interface HomePageProps {
 
 export default async function HomePage({ searchParams }: HomePageProps) {
   const params = await searchParams;
-  const RECENT_PAGE_SIZE = 6;
-  const parsedRecentPage = Number(params.annonces_page ?? "1");
-  let currentRecentPage =
-    Number.isFinite(parsedRecentPage) && parsedRecentPage > 0
-      ? Math.floor(parsedRecentPage)
+  const FEATURED_PAGE_SIZE = 6;
+  const RECENT_LIMIT = 6;
+  const parsedFeaturedPage = Number(params.featured_page ?? "1");
+  let currentFeaturedPage =
+    Number.isFinite(parsedFeaturedPage) && parsedFeaturedPage > 0
+      ? Math.floor(parsedFeaturedPage)
       : 1;
 
-  const [featured, recentQuery] = await Promise.all([
-    getFeaturedProperties(),
-    getRecentProperties(currentRecentPage, RECENT_PAGE_SIZE),
+  const [featuredQuery, recent] = await Promise.all([
+    getFeaturedProperties(currentFeaturedPage, FEATURED_PAGE_SIZE),
+    getRecentProperties(RECENT_LIMIT),
   ]);
 
-  let recent = recentQuery.properties;
-  let totalRecent = recentQuery.total;
-  const computedRecentTotalPages = Math.max(1, Math.ceil(totalRecent / RECENT_PAGE_SIZE));
+  let featured = featuredQuery.properties;
+  let totalFeatured = featuredQuery.total;
+  const computedFeaturedTotalPages = Math.max(1, Math.ceil(totalFeatured / FEATURED_PAGE_SIZE));
 
-  if (totalRecent > 0 && currentRecentPage > computedRecentTotalPages) {
-    currentRecentPage = computedRecentTotalPages;
-    const fallbackRecentQuery = await getRecentProperties(currentRecentPage, RECENT_PAGE_SIZE);
-    recent = fallbackRecentQuery.properties;
-    totalRecent = fallbackRecentQuery.total;
+  if (totalFeatured > 0 && currentFeaturedPage > computedFeaturedTotalPages) {
+    currentFeaturedPage = computedFeaturedTotalPages;
+    const fallbackFeaturedQuery = await getFeaturedProperties(currentFeaturedPage, FEATURED_PAGE_SIZE);
+    featured = fallbackFeaturedQuery.properties;
+    totalFeatured = fallbackFeaturedQuery.total;
   }
 
-  const recentTotalPages = Math.max(1, Math.ceil(totalRecent / RECENT_PAGE_SIZE));
+  const featuredTotalPages = Math.max(1, Math.ceil(totalFeatured / FEATURED_PAGE_SIZE));
+  const displayedFeatured = shuffleItems(featured);
+  const displayedRecent = shuffleItems(recent);
   const displayedTestimonials = shuffleItems(TESTIMONIALS).slice(0, 6);
 
-  const buildRecentPageHref = (page: number): string => {
+  const buildFeaturedPageHref = (page: number): string => {
     const nextParams = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => {
-      if (!value || key === "annonces_page") return;
+      if (!value || key === "featured_page" || key === "annonces_page") return;
       nextParams.set(key, value);
     });
     if (page > 1) {
-      nextParams.set("annonces_page", String(page));
+      nextParams.set("featured_page", String(page));
     }
     const query = nextParams.toString();
-    return query ? `/?${query}#annonces-recentes` : "/#annonces-recentes";
+    return query ? `/?${query}#biens-recommandes` : "/#biens-recommandes";
   };
 
   return (
@@ -245,8 +249,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         </section>
 
         {/* FEATURED */}
-        {featured.length > 0 && (
-          <section className="py-8 sm:py-20 bg-white" data-login-trigger>
+        {displayedFeatured.length > 0 && (
+          <section id="biens-recommandes" className="py-8 sm:py-20 bg-white" data-login-trigger>
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex flex-col gap-2 min-[420px]:flex-row min-[420px]:items-end min-[420px]:justify-between mb-5 sm:mb-10">
                 <div>
@@ -259,17 +263,26 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               </div>
               {/* Desktop: 3-col */}
               <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {featured.map((property, i) => (
+                {displayedFeatured.map((property, i) => (
                   <AnimatedSection key={property.id} animation="fade-up" delay={i * 80}>
                     <PropertyCard property={property} preferVideoBubble />
                   </AnimatedSection>
                 ))}
               </div>
               <div className="grid grid-cols-1 gap-4 sm:hidden">
-                {featured.map((property) => (
+                {displayedFeatured.map((property) => (
                   <PropertyCardMobile key={property.id} property={property} preferVideoBubble />
                 ))}
               </div>
+
+              {featuredTotalPages > 1 && (
+                <SitePagination
+                  currentPage={currentFeaturedPage}
+                  totalPages={featuredTotalPages}
+                  buildHref={buildFeaturedPageHref}
+                  pageKeyPrefix="home-featured"
+                />
+              )}
             </div>
           </section>
         )}
@@ -286,27 +299,20 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 Voir tout <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
-            {recent.length > 0 ? (
+            {displayedRecent.length > 0 ? (
               <>
                 {/* Desktop: 3-col grid */}
                 <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {recent.map((property, i) => (
+                  {displayedRecent.map((property, i) => (
                     <AnimatedSection key={property.id} animation="fade-up" delay={i * 80}>
                       <PropertyCard property={property} preferVideoBubble />
                     </AnimatedSection>
                   ))}
                 </div>
                 <HomePropertyCarousel
-                  properties={recent}
+                  properties={displayedRecent}
                   variant="horizontal"
                   preferVideoBubble
-                />
-
-                <SitePagination
-                  currentPage={currentRecentPage}
-                  totalPages={recentTotalPages}
-                  buildHref={buildRecentPageHref}
-                  pageKeyPrefix="home-recent"
                 />
               </>
             ) : (
