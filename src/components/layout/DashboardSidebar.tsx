@@ -9,6 +9,7 @@ import {
   Building2,
   CalendarCheck,
   MessageSquare,
+  FileText,
   Users,
   BookOpen,
   Settings,
@@ -25,6 +26,7 @@ const navItems = [
   { label: "Annonces",           href: "/dashboard/annonces",     icon: Building2 },
   { label: "Demandes",           href: "/dashboard/demandes",     icon: CalendarCheck },
   { label: "Messages",           href: "/dashboard/messages",     icon: MessageSquare },
+  { label: "Contrats",           href: "/dashboard/contrats",     icon: FileText },
   { label: "Utilisateurs",       href: "/dashboard/utilisateurs", icon: Users },
   { label: "Blog",               href: "/dashboard/blog",         icon: BookOpen },
 ];

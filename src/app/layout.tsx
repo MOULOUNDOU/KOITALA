@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import type { Viewport } from "next";
-import { Plus_Jakarta_Sans } from "next/font/google";
+import { Cormorant_Garamond, Plus_Jakarta_Sans } from "next/font/google";
 import { Toaster } from "react-hot-toast";
 import ScrollToTop from "@/components/layout/ScrollToTop";
 import StickyContactBar from "@/components/layout/StickyContactBar";
@@ -10,6 +10,12 @@ const jakarta = Plus_Jakarta_Sans({
   variable: "--font-jakarta",
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700", "800"],
+});
+
+const display = Cormorant_Garamond({
+  variable: "--font-display",
+  subsets: ["latin"],
+  weight: ["600", "700"],
 });
 
 export const viewport: Viewport = {
@@ -41,7 +47,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fr" className="scroll-smooth" suppressHydrationWarning>
-      <body className={`${jakarta.variable} antialiased`} suppressHydrationWarning>
+      <body className={`${jakarta.variable} ${display.variable} antialiased`} suppressHydrationWarning>
         {children}
         <ScrollToTop />
         <StickyContactBar />

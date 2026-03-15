@@ -56,6 +56,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
           <input
             ref={ref}
             id={inputId}
+            suppressHydrationWarning
             onFocus={(event) => {
               stabilizeMobileDashboardFocus(event.currentTarget);
               onFocus?.(event);

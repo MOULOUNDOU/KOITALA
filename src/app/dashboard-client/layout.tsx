@@ -91,7 +91,7 @@ export default function DashboardClientLayout({ children }: { children: React.Re
       <div
         id="dashboard-client-scroll-root"
         data-dashboard-scroll-root
-        className="flex-1 min-w-0 h-full overflow-y-auto overflow-x-hidden pt-14 md:pt-0 [-webkit-overflow-scrolling:touch] [overscroll-behavior-y:contain] [touch-action:pan-y]"
+        className="flex-1 min-w-0 min-h-0 h-full overflow-y-auto overflow-x-hidden pt-14 md:pt-0 [-webkit-overflow-scrolling:touch] [overscroll-behavior-y:contain] [touch-action:pan-y]"
       >
         {children}
       </div>

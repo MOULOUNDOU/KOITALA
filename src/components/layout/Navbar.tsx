@@ -4,21 +4,82 @@ import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Heart, User, LogOut, ChevronDown, Building2, Home, Key, BarChart3, Scale, Layers, MapPin, ArrowRight } from "lucide-react";
+import { Heart, User, LogOut, ChevronDown, Building2, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import type { Profile } from "@/types";
 
 const CATEGORIES = [
-  { label: "Appartements",    href: "/biens?type=appartement",      icon: Building2 },
-  { label: "Maisons",         href: "/biens?type=maison",           icon: Home },
-  { label: "Villas",          href: "/biens?type=villa",            icon: Key },
-  { label: "Terrains",        href: "/biens?type=terrain",          icon: MapPin },
-  { label: "Bureaux",         href: "/biens?type=bureau",           icon: BarChart3 },
-  { label: "Locaux comm.",    href: "/biens?type=local_commercial", icon: Layers },
-  { label: "Duplexes",        href: "/biens?type=duplex",           icon: Scale },
-  { label: "Tous les biens",  href: "/biens",                       icon: ArrowRight },
+  {
+    label: "Appartements",
+    href: "/biens?type=appartement",
+    image: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=320&q=80",
+    alt: "Illustration appartement",
+  },
+  {
+    label: "Maisons",
+    href: "/biens?type=maison",
+    image: "https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=320&q=80",
+    alt: "Illustration maison",
+  },
+  {
+    label: "Villas",
+    href: "/biens?type=villa",
+    image: "https://images.unsplash.com/photo-1613977257363-707ba9348227?w=320&q=80",
+    alt: "Illustration villa",
+  },
+  {
+    label: "Terrains",
+    href: "/biens?type=terrain",
+    image: "https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=320&q=80",
+    alt: "Illustration terrain",
+  },
+  {
+    label: "Bureaux",
+    href: "/biens?type=bureau",
+    image: "https://images.unsplash.com/photo-1497366754035-f200968a6e72?w=320&q=80",
+    alt: "Illustration bureau",
+  },
+  {
+    label: "Locaux comm.",
+    href: "/biens?type=local_commercial",
+    image: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=320&q=80",
+    alt: "Illustration local commercial",
+  },
+  {
+    label: "Duplexes",
+    href: "/biens?type=duplex",
+    image: "https://images.unsplash.com/photo-1484154218962-a197022b5858?w=320&q=80",
+    alt: "Illustration duplex",
+  },
+  {
+    label: "Tous les biens",
+    href: "/biens",
+    image: "https://images.unsplash.com/photo-1560185007-cde436f6a4d0?w=320&q=80",
+    alt: "Illustration tous les biens",
+  },
 ];
+
+const TRANSACTION_LINKS = [
+  {
+    title: "Acheter",
+    description: "Biens en vente",
+    href: "/biens?listing_type=vente",
+    image: "https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=400&q=80",
+    alt: "Illustration achat immobilier",
+    className: "bg-[#1a3a5c] text-white hover:bg-[#0f2540]",
+    descriptionClassName: "text-white/60",
+  },
+  {
+    title: "Louer",
+    description: "Biens en location",
+    href: "/biens?listing_type=location",
+    image: "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=400&q=80",
+    alt: "Illustration location immobiliere",
+    className: "bg-[#e8b86d]/15 text-[#1a3a5c] hover:bg-[#e8b86d]/25",
+    descriptionClassName: "text-gray-500",
+  },
+] as const;
 
 const SERVICES_LINKS = [
   { label: "Vente",            href: "/biens?listing_type=vente" },
@@ -189,13 +250,22 @@ export default function Navbar() {
                     {/* Left: Categories */}
                     <div>
                       <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2.5 px-1">Par type de bien</p>
-                      <div className="space-y-0.5">
+                      <div className="max-h-[336px] space-y-1 overflow-y-auto pr-1 scrollbar-hide">
                         {CATEGORIES.map((cat) => (
-                          <Link key={cat.href} href={cat.href} className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-[#f4f6f9] transition-colors group/cat">
-                            <div className="w-7 h-7 bg-[#1a3a5c]/8 rounded-lg flex items-center justify-center shrink-0 group-hover/cat:bg-[#1a3a5c] transition-colors">
-                              <cat.icon className="w-3.5 h-3.5 text-[#1a3a5c] group-hover/cat:text-white transition-colors" />
+                          <Link key={cat.href} href={cat.href} className="flex items-center gap-3 rounded-xl px-2.5 py-2.5 hover:bg-[#f4f6f9] transition-colors group/cat">
+                            <div className="relative h-12 w-14 overflow-hidden rounded-xl shrink-0 shadow-sm">
+                              <Image
+                                src={cat.image}
+                                alt={cat.alt}
+                                fill
+                                className="object-cover transition-transform duration-300 group-hover/cat:scale-105"
+                                sizes="56px"
+                              />
                             </div>
-                            <span className="text-[13px] font-medium text-gray-700 group-hover/cat:text-[#1a3a5c]">{cat.label}</span>
+                            <div className="min-w-0 flex-1">
+                              <span className="block text-[13px] font-medium text-gray-700 group-hover/cat:text-[#1a3a5c]">{cat.label}</span>
+                              <span className="block text-[11px] text-gray-400">Explorer la categorie</span>
+                            </div>
                           </Link>
                         ))}
                       </div>
@@ -204,20 +274,23 @@ export default function Navbar() {
                     <div>
                       <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2.5 px-1">Par transaction</p>
                       <div className="space-y-1.5">
-                        <Link href="/biens?listing_type=vente" className="flex items-center gap-3 px-3 py-3 rounded-xl bg-[#1a3a5c] text-white hover:bg-[#0f2540] transition-colors">
-                          <Home className="w-4 h-4 text-[#e8b86d]" />
-                          <div>
-                            <p className="text-sm font-semibold">Acheter</p>
-                            <p className="text-[11px] text-white/60">Biens en vente</p>
-                          </div>
-                        </Link>
-                        <Link href="/biens?listing_type=location" className="flex items-center gap-3 px-3 py-3 rounded-xl bg-[#e8b86d]/15 text-[#1a3a5c] hover:bg-[#e8b86d]/25 transition-colors">
-                          <Key className="w-4 h-4 text-[#e8b86d]" />
-                          <div>
-                            <p className="text-sm font-semibold">Louer</p>
-                            <p className="text-[11px] text-gray-500">Biens en location</p>
-                          </div>
-                        </Link>
+                        {TRANSACTION_LINKS.map((item) => (
+                          <Link key={item.href} href={item.href} className={`flex items-center gap-3 rounded-xl px-3 py-3 transition-colors ${item.className}`}>
+                            <div className="relative h-14 w-16 overflow-hidden rounded-xl shrink-0 shadow-sm">
+                              <Image
+                                src={item.image}
+                                alt={item.alt}
+                                fill
+                                className="object-cover"
+                                sizes="64px"
+                              />
+                            </div>
+                            <div>
+                              <p className="text-sm font-semibold">{item.title}</p>
+                              <p className={`text-[11px] ${item.descriptionClassName}`}>{item.description}</p>
+                            </div>
+                          </Link>
+                        ))}
                       </div>
                       <div className="mt-4 p-3 bg-[#f4f6f9] rounded-xl">
                         <p className="text-xs font-semibold text-[#0f1724] mb-1">Besoin d&apos;aide ?</p>
@@ -413,18 +486,29 @@ export default function Navbar() {
                   Nos biens
                   <ChevronDown className={cn("w-4 h-4 transition-transform duration-300", biensMobileOpen && "rotate-180")} />
                 </button>
-                <div className={cn("overflow-hidden transition-all duration-300", biensMobileOpen ? "max-h-[500px]" : "max-h-0")}>
-                  <div className="mx-3 mb-2 bg-[#f8f9fb] rounded-xl p-3 space-y-1">
+                <div className={cn("overflow-hidden transition-all duration-300", biensMobileOpen ? "max-h-[640px]" : "max-h-0")}>
+                  <div className="mx-3 mb-2 bg-[#f8f9fb] rounded-xl p-3">
                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 px-1">Par type de bien</p>
-                    {CATEGORIES.map((cat) => (
-                      <Link key={cat.href} href={cat.href} onClick={() => setIsOpen(false)}
-                        className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white text-[13px] font-medium text-gray-600 hover:text-[#1a3a5c] transition-colors">
-                        <div className="w-7 h-7 bg-white rounded-lg flex items-center justify-center shrink-0 shadow-sm">
-                          <cat.icon className="w-3.5 h-3.5 text-[#1a3a5c]" />
-                        </div>
-                        {cat.label}
-                      </Link>
-                    ))}
+                    <div className="max-h-[280px] space-y-1 overflow-y-auto pr-1 scrollbar-hide">
+                      {CATEGORIES.map((cat) => (
+                        <Link key={cat.href} href={cat.href} onClick={() => setIsOpen(false)}
+                          className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-white text-[13px] font-medium text-gray-600 hover:text-[#1a3a5c] transition-colors">
+                          <div className="relative h-12 w-14 overflow-hidden rounded-xl shrink-0 shadow-sm">
+                            <Image
+                              src={cat.image}
+                              alt={cat.alt}
+                              fill
+                              className="object-cover"
+                              sizes="56px"
+                            />
+                          </div>
+                          <div className="min-w-0">
+                            <span className="block">{cat.label}</span>
+                            <span className="block text-[11px] text-gray-400">Voir les annonces</span>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
                     <div className="flex gap-2 mt-2 pt-2.5 border-t border-gray-200">
                       <Link href="/biens?listing_type=vente" onClick={() => setIsOpen(false)}
                         className="flex-1 text-center py-2.5 bg-[#1a3a5c] text-white text-[13px] font-semibold rounded-lg active:scale-[.97] transition-all">Acheter</Link>

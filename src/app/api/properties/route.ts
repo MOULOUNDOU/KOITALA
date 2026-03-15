@@ -10,7 +10,8 @@ export async function GET(request: NextRequest) {
     .from("properties")
     .select("*, property_images(*)")
     .order("is_featured", { ascending: false })
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false });
 
   const status = searchParams.get("status");
   const listing_type = searchParams.get("listing_type");

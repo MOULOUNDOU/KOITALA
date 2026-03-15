@@ -31,6 +31,7 @@ html {
   overflow-x: hidden;
   /* Prevent pinch-zoom horizontal shift */
   width: 100%;
+  min-height: 100%;
 }
 
 body {
@@ -40,10 +41,18 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
+  overflow-y: auto;
   width: 100%;
+  min-height: 100%;
+  min-height: 100svh;
   position: relative;
   /* Mobile base font: slightly larger for readability */
   font-size: 16px;
+}
+
+.font-display {
+  font-family: var(--font-display, Georgia, serif);
+  letter-spacing: -0.02em;
 }
 
 /* Ensure images and videos never overflow their containers */

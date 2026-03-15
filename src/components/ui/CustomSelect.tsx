@@ -162,6 +162,7 @@ export default function CustomSelect({
               <input
                 ref={searchRef}
                 type="text"
+                suppressHydrationWarning
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Rechercher..."

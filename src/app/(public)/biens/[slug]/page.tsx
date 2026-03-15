@@ -1,7 +1,6 @@
 export const dynamic = 'force-dynamic';
 
 import type { Metadata } from "next";
-import Image from "next/image";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import {
@@ -13,7 +12,6 @@ import {
   Eye,
   CheckCircle,
   Phone,
-  Star,
   Mail,
   Calendar,
 } from "lucide-react";
@@ -30,6 +28,7 @@ import PropertyCardMobile from "@/components/properties/PropertyCardMobile";
 import VisitRequestForm from "@/components/properties/VisitRequestForm";
 import ContactPropertyForm from "@/components/properties/ContactPropertyForm";
 import MapContainer from "@/components/ui/MapContainer";
+import PropertyDetailGallery from "@/components/properties/PropertyDetailGallery";
 import type { Property } from "@/types";
 
 interface Props {
@@ -58,6 +57,8 @@ async function getSimilarProperties(
     .eq("property_type", property.property_type)
     .eq("listing_type", property.listing_type)
     .neq("id", property.id)
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
     .limit(3);
   return data ?? [];
 }
@@ -86,11 +87,38 @@ export default async function PropertyDetailPage({ params }: Props) {
 
   const images = property.property_images ?? [];
   const rentPaymentLabel = property.rent_payment_period ?? "mois";
-  const mainImage =
-    property.main_image_url ??
-    images.find((img) => img.is_main)?.url ??
-    images[0]?.url ??
-    "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=1200&q=80";
+  const galleryImages = [
+    property.main_image_url
+      ? {
+          id: "main-image",
+          url: property.main_image_url,
+          alt: property.title,
+        }
+      : null,
+    ...images
+      .slice()
+      .sort((a, b) => {
+        if (a.is_main !== b.is_main) {
+          return a.is_main ? -1 : 1;
+        }
+        return a.order_index - b.order_index;
+      })
+      .map((img) => ({
+        id: img.id,
+        url: img.url,
+        alt: img.alt ?? property.title,
+      })),
+  ].filter(
+    (image): image is { id: string; url: string; alt: string } => Boolean(image?.url)
+  );
+
+  if (galleryImages.length === 0) {
+    galleryImages.push({
+      id: "fallback-image",
+      url: "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=1200&q=80",
+      alt: property.title,
+    });
+  }
 
   const mobileStatCards = [
     property.bedrooms !== null && property.bedrooms !== undefined
@@ -146,55 +174,17 @@ export default async function PropertyDetailPage({ params }: Props) {
         </div>
       </div>
 
-      {/* ─── MOBILE HERO IMAGE ─── */}
-      <div className="sm:hidden relative pt-20">
-        <div className="relative h-[54svh] min-h-[280px] bg-[#0f1724] overflow-hidden rounded-b-2xl">
-          <Image
-            src={mainImage}
-            alt={property.title}
-            fill
-            className="object-cover object-bottom"
-            priority
-            sizes="100vw"
-          />
-          {/* Overlay buttons */}
-          <div className="absolute top-3 left-4 right-4 flex items-center justify-between">
-            <Link href="/biens" className="w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-md">
-              <ArrowLeft className="w-5 h-5 text-[#0f1724]" />
-            </Link>
-            <div className="flex gap-2">
-              {property.is_featured && (
-                <span className="flex items-center gap-1 px-2.5 py-1.5 bg-[#e8b86d] text-[#0f1724] text-[11px] font-bold rounded-full shadow">
-                  <Star className="w-3 h-3 fill-[#0f1724]" /> Coup de coeur
-                </span>
-              )}
-            </div>
-          </div>
-          {/* Badges */}
-          <div className="absolute bottom-4 left-4 flex gap-2">
-            <span className={property.listing_type === "vente" ? "px-3 py-1.5 bg-[#1a3a5c] text-white text-xs font-bold rounded-lg" : "px-3 py-1.5 bg-[#e8b86d] text-[#1a3a5c] text-xs font-bold rounded-lg"}>
-              {getListingTypeLabel(property.listing_type)}
-            </span>
-          </div>
-        </div>
+      <PropertyDetailGallery
+        title={property.title}
+        listingType={property.listing_type}
+        propertyType={property.property_type}
+        isFeatured={property.is_featured}
+        images={galleryImages}
+        variant="mobile"
+      />
 
-        {/* Thumbnail strip */}
-        {images.length > 1 && (
-          <div className="mt-2 flex gap-1.5 px-4 overflow-x-auto scrollbar-hide">
-            {images.slice(0, 6).map((img, i) => (
-              <div key={img.id} className="relative w-14 h-14 rounded-xl overflow-hidden shrink-0 border-2 border-white shadow-sm">
-                <Image src={img.url} alt={img.alt ?? property.title} fill className="object-cover" sizes="56px" />
-                {i === 5 && images.length > 6 && (
-                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                    <span className="text-white text-xs font-bold">+{images.length - 6}</span>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Mobile title/price/stats card */}
+      {/* Mobile title/price/stats card */}
+      <div className="sm:hidden">
         <div className="px-4 pt-4 pb-3">
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
@@ -248,43 +238,14 @@ export default async function PropertyDetailPage({ params }: Props) {
         <div className="grid lg:grid-cols-3 gap-8 sm:pt-6">
           {/* ── LEFT COLUMN ── */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Desktop main image */}
-            <div className="hidden sm:block relative h-[28rem] rounded-2xl overflow-hidden shadow-md">
-              <Image
-                src={mainImage}
-                alt={property.title}
-                fill
-                className="object-cover"
-                priority
-                sizes="66vw"
-              />
-              <div className="absolute top-4 left-4 flex gap-2">
-                <span className={property.listing_type === "vente" ? "px-3 py-1.5 bg-[#1a3a5c] text-white text-xs font-bold rounded-lg uppercase" : "px-3 py-1.5 bg-[#e8b86d] text-[#1a3a5c] text-xs font-bold rounded-lg uppercase"}>
-                  {getListingTypeLabel(property.listing_type)}
-                </span>
-                <span className="px-3 py-1.5 bg-white/90 text-gray-700 text-xs font-medium rounded-lg">
-                  {getPropertyTypeLabel(property.property_type)}
-                </span>
-              </div>
-              {property.is_featured && (
-                <div className="absolute top-4 right-4">
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#e8b86d] text-[#0f1724] text-xs font-bold rounded-lg shadow">
-                    <Star className="w-3 h-3 fill-[#0f1724]" /> Coup de coeur
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* Desktop thumbnails */}
-            {images.length > 1 && (
-              <div className="hidden sm:grid grid-cols-6 gap-2">
-                {images.slice(0, 8).map((img) => (
-                  <div key={img.id} className="relative h-16 rounded-lg overflow-hidden">
-                    <Image src={img.url} alt={img.alt ?? property.title} fill className="object-cover hover:opacity-90 transition-opacity cursor-pointer" sizes="80px" />
-                  </div>
-                ))}
-              </div>
-            )}
+            <PropertyDetailGallery
+              title={property.title}
+              listingType={property.listing_type}
+              propertyType={property.property_type}
+              isFeatured={property.is_featured}
+              images={galleryImages}
+              variant="desktop"
+            />
 
             {/* Desktop title & price */}
             <div className="hidden sm:block bg-white rounded-2xl border border-gray-100 shadow-sm p-6">

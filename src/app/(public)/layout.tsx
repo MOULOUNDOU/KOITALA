@@ -10,7 +10,7 @@ export default function PublicLayout({
   return (
     <>
       <Navbar />
-      <main>
+      <main className="min-h-screen overflow-x-hidden">
         <PageTransition>{children}</PageTransition>
       </main>
       <Footer />

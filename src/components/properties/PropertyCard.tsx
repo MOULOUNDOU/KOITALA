@@ -3,16 +3,17 @@
 import Link from "next/link";
 import { Heart, MapPin, Bed, Bath, Maximize2, Tag, Star, Eye } from "lucide-react";
 import { useState } from "react";
-import { cn, formatPrice, formatArea, getPropertyTypeLabel, getRentalCategoryLabel, getFakeRating, getPropertyImageUrls } from "@/lib/utils";
+import { cn, formatPrice, formatArea, getPropertyTypeLabel, getRentalCategoryLabel, getFakeRating } from "@/lib/utils";
 import type { Property } from "@/types";
 import { createClient } from "@/lib/supabase/client";
-import PropertyImageCarousel from "@/components/properties/PropertyImageCarousel";
+import PropertyCardMedia from "@/components/properties/PropertyCardMedia";
 
 interface PropertyCardProps {
   property: Property;
   isFavorite?: boolean;
   onFavoriteToggle?: (id: string) => void;
   className?: string;
+  preferVideoBubble?: boolean;
 }
 
 export default function PropertyCard({
@@ -20,6 +21,7 @@ export default function PropertyCard({
   isFavorite = false,
   onFavoriteToggle,
   className,
+  preferVideoBubble = false,
 }: PropertyCardProps) {
   const [favorited, setFavorited] = useState(isFavorite);
   const [loadingFav, setLoadingFav] = useState(false);
@@ -53,10 +55,6 @@ export default function PropertyCard({
     setLoadingFav(false);
   };
 
-  const imageUrls = getPropertyImageUrls(
-    property,
-    "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=600&q=80"
-  );
   const rentPaymentLabel = property.rent_payment_period ?? "mois";
   const rentalCategoryLabel = getRentalCategoryLabel(property.rental_category);
   const fakeSocialProof = getFakeRating(property.id);
@@ -89,59 +87,63 @@ export default function PropertyCard({
       >
         {/* Image */}
         <div className="relative h-56 sm:h-52 overflow-hidden">
-          <PropertyImageCarousel
-            images={imageUrls}
+          <PropertyCardMedia
+            property={property}
             alt={property.title}
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             className="absolute inset-0"
             imageClassName="transition-transform duration-500 group-hover:scale-105"
-          />
+            preferVideoBubble={preferVideoBubble}
+            bubbleClassName="h-36 w-36 sm:h-32 sm:w-32"
+            fallbackImageUrl="https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=600&q=80"
+          >
 
-          {/* Overlay badges */}
-          <div className="absolute top-3 left-3 flex gap-2">
-            <span
+            {/* Overlay badges */}
+            <div className="absolute top-3 left-3 flex gap-2">
+              <span
+                className={cn(
+                  "px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wide shadow",
+                  property.listing_type === "vente"
+                    ? "bg-[#1a3a5c] text-white"
+                    : "bg-[#e8b86d] text-[#1a3a5c]"
+                )}
+              >
+                {property.listing_type === "vente" ? "Vente" : "Location"}
+              </span>
+              {property.is_featured && (
+                <span className="px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wide bg-green-500 text-white shadow">
+                  Coup de cœur
+                </span>
+              )}
+            </div>
+
+            {/* Favorite button */}
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={handleFavorite}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleFavorite(e as unknown as React.MouseEvent); }}
+              aria-disabled={loadingFav}
               className={cn(
-                "px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wide shadow",
-                property.listing_type === "vente"
-                  ? "bg-[#1a3a5c] text-white"
-                  : "bg-[#e8b86d] text-[#1a3a5c]"
+                "absolute top-3 right-3 w-11 h-11 sm:w-9 sm:h-9 rounded-full flex items-center justify-center shadow-md transition-all cursor-pointer",
+                favorited
+                  ? "bg-red-500 text-white"
+                  : "bg-white text-gray-400 hover:text-red-500"
               )}
             >
-              {property.listing_type === "vente" ? "Vente" : "Location"}
-            </span>
-            {property.is_featured && (
-              <span className="px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wide bg-green-500 text-white shadow">
-                Coup de cœur
+              <Heart className={cn("w-5 h-5 sm:w-4 sm:h-4", favorited && "fill-current")} />
+            </div>
+
+            {/* Price */}
+            <div className="absolute bottom-3 left-3">
+              <span className="px-3 py-2 bg-white/95 backdrop-blur-sm rounded-lg text-base sm:text-sm font-bold text-[#1a3a5c] shadow">
+                {formatPrice(property.price)}
+                {property.listing_type === "location" && (
+                  <span className="text-sm sm:text-xs text-gray-500 font-normal">/{rentPaymentLabel}</span>
+                )}
               </span>
-            )}
-          </div>
-
-          {/* Favorite button */}
-          <div
-            role="button"
-            tabIndex={0}
-            onClick={handleFavorite}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleFavorite(e as unknown as React.MouseEvent); }}
-            aria-disabled={loadingFav}
-            className={cn(
-              "absolute top-3 right-3 w-11 h-11 sm:w-9 sm:h-9 rounded-full flex items-center justify-center shadow-md transition-all cursor-pointer",
-              favorited
-                ? "bg-red-500 text-white"
-                : "bg-white text-gray-400 hover:text-red-500"
-            )}
-          >
-            <Heart className={cn("w-5 h-5 sm:w-4 sm:h-4", favorited && "fill-current")} />
-          </div>
-
-          {/* Price */}
-          <div className="absolute bottom-3 left-3">
-            <span className="px-3 py-2 bg-white/95 backdrop-blur-sm rounded-lg text-base sm:text-sm font-bold text-[#1a3a5c] shadow">
-              {formatPrice(property.price)}
-              {property.listing_type === "location" && (
-                <span className="text-sm sm:text-xs text-gray-500 font-normal">/{rentPaymentLabel}</span>
-              )}
-            </span>
-          </div>
+            </div>
+          </PropertyCardMedia>
         </div>
 
         {/* Content */}

@@ -3,7 +3,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Shield, Star, Users, TrendingUp, Phone, Building2, Home, Key, BarChart3, Scale, MapPin, CheckCircle } from "lucide-react";
+import { ArrowRight, Shield, Star, Users, TrendingUp, Phone, Building2, Home, Key, BarChart3, Scale } from "lucide-react";
 import HeroCarousel from "@/components/layout/HeroCarousel";
 import HeroTextAnimation from "@/components/layout/HeroTextAnimation";
 import AnimatedSection from "@/components/layout/AnimatedSection";
@@ -14,10 +14,14 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import PropertyCard from "@/components/properties/PropertyCard";
 import PropertyCardMobile from "@/components/properties/PropertyCardMobile";
-import PropertyCardHorizontal from "@/components/properties/PropertyCardHorizontal";
+import HomePropertyCarousel from "@/components/properties/HomePropertyCarousel";
 import CategoryIcons from "@/components/layout/CategoryIcons";
 import SearchBar from "@/components/properties/SearchBar";
 import LoginPromptPopup from "@/components/layout/LoginPromptPopup";
+import SitePagination from "@/components/ui/SitePagination";
+import HowItWorksMobileCarousel from "@/components/layout/HowItWorksMobileCarousel";
+import { HOW_IT_WORKS_STEPS } from "@/components/layout/howItWorksData";
+import TestimonialsMobileCarousel from "@/components/layout/TestimonialsMobileCarousel";
 import type { Property } from "@/types";
 
 export const metadata: Metadata = {
@@ -33,6 +37,7 @@ async function getFeaturedProperties(): Promise<Property[]> {
     .eq("status", "publie")
     .eq("is_featured", true)
     .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
     .limit(3);
   return data ?? [];
 }
@@ -50,6 +55,7 @@ async function getRecentProperties(
     .select("*, property_images(*)", { count: "exact" })
     .eq("status", "publie")
     .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
     .range(from, to);
 
   return { properties: data ?? [], total: count ?? 0 };
@@ -68,6 +74,76 @@ const SERVICES = [
   { icon: BarChart3, title: "Gestion locative", description: "Confiez-nous la location et la gestion complète de votre bien : recherche de locataires, gestion des loyers, entretien et reporting régulier." },
   { icon: Scale, title: "Conseils & Accompagnement", description: "Services adaptés aux expatriés avec un accompagnement complet pour faciliter l'intégration dans le marché immobilier local." },
 ];
+
+const TESTIMONIALS = [
+  {
+    name: "Amadou Diallo",
+    role: "Acheteur – Villa à Almadies",
+    text: "KOITALA m'a accompagné du début à la fin. Professionnalisme, réactivité et écoute. J'ai trouvé la maison de mes rêves en moins d'un mois.",
+    stars: 5,
+    avatar: "AD",
+  },
+  {
+    name: "Fatou Ndiaye",
+    role: "Locataire – Appartement Plateau",
+    text: "Équipe très disponible et transparente. Toutes les démarches ont été claires et rapides. Je recommande vivement cette agence.",
+    stars: 5,
+    avatar: "FN",
+  },
+  {
+    name: "Moussa Sow",
+    role: "Investisseur – Local commercial",
+    text: "J'ai pu investir en toute confiance grâce aux conseils experts de KOITALA. Leur connaissance du marché sénégalais est remarquable.",
+    stars: 5,
+    avatar: "MS",
+  },
+  {
+    name: "Aissatou Ba",
+    role: "Vendeuse - Maison a Ngor",
+    text: "La mise en vente a ete rapide et bien geree. L'equipe a filtre les demandes serieusement et m'a accompagne jusqu'a la signature.",
+    stars: 5,
+    avatar: "AB",
+  },
+  {
+    name: "Cheikh Gueye",
+    role: "Locataire - Studio aux Mamelles",
+    text: "J'avais besoin d'un logement en urgence. KOITALA a su me proposer des options adaptees et tout a ete boucle en quelques jours.",
+    stars: 5,
+    avatar: "CG",
+  },
+  {
+    name: "Mariama Sarr",
+    role: "Acheteuse - Appartement a Mermoz",
+    text: "J'ai apprecie le suivi, la clarte des explications et la disponibilite pendant tout le processus. Je me suis sentie en confiance du debut a la fin.",
+    stars: 5,
+    avatar: "MS",
+  },
+  {
+    name: "Ibrahima Fall",
+    role: "Investisseur - Terrain a Saly",
+    text: "Tres bon accompagnement sur la verification du dossier et la projection de rentabilite. Les conseils etaient concrets et utiles pour ma decision.",
+    stars: 5,
+    avatar: "IF",
+  },
+  {
+    name: "Khady Diop",
+    role: "Expatriee - Villa a Somone",
+    text: "A distance, ce n'est jamais simple. KOITALA a tout fluidifie avec des comptes rendus reguliers, des visites bien preparees et une vraie transparence.",
+    stars: 5,
+    avatar: "KD",
+  },
+] as const;
+
+function shuffleItems<T>(items: readonly T[]): T[] {
+  const shuffled = [...items];
+
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const randomIndex = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[randomIndex]] = [shuffled[randomIndex], shuffled[index]];
+  }
+
+  return shuffled;
+}
 
 const RENTAL_CATEGORY_LINKS = [
   { label: "Chambre meublée", href: "/biens?listing_type=location&rental_category=chambre_meublee" },
@@ -107,12 +183,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   }
 
   const recentTotalPages = Math.max(1, Math.ceil(totalRecent / RECENT_PAGE_SIZE));
-  const firstVisibleRecentPage = Math.max(1, Math.min(currentRecentPage - 2, recentTotalPages - 4));
-  const lastVisibleRecentPage = Math.min(recentTotalPages, firstVisibleRecentPage + 4);
-  const visibleRecentPages = Array.from(
-    { length: lastVisibleRecentPage - firstVisibleRecentPage + 1 },
-    (_, index) => firstVisibleRecentPage + index
-  );
+  const displayedTestimonials = shuffleItems(TESTIMONIALS).slice(0, 6);
 
   const buildRecentPageHref = (page: number): string => {
     const nextParams = new URLSearchParams();
@@ -180,7 +251,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               <div className="flex flex-col gap-2 min-[420px]:flex-row min-[420px]:items-end min-[420px]:justify-between mb-5 sm:mb-10">
                 <div>
                   <span className="hidden sm:block text-[#e8b86d] text-sm font-semibold uppercase tracking-widest">Coups de cœur</span>
-                  <h2 className="text-lg min-[420px]:text-xl sm:text-3xl font-extrabold text-[#0f1724] sm:mt-1">Biens recommandés</h2>
+                  <h2 className="font-display text-lg min-[420px]:text-xl sm:text-3xl font-extrabold text-[#0f1724] sm:mt-1">Biens recommandés</h2>
                 </div>
                 <Link href="/biens" className="inline-flex w-fit items-center gap-1 text-xs min-[420px]:text-sm font-semibold text-[#1a3a5c] hover:text-[#e8b86d] transition-colors shrink-0">
                   Voir tout <ArrowRight className="w-4 h-4" />
@@ -190,14 +261,13 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {featured.map((property, i) => (
                   <AnimatedSection key={property.id} animation="fade-up" delay={i * 80}>
-                    <PropertyCard property={property} />
+                    <PropertyCard property={property} preferVideoBubble />
                   </AnimatedSection>
                 ))}
               </div>
-              {/* Mobile: 2-col compact grid */}
-              <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-3 sm:hidden">
+              <div className="grid grid-cols-1 gap-4 sm:hidden">
                 {featured.map((property) => (
-                  <PropertyCardMobile key={property.id} property={property} />
+                  <PropertyCardMobile key={property.id} property={property} preferVideoBubble />
                 ))}
               </div>
             </div>
@@ -210,7 +280,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             <div className="flex flex-col gap-2 min-[420px]:flex-row min-[420px]:items-end min-[420px]:justify-between mb-5 sm:mb-10">
               <div>
                 <span className="hidden sm:block text-[#e8b86d] text-sm font-semibold uppercase tracking-widest">Nouveautés</span>
-                <h2 className="text-lg min-[420px]:text-xl sm:text-3xl font-extrabold text-[#0f1724] sm:mt-1">À proximité</h2>
+                <h2 className="font-display text-lg min-[420px]:text-xl sm:text-3xl font-extrabold text-[#0f1724] sm:mt-1">À proximité</h2>
               </div>
               <Link href="/biens" className="inline-flex w-fit items-center gap-1 text-xs min-[420px]:text-sm font-semibold text-[#1a3a5c] hover:text-[#e8b86d] transition-colors shrink-0">
                 Voir tout <ArrowRight className="w-4 h-4" />
@@ -222,85 +292,22 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
                   {recent.map((property, i) => (
                     <AnimatedSection key={property.id} animation="fade-up" delay={i * 80}>
-                      <PropertyCard property={property} />
+                      <PropertyCard property={property} preferVideoBubble />
                     </AnimatedSection>
                   ))}
                 </div>
-                {/* Mobile: horizontal list cards */}
-                <div className="flex flex-col gap-3 sm:hidden">
-                  {recent.map((property) => (
-                    <PropertyCardHorizontal key={property.id} property={property} />
-                  ))}
-                </div>
+                <HomePropertyCarousel
+                  properties={recent}
+                  variant="horizontal"
+                  preferVideoBubble
+                />
 
-                {recentTotalPages > 1 && (
-                  <div className="mt-6 sm:mt-8 space-y-3">
-                    <div className="flex items-center justify-between sm:hidden">
-                      <Link
-                        href={buildRecentPageHref(currentRecentPage - 1)}
-                        className={`px-3 py-2 rounded-lg text-sm font-medium border ${
-                          currentRecentPage === 1
-                            ? "pointer-events-none border-gray-200 text-gray-300"
-                            : "border-[#1a3a5c]/30 text-[#1a3a5c]"
-                        }`}
-                      >
-                        Précédent
-                      </Link>
-                      <span className="text-sm text-gray-500">
-                        Page{" "}
-                        <span className="font-semibold text-[#0f1724]">{currentRecentPage}</span> / {recentTotalPages}
-                      </span>
-                      <Link
-                        href={buildRecentPageHref(currentRecentPage + 1)}
-                        className={`px-3 py-2 rounded-lg text-sm font-medium border ${
-                          currentRecentPage === recentTotalPages
-                            ? "pointer-events-none border-gray-200 text-gray-300"
-                            : "border-[#1a3a5c]/30 text-[#1a3a5c]"
-                        }`}
-                      >
-                        Suivant
-                      </Link>
-                    </div>
-
-                    <div className="hidden sm:flex items-center justify-center gap-2">
-                      <Link
-                        href={buildRecentPageHref(currentRecentPage - 1)}
-                        className={`px-3 py-2 rounded-lg text-sm font-medium border ${
-                          currentRecentPage === 1
-                            ? "pointer-events-none border-gray-200 text-gray-300"
-                            : "border-[#1a3a5c]/30 text-[#1a3a5c] hover:bg-[#1a3a5c] hover:text-white"
-                        }`}
-                      >
-                        Précédent
-                      </Link>
-
-                      {visibleRecentPages.map((page) => (
-                        <Link
-                          key={`home-recent-page-${page}`}
-                          href={buildRecentPageHref(page)}
-                          className={`w-10 h-10 rounded-lg text-sm font-semibold inline-flex items-center justify-center border transition-colors ${
-                            page === currentRecentPage
-                              ? "bg-[#1a3a5c] border-[#1a3a5c] text-white"
-                              : "border-gray-200 text-gray-600 hover:border-[#1a3a5c]/40 hover:text-[#1a3a5c]"
-                          }`}
-                        >
-                          {page}
-                        </Link>
-                      ))}
-
-                      <Link
-                        href={buildRecentPageHref(currentRecentPage + 1)}
-                        className={`px-3 py-2 rounded-lg text-sm font-medium border ${
-                          currentRecentPage === recentTotalPages
-                            ? "pointer-events-none border-gray-200 text-gray-300"
-                            : "border-[#1a3a5c]/30 text-[#1a3a5c] hover:bg-[#1a3a5c] hover:text-white"
-                        }`}
-                      >
-                        Suivant
-                      </Link>
-                    </div>
-                  </div>
-                )}
+                <SitePagination
+                  currentPage={currentRecentPage}
+                  totalPages={recentTotalPages}
+                  buildHref={buildRecentPageHref}
+                  pageKeyPrefix="home-recent"
+                />
               </>
             ) : (
               <div className="text-center py-16">
@@ -317,7 +324,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <AnimatedSection animation="fade-up" className="text-center mb-10 sm:mb-12">
               <span className="text-[#e8b86d] text-xs sm:text-sm font-semibold uppercase tracking-widest">Nos services</span>
-              <h2 className="text-2xl sm:text-3xl font-bold text-[#0f1724] mt-1">Tout pour votre projet immobilier</h2>
+              <h2 className="font-display text-2xl sm:text-3xl font-bold text-[#0f1724] mt-1">Tout pour votre projet immobilier</h2>
             </AnimatedSection>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-6">
               {SERVICES.map((service, i) => (
@@ -340,15 +347,11 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <AnimatedSection animation="fade-up" className="text-center mb-12">
               <span className="text-[#e8b86d] text-xs sm:text-sm font-semibold uppercase tracking-widest">Comment ça marche</span>
-              <h2 className="text-2xl sm:text-3xl font-bold text-[#0f1724] mt-1">Votre projet en 4 étapes simples</h2>
+              <h2 className="font-display text-2xl sm:text-3xl font-bold text-[#0f1724] mt-1">Votre projet en 4 étapes simples</h2>
             </AnimatedSection>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-              {[
-                { step: "01", icon: Home,         title: "Définissez votre projet",    desc: "Partagez vos critères : budget, type de bien, localisation, et vos besoins spécifiques." },
-                { step: "02", icon: Users,         title: "Rencontrez notre équipe",    desc: "Un conseiller dédié vous accompagne et sélectionne les meilleures opportunités pour vous." },
-                { step: "03", icon: MapPin,        title: "Visitez les biens",          desc: "Planifiez des visites et découvrez les propriétés qui correspondent à vos attentes." },
-                { step: "04", icon: CheckCircle,   title: "Finalisez la transaction",   desc: "Notre équipe juridique sécurise votre transaction de A à Z, en toute transparence." },
-              ].map((item, i) => (
+            <HowItWorksMobileCarousel />
+            <div className="hidden sm:grid grid-cols-2 lg:grid-cols-4 gap-8">
+              {HOW_IT_WORKS_STEPS.map((item, i) => (
                 <AnimatedSection key={item.step} animation="fade-up" delay={i * 100}>
                   <div className="relative text-center">
                     {i < 3 && (
@@ -410,16 +413,27 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         {/* TESTIMONIALS */}
         <section className="py-16 sm:py-20 bg-[#f4f6f9]">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <AnimatedSection animation="fade-up" className="text-center mb-10 sm:mb-12">
-              <span className="text-[#e8b86d] text-xs sm:text-sm font-semibold uppercase tracking-widest">Témoignages</span>
-              <h2 className="text-2xl sm:text-3xl font-bold text-[#0f1724] mt-1">Ce que disent nos clients</h2>
+            <AnimatedSection animation="fade-up" className="mb-8 sm:hidden">
+              <div className="flex items-end justify-between gap-4">
+                <div className="text-left">
+                  <span className="text-xs font-semibold uppercase tracking-widest text-[#e8b86d]">Témoignages</span>
+                  <h2 className="font-display mt-1 text-2xl font-bold text-[#0f1724]">Ce que disent nos clients</h2>
+                  <p className="mt-2 max-w-xs text-sm leading-relaxed text-gray-500">
+                    Achat, location ou investissement: ils nous ont confié leur projet.
+                  </p>
+                </div>
+                <span className="shrink-0 rounded-full border border-[#1a3a5c]/10 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#1a3a5c]/60">
+                  {displayedTestimonials.length} avis
+                </span>
+              </div>
             </AnimatedSection>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[
-                { name: "Amadou Diallo", role: "Acheteur – Villa à Almadies", text: "KOITALA m'a accompagné du début à la fin. Professionnalisme, réactivité et écoute. J'ai trouvé la maison de mes rêves en moins d'un mois.", stars: 5, avatar: "AD" },
-                { name: "Fatou Ndiaye", role: "Locataire – Appartement Plateau", text: "Équipe très disponible et transparente. Toutes les démarches ont été claires et rapides. Je recommande vivement cette agence.", stars: 5, avatar: "FN" },
-                { name: "Moussa Sow", role: "Investisseur – Local commercial", text: "J'ai pu investir en toute confiance grâce aux conseils experts de KOITALA. Leur connaissance du marché sénégalais est remarquable.", stars: 5, avatar: "MS" },
-              ].map((t, i) => (
+            <AnimatedSection animation="fade-up" className="hidden text-center mb-10 sm:mb-12 sm:block">
+              <span className="text-[#e8b86d] text-xs sm:text-sm font-semibold uppercase tracking-widest">Témoignages</span>
+              <h2 className="font-display text-2xl sm:text-3xl font-bold text-[#0f1724] mt-1">Ce que disent nos clients</h2>
+            </AnimatedSection>
+            <TestimonialsMobileCarousel testimonials={displayedTestimonials} />
+            <div className="hidden grid-cols-1 gap-6 sm:grid sm:grid-cols-2 lg:grid-cols-3">
+              {displayedTestimonials.map((t, i) => (
                 <AnimatedSection key={t.name} animation="fade-up" delay={i * 100}>
                   <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow h-full flex flex-col">
                     <div className="flex gap-1 mb-4">
@@ -462,17 +476,81 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         {/* CTA */}
         <AnimatedSection animation="scale-in">
           <section className="py-14 sm:py-16 bg-[#e8b86d]">
-            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-              <h2 className="text-2xl sm:text-3xl font-bold text-[#0f1724] mb-3">Prêt à concrétiser votre projet ?</h2>
-              <p className="text-[#1a3a5c] text-base sm:text-lg mb-8">Contactez-nous dès aujourd&apos;hui pour discuter de votre projet immobilier et prendre rendez-vous avec nos conseillers.</p>
-              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
-                <Link href="/contact" className="px-7 py-3.5 bg-[#1a3a5c] text-white font-semibold rounded-xl hover:bg-[#0f2540] active:scale-95 transition-all duration-200 shadow-md">
-                  Nous contacter
-                </Link>
-                <a href="tel:+221766752135" className="inline-flex items-center justify-center gap-2 px-7 py-3.5 bg-white text-[#1a3a5c] font-semibold rounded-xl hover:bg-gray-50 active:scale-95 transition-all duration-200 shadow-md">
-                  <Phone className="w-4 h-4" />
-                  +221 76 675 21 35
-                </a>
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="overflow-hidden rounded-[2rem] bg-[#fff8ee] px-6 py-8 shadow-[0_24px_80px_rgba(15,23,36,0.12)] sm:px-8 sm:py-10 lg:px-12">
+                <div className="lg:hidden text-center">
+                  <h2 className="font-display text-2xl font-bold leading-tight text-[#0f1724]">
+                    Prêt à concrétiser votre projet ?
+                  </h2>
+                  <p className="mt-4 text-base leading-relaxed text-[#1a3a5c]">
+                    Contactez-nous dès aujourd&apos;hui pour discuter de votre projet immobilier et prendre rendez-vous avec nos conseillers.
+                  </p>
+                  <div className="mt-6 grid grid-cols-2 gap-3">
+                    <Link
+                      href="/contact"
+                      className="inline-flex min-w-0 items-center justify-center gap-1.5 rounded-xl bg-[#1a3a5c] px-3 py-3.5 text-[13px] font-semibold leading-tight text-white transition-all duration-200 hover:bg-[#0f2540] active:scale-95"
+                    >
+                      Nous contacter
+                      <ArrowRight className="h-4 w-4" />
+                    </Link>
+                    <a
+                      href="tel:+221766752135"
+                      className="inline-flex min-w-0 items-center justify-center gap-1.5 rounded-xl border border-[#1a3a5c]/15 bg-white px-3 py-3.5 text-[13px] font-semibold leading-tight text-[#1a3a5c] transition-all duration-200 hover:bg-gray-50 active:scale-95"
+                    >
+                      <Phone className="h-4 w-4" />
+                      +221 76 675 21 35
+                    </a>
+                  </div>
+                  <p className="mt-4 text-sm leading-relaxed text-[#1a3a5c]/75">
+                    Un premier échange suffit pour cadrer votre besoin.
+                  </p>
+                </div>
+
+                <div className="hidden gap-8 lg:grid lg:grid-cols-[minmax(0,1.3fr)_minmax(320px,0.7fr)] lg:items-center">
+                  <div className="text-left">
+                    <h2 className="font-display text-2xl font-bold leading-tight text-[#0f1724] sm:text-3xl lg:text-4xl">
+                      Prêt à concrétiser votre projet ?
+                    </h2>
+                    <p className="mt-4 max-w-2xl text-base leading-relaxed text-[#1a3a5c] sm:text-lg lg:max-w-none">
+                      Contactez-nous dès aujourd&apos;hui pour discuter de votre projet immobilier et prendre rendez-vous avec nos conseillers.
+                    </p>
+                    <div className="mt-6 flex flex-wrap justify-center gap-2.5 lg:justify-start">
+                      {["Achat", "Vente", "Location", "Construction"].map((item) => (
+                        <span
+                          key={item}
+                          className="rounded-full border border-[#1a3a5c]/12 bg-white px-3.5 py-2 text-sm font-medium text-[#1a3a5c]"
+                        >
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="rounded-[1.5rem] bg-[#1a3a5c] p-5 text-center text-white shadow-lg sm:p-6 lg:text-left">
+                    <p className="text-sm font-semibold uppercase tracking-[0.2em] text-white/70">
+                      Choisissez votre canal
+                    </p>
+                    <div className="mt-5 grid grid-cols-2 gap-3">
+                      <Link
+                        href="/contact"
+                        className="inline-flex min-w-0 items-center justify-center gap-2 rounded-xl bg-white px-4 py-3.5 text-sm font-semibold text-[#1a3a5c] transition-all duration-200 hover:bg-[#f8fafc] active:scale-95 sm:text-base"
+                      >
+                        Nous contacter
+                        <ArrowRight className="h-4 w-4" />
+                      </Link>
+                      <a
+                        href="tel:+221766752135"
+                        className="inline-flex min-w-0 items-center justify-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-4 py-3.5 text-sm font-semibold text-white transition-all duration-200 hover:bg-white/15 active:scale-95 sm:text-base"
+                      >
+                        <Phone className="h-4 w-4" />
+                        +221 76 675 21 35
+                      </a>
+                    </div>
+                    <p className="mt-4 text-sm leading-relaxed text-white/75">
+                      Un premier échange suffit pour cadrer votre besoin et définir les prochaines étapes.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           </section>

@@ -6,7 +6,7 @@ export default function Footer() {
   return (
     <footer className="bg-[#0f1724] text-gray-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
+        <div className="grid grid-cols-1 gap-10 md:grid-cols-2 lg:grid-cols-4">
           {/* Brand */}
           <div className="lg:col-span-1">
             <Link href="/" className="flex items-center gap-2 mb-5">
@@ -40,52 +40,54 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* Navigation */}
-          <div>
-            <h3 className="text-white font-semibold mb-5">Navigation</h3>
-            <ul className="space-y-3">
-              {[
-                { href: "/biens", label: "Nos biens" },
-                { href: "/biens?listing_type=vente", label: "Vente" },
-                { href: "/biens?listing_type=location", label: "Location" },
-                { href: "/a-propos", label: "À propos" },
-                { href: "/blog", label: "Blog" },
-                { href: "/contact", label: "Contact" },
-              ].map((link) => (
-                <li key={link.href}>
-                  <Link
-                    href={link.href}
-                    className="text-sm text-gray-400 hover:text-[#e8b86d] transition-colors"
-                  >
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
+          <div className="grid grid-cols-2 gap-8 md:contents">
+            {/* Navigation */}
+            <div>
+              <h3 className="text-white font-semibold mb-5">Navigation</h3>
+              <ul className="space-y-3">
+                {[
+                  { href: "/biens", label: "Nos biens" },
+                  { href: "/biens?listing_type=vente", label: "Vente" },
+                  { href: "/biens?listing_type=location", label: "Location" },
+                  { href: "/a-propos", label: "À propos" },
+                  { href: "/blog", label: "Blog" },
+                  { href: "/contact", label: "Contact" },
+                ].map((link) => (
+                  <li key={link.href}>
+                    <Link
+                      href={link.href}
+                      className="text-sm text-gray-400 hover:text-[#e8b86d] transition-colors"
+                    >
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
 
-          {/* Types de biens */}
-          <div>
-            <h3 className="text-white font-semibold mb-5">Nos biens</h3>
-            <ul className="space-y-3">
-              {[
-                { href: "/biens?type=appartement", label: "Appartements" },
-                { href: "/biens?type=maison", label: "Maisons" },
-                { href: "/biens?type=villa", label: "Villas" },
-                { href: "/biens?type=terrain", label: "Terrains" },
-                { href: "/biens?type=bureau", label: "Bureaux" },
-                { href: "/biens?type=local_commercial", label: "Locaux commerciaux" },
-              ].map((link) => (
-                <li key={link.href}>
-                  <Link
-                    href={link.href}
-                    className="text-sm text-gray-400 hover:text-[#e8b86d] transition-colors"
-                  >
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
+            {/* Types de biens */}
+            <div>
+              <h3 className="text-white font-semibold mb-5">Nos biens</h3>
+              <ul className="space-y-3">
+                {[
+                  { href: "/biens?type=appartement", label: "Appartements" },
+                  { href: "/biens?type=maison", label: "Maisons" },
+                  { href: "/biens?type=villa", label: "Villas" },
+                  { href: "/biens?type=terrain", label: "Terrains" },
+                  { href: "/biens?type=bureau", label: "Bureaux" },
+                  { href: "/biens?type=local_commercial", label: "Locaux commerciaux" },
+                ].map((link) => (
+                  <li key={link.href}>
+                    <Link
+                      href={link.href}
+                      className="text-sm text-gray-400 hover:text-[#e8b86d] transition-colors"
+                    >
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
 
           {/* Contact */}

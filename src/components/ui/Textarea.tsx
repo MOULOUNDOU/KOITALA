@@ -48,6 +48,7 @@ const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
         <textarea
           ref={ref}
           id={textareaId}
+          suppressHydrationWarning
           onFocus={(event) => {
             stabilizeMobileDashboardFocus(event.currentTarget);
             onFocus?.(event);

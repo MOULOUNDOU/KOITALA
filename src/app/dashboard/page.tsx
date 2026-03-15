@@ -59,6 +59,7 @@ async function getRecentProperties() {
     .from("properties")
     .select("id, title, slug, city, price, status, listing_type, property_type, main_image_url, bedrooms, bathrooms, area, created_at")
     .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
     .limit(6);
   return data ?? [];
 }
@@ -81,7 +82,7 @@ export default async function DashboardPage() {
   ]);
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto space-y-6">
+    <div className="min-h-full p-4 pb-8 sm:p-6 sm:pb-10 lg:p-8 max-w-[1400px] mx-auto space-y-6">
       {/* ── Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>

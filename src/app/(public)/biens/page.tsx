@@ -6,7 +6,8 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import PropertyCard from "@/components/properties/PropertyCard";
 import PropertyFilters from "@/components/properties/PropertyFilters";
-import { Building2 } from "lucide-react";
+import SitePagination from "@/components/ui/SitePagination";
+import { ArrowLeft, Building2 } from "lucide-react";
 import type { Property, SearchFilters } from "@/types";
 
 export const metadata: Metadata = {
@@ -27,7 +28,8 @@ async function getProperties(
     .select("*, property_images(*)", { count: "exact" })
     .eq("status", "publie")
     .order("is_featured", { ascending: false })
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false });
 
   if (filters.rental_category) {
     query = query.eq("listing_type", "location");
@@ -142,13 +144,6 @@ export default async function BiensPage({ searchParams }: BienPageProps) {
   const resultStart = total === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
   const resultEnd = Math.min(currentPage * PAGE_SIZE, total);
 
-  const firstVisiblePage = Math.max(1, Math.min(currentPage - 2, totalPages - 4));
-  const lastVisiblePage = Math.min(totalPages, firstVisiblePage + 4);
-  const visiblePages = Array.from(
-    { length: lastVisiblePage - firstVisiblePage + 1 },
-    (_, i) => firstVisiblePage + i
-  );
-
   const buildPageHref = (page: number): string => {
     const nextParams = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => {
@@ -167,6 +162,13 @@ export default async function BiensPage({ searchParams }: BienPageProps) {
       {/* Header */}
       <div className="bg-[#0f1724] pt-28 pb-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <Link
+            href="/"
+            className="mb-5 inline-flex w-fit items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white transition-all duration-300 hover:border-[#e8b86d]/60 hover:bg-white/10 hover:text-[#e8b86d]"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Retour à l'accueil
+          </Link>
           <h1 className="text-3xl font-bold text-white mb-2">Nos biens</h1>
           <p className="text-gray-400">
             {total} bien{total !== 1 ? "s" : ""}{" "}
@@ -202,73 +204,12 @@ export default async function BiensPage({ searchParams }: BienPageProps) {
                   ))}
                 </div>
 
-                {totalPages > 1 && (
-                  <div className="mt-8 space-y-3">
-                    <div className="flex items-center justify-between sm:hidden">
-                      <Link
-                        href={buildPageHref(currentPage - 1)}
-                        className={`px-3 py-2 rounded-lg text-sm font-medium border ${
-                          currentPage === 1
-                            ? "pointer-events-none border-gray-200 text-gray-300"
-                            : "border-[#1a3a5c]/30 text-[#1a3a5c]"
-                        }`}
-                      >
-                        Précédent
-                      </Link>
-                      <span className="text-sm text-gray-500">
-                        Page <span className="font-semibold text-[#0f1724]">{currentPage}</span> / {totalPages}
-                      </span>
-                      <Link
-                        href={buildPageHref(currentPage + 1)}
-                        className={`px-3 py-2 rounded-lg text-sm font-medium border ${
-                          currentPage === totalPages
-                            ? "pointer-events-none border-gray-200 text-gray-300"
-                            : "border-[#1a3a5c]/30 text-[#1a3a5c]"
-                        }`}
-                      >
-                        Suivant
-                      </Link>
-                    </div>
-
-                    <div className="hidden sm:flex items-center justify-center gap-2">
-                      <Link
-                        href={buildPageHref(currentPage - 1)}
-                        className={`px-3 py-2 rounded-lg text-sm font-medium border ${
-                          currentPage === 1
-                            ? "pointer-events-none border-gray-200 text-gray-300"
-                            : "border-[#1a3a5c]/30 text-[#1a3a5c] hover:bg-[#1a3a5c] hover:text-white"
-                        }`}
-                      >
-                        Précédent
-                      </Link>
-
-                      {visiblePages.map((page) => (
-                        <Link
-                          key={`page-${page}`}
-                          href={buildPageHref(page)}
-                          className={`w-10 h-10 rounded-lg text-sm font-semibold inline-flex items-center justify-center border transition-colors ${
-                            page === currentPage
-                              ? "bg-[#1a3a5c] border-[#1a3a5c] text-white"
-                              : "border-gray-200 text-gray-600 hover:border-[#1a3a5c]/40 hover:text-[#1a3a5c]"
-                          }`}
-                        >
-                          {page}
-                        </Link>
-                      ))}
-
-                      <Link
-                        href={buildPageHref(currentPage + 1)}
-                        className={`px-3 py-2 rounded-lg text-sm font-medium border ${
-                          currentPage === totalPages
-                            ? "pointer-events-none border-gray-200 text-gray-300"
-                            : "border-[#1a3a5c]/30 text-[#1a3a5c] hover:bg-[#1a3a5c] hover:text-white"
-                        }`}
-                      >
-                        Suivant
-                      </Link>
-                    </div>
-                  </div>
-                )}
+                <SitePagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  buildHref={buildPageHref}
+                  pageKeyPrefix="biens"
+                />
               </>
             ) : (
               <div className="flex flex-col items-center justify-center py-20 text-center">

@@ -33,8 +33,8 @@ export default function PageTransition({ children }: Props) {
     <div
       className={
         phase === "enter"
-          ? "animate-page-enter"
-          : "animate-page-exit"
+          ? "min-h-full animate-page-enter"
+          : "min-h-full animate-page-exit"
       }
     >
       {displayChildren}

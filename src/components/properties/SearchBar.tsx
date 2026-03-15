@@ -61,13 +61,33 @@ export default function SearchBar({ className }: { className?: string }) {
   });
   const [showAdvanced, setShowAdvanced] = useState(false);
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
+  const buildSearchParams = (nextFilters: typeof filters) => {
     const params = new URLSearchParams();
-    Object.entries(filters).forEach(([key, value]) => {
+    Object.entries(nextFilters).forEach(([key, value]) => {
       if (value) params.set(key, value);
     });
+    return params;
+  };
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    const params = buildSearchParams(filters);
     router.push(`/biens?${params.toString()}`);
+  };
+
+  const handleListingTypeSelect = (type: "" | "vente" | "location") => {
+    const nextFilters = {
+      ...filters,
+      listing_type: type,
+      rental_category: type === "location" ? filters.rental_category : "",
+      rent_payment_period: type === "location" ? filters.rent_payment_period : "",
+    };
+
+    setFilters(nextFilters);
+
+    const params = buildSearchParams(nextFilters);
+    const query = params.toString();
+    router.push(query ? `/biens?${query}` : "/biens");
   };
 
   const cityOpts = SENEGAL_CITIES.map((c) => ({ value: c, label: c }));
@@ -98,14 +118,9 @@ export default function SearchBar({ className }: { className?: string }) {
         {["", "vente", "location"].map((type) => (
           <button
             key={type}
-            onClick={() =>
-              setFilters((f) => ({
-                ...f,
-                listing_type: type,
-                rental_category: type === "location" ? f.rental_category : "",
-                rent_payment_period: type === "location" ? f.rent_payment_period : "",
-              }))
-            }
+            type="button"
+            onClick={() => handleListingTypeSelect(type as "" | "vente" | "location")}
+            aria-pressed={filters.listing_type === type}
             className={cn(
               "flex-1 py-3.5 text-sm font-semibold transition-colors",
               filters.listing_type === type

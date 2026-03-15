@@ -292,10 +292,12 @@ export default function NouvelleAnnoncePage() {
 
     const hasUploadedImage = images.length > 0;
     const hasMainImageUrl = Boolean(data.main_image_url?.trim());
-    if (!hasUploadedImage && !hasMainImageUrl) {
+    const hasUploadedVideo = Boolean(videoFile);
+    const hasVideoUrl = Boolean(data.video_url?.trim());
+    if (!hasUploadedImage && !hasMainImageUrl && !hasUploadedVideo && !hasVideoUrl) {
       setStepDirection("forward");
       setStep(4);
-      toast.error("Ajoutez au moins une photo (upload ou URL image principale) avant d'enregistrer.");
+      toast.error("Ajoutez au moins un media: une photo ou une video.");
       return;
     }
 
@@ -731,7 +733,7 @@ export default function NouvelleAnnoncePage() {
                     {...register("main_image_url")}
                   />
                   <p className="text-xs text-gray-400 mt-1">
-                    Au moins une photo est obligatoire: upload direct ou URL.
+                    La photo est optionnelle si vous ajoutez une video.
                   </p>
                 </div>
                 <label className={`flex flex-col items-center justify-center w-full h-36 border-2 border-dashed rounded-xl transition-colors ${images.length >= MAX_IMAGES ? "border-gray-100 bg-gray-50 cursor-not-allowed opacity-50" : "border-gray-200 cursor-pointer hover:border-[#1a3a5c]/50 hover:bg-gray-50"}`}>
@@ -791,7 +793,7 @@ export default function NouvelleAnnoncePage() {
                     {...register("video_url")}
                   />
                   <p className="text-xs text-gray-400 mt-1">
-                    Vous pouvez ajouter un lien vidéo sans uploader de fichier.
+                    Ajoutez au moins un media: photo ou video.
                   </p>
                 </div>
                 {!videoPreview ? (

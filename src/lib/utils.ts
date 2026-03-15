@@ -150,3 +150,14 @@ export function getPropertyImageUrls(
 
   return uniqueUrls.length > 0 ? uniqueUrls : [fallbackUrl];
 }
+
+export function hasPropertyImageMedia(
+  property: Pick<Property, "main_image_url" | "property_images">
+): boolean {
+  return Boolean(property.main_image_url) || (property.property_images?.some((img) => Boolean(img.url)) ?? false);
+}
+
+export function isDirectVideoUrl(videoUrl?: string | null): boolean {
+  if (!videoUrl) return false;
+  return /\.(mp4|webm|ogg|mov|m4v)(?:$|[?#])/i.test(videoUrl);
+}

@@ -27,6 +27,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
         <select
           ref={ref}
           id={selectId}
+          suppressHydrationWarning
           className={cn(
             "w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900",
             "focus:outline-none focus:ring-2 focus:ring-[#1a3a5c]/30 focus:border-[#1a3a5c]",

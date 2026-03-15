@@ -151,6 +151,13 @@ export default function EditAnnoncePage() {
       return;
     }
 
+    const hasMainImageUrl = Boolean(data.main_image_url?.trim());
+    const hasVideoUrl = Boolean(data.video_url?.trim());
+    if (!hasMainImageUrl && !hasVideoUrl) {
+      toast.error("Ajoutez au moins un media: une photo ou une video.");
+      return;
+    }
+
     const payload = {
       ...data,
       listing_type: currentListingType,
@@ -399,6 +406,9 @@ export default function EditAnnoncePage() {
               {...register("video_url")}
             />
           </div>
+          <p className="mt-3 text-xs text-gray-400">
+            Ajoutez au moins un media: une photo ou une video.
+          </p>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3 justify-end">

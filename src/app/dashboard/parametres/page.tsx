@@ -137,7 +137,7 @@ export default function ParametresPage() {
   }
 
   return (
-    <div className="p-6 lg:p-8 max-w-3xl mx-auto">
+    <div className="min-h-full p-6 pb-8 lg:p-8 lg:pb-10 max-w-3xl mx-auto">
       <div className="mb-7">
         <h1 className="text-2xl font-bold text-[#0f1724]">Paramètres</h1>
         <p className="text-sm text-gray-500 mt-0.5">Gérez votre profil administrateur</p>

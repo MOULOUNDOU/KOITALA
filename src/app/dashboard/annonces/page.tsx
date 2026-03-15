@@ -13,7 +13,8 @@ async function getProperties() {
   const { data } = await supabase
     .from("properties")
     .select("id, slug, title, city, price, status, listing_type, property_type, is_featured, created_at, views_count")
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false });
   return data ?? [];
 }
 

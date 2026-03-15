@@ -3,17 +3,18 @@
 import Link from "next/link";
 import { Heart, MapPin, Bed, Bath, Maximize2, Star, Eye } from "lucide-react";
 import { useState } from "react";
-import { cn, formatArea, formatPrice, getListingTypeLabel, getPropertyTypeLabel, getRentalCategoryLabel, getFakeRating, getPropertyImageUrls } from "@/lib/utils";
+import { cn, formatArea, formatPrice, getListingTypeLabel, getPropertyTypeLabel, getRentalCategoryLabel, getFakeRating } from "@/lib/utils";
 import type { Property } from "@/types";
 import { createClient } from "@/lib/supabase/client";
-import PropertyImageCarousel from "@/components/properties/PropertyImageCarousel";
+import PropertyCardMedia from "@/components/properties/PropertyCardMedia";
 
 interface Props {
   property: Property;
   className?: string;
+  preferVideoBubble?: boolean;
 }
 
-export default function PropertyCardMobile({ property, className }: Props) {
+export default function PropertyCardMobile({ property, className, preferVideoBubble = false }: Props) {
   const [favorited, setFavorited] = useState(false);
   const [loadingFav, setLoadingFav] = useState(false);
   const supabase = createClient();
@@ -33,10 +34,6 @@ export default function PropertyCardMobile({ property, className }: Props) {
     setLoadingFav(false);
   };
 
-  const imageUrls = getPropertyImageUrls(
-    property,
-    "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=400&q=80"
-  );
   const rentPaymentLabel = property.rent_payment_period ?? "mois";
   const rentalCategoryLabel = getRentalCategoryLabel(property.rental_category) || null;
   const fakeSocialProof = getFakeRating(property.id);
@@ -53,31 +50,35 @@ export default function PropertyCardMobile({ property, className }: Props) {
       <article className="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
         {/* Image */}
         <div className="relative aspect-[4/3] overflow-hidden">
-          <PropertyImageCarousel
-            images={imageUrls}
+          <PropertyCardMedia
+            property={property}
             alt={property.title}
             sizes="50vw"
             className="absolute inset-0"
             imageClassName="transition-transform duration-500 group-hover:scale-105"
             compact
-          />
-          <div className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-md bg-[#1a3a5c] text-white text-[10px] font-bold uppercase">
-            {getListingTypeLabel(property.listing_type)}
-          </div>
-          {/* Favorite */}
-          <div
-            role="button"
-            tabIndex={0}
-            onClick={handleFavorite}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleFavorite(e as unknown as React.MouseEvent); }}
-            aria-disabled={loadingFav}
-            className={cn(
-              "absolute top-2.5 right-2.5 w-8 h-8 rounded-full flex items-center justify-center shadow-md transition-all cursor-pointer",
-              favorited ? "bg-red-500 text-white" : "bg-white/90 text-gray-500"
-            )}
+            preferVideoBubble={preferVideoBubble}
+            bubbleClassName="h-24 w-24"
+            fallbackImageUrl="https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=400&q=80"
           >
-            <Heart className={cn("w-4 h-4", favorited && "fill-current")} />
-          </div>
+            <div className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-md bg-[#1a3a5c] text-white text-[10px] font-bold uppercase">
+              {getListingTypeLabel(property.listing_type)}
+            </div>
+            {/* Favorite */}
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={handleFavorite}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleFavorite(e as unknown as React.MouseEvent); }}
+              aria-disabled={loadingFav}
+              className={cn(
+                "absolute top-2.5 right-2.5 w-8 h-8 rounded-full flex items-center justify-center shadow-md transition-all cursor-pointer",
+                favorited ? "bg-red-500 text-white" : "bg-white/90 text-gray-500"
+              )}
+            >
+              <Heart className={cn("w-4 h-4", favorited && "fill-current")} />
+            </div>
+          </PropertyCardMedia>
         </div>
 
         {/* Content */}
