@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import toast from "react-hot-toast";
@@ -29,30 +29,60 @@ function FacebookIcon() {
   );
 }
 
-export default function SocialAuthButtons({ redirectTo = "/", mode = "login" }: SocialAuthButtonsProps) {
+export default function SocialAuthButtons({ redirectTo = "/" }: SocialAuthButtonsProps) {
   const [loadingGoogle, setLoadingGoogle] = useState(false);
   const [loadingFacebook, setLoadingFacebook] = useState(false);
-  const [callbackUrl, setCallbackUrl] = useState("/auth/callback");
   const supabase = createClient();
 
-  useEffect(() => {
-    setCallbackUrl(`${window.location.origin}/auth/callback?next=${redirectTo}`);
-  }, [redirectTo]);
+  const normalizeNextPath = (value: string): string => {
+    if (!value) return "/";
+    if (value.startsWith("/")) return value;
+
+    try {
+      const parsed = new URL(value);
+      return `${parsed.pathname}${parsed.search}${parsed.hash}` || "/";
+    } catch {
+      return "/";
+    }
+  };
+
+  const buildCallbackUrl = (nextPath: string): string => {
+    const envSiteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+    let origin = "";
+
+    if (envSiteUrl) {
+      try {
+        origin = new URL(envSiteUrl).origin;
+      } catch {
+        origin = "";
+      }
+    }
+
+    if (!origin && typeof window !== "undefined") {
+      origin = window.location.origin;
+    }
+
+    const callbackUrl = new URL("/auth/callback", origin || "http://localhost:3000");
+    callbackUrl.searchParams.set("next", normalizeNextPath(nextPath));
+    return callbackUrl.toString();
+  };
 
   const handleGoogle = async () => {
     setLoadingGoogle(true);
+    const oauthRedirectTo = buildCallbackUrl(redirectTo);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: callbackUrl },
+      options: { redirectTo: oauthRedirectTo },
     });
     if (error) { toast.error(error.message); setLoadingGoogle(false); }
   };
 
   const handleFacebook = async () => {
     setLoadingFacebook(true);
+    const oauthRedirectTo = buildCallbackUrl(redirectTo);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "facebook",
-      options: { redirectTo: callbackUrl },
+      options: { redirectTo: oauthRedirectTo },
     });
     if (error) { toast.error(error.message); setLoadingFacebook(false); }
   };

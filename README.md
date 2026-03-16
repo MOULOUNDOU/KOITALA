@@ -84,6 +84,7 @@ Creez un fichier `.env.local` a la racine du projet :
 NEXT_PUBLIC_SUPABASE_URL=https://VOTRE_PROJECT_ID.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=votre_anon_key_ici
 SUPABASE_SERVICE_ROLE_KEY=votre_service_role_key_ici
+NEXT_PUBLIC_SITE_URL=https://koitala.com
 ```
 
 ### 4. Executer le schema SQL
@@ -97,6 +98,31 @@ Cela va creer :
 - Les triggers (auto-creation de profil, updated_at)
 - Les politiques RLS
 - Les buckets de stockage
+
+### Configuration Google OAuth (koitala.com)
+
+Pour que "Continuer avec Google" fonctionne en production, configurez les 2 consoles :
+
+1. **Supabase > Authentication > URL Configuration**
+   - `Site URL` : `https://koitala.com`
+   - `Additional Redirect URLs` :
+     - `https://koitala.com/auth/callback`
+     - `https://www.koitala.com/auth/callback` (si vous utilisez `www`)
+     - `http://localhost:3000/auth/callback` (dev local)
+
+2. **Supabase > Authentication > Providers > Google**
+   - Activez Google
+   - Collez le `Client ID` et le `Client Secret` Google OAuth
+
+3. **Google Cloud Console > APIs & Services > Credentials > OAuth 2.0 Client (Web)**
+   - `Authorized JavaScript origins` :
+     - `https://koitala.com`
+     - `https://www.koitala.com` (si utilise)
+     - `http://localhost:3000`
+   - `Authorized redirect URIs` :
+     - `https://phhlnxrhzynrnwbosmpl.supabase.co/auth/v1/callback`
+
+Important : le redirect URI Google pointe vers **Supabase** (`/auth/v1/callback`), pas directement vers `/auth/callback` de l'app.
 
 ### 5. Creer votre compte admin
 
