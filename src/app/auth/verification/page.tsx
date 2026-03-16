@@ -3,13 +3,13 @@
 import { useState, useRef, Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { ArrowLeft, Mail, RefreshCw } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { resolvePostAuthPath } from "@/lib/auth/redirects";
 import toast from "react-hot-toast";
 
 function VerificationForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const email = searchParams.get("email") ?? "";
   const supabase = createClient();
@@ -18,6 +18,35 @@ function VerificationForm() {
   const [verifying, setVerifying] = useState(false);
   const [resending, setResending] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  const resolveIsAdmin = async (userId: string, userEmail?: string | null): Promise<boolean> => {
+    const { data: rpcIsAdmin, error: rpcError } = await supabase.rpc("is_admin");
+    if (!rpcError && typeof rpcIsAdmin === "boolean") {
+      return rpcIsAdmin;
+    }
+
+    const { data: profileById } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (profileById?.role === "admin") {
+      return true;
+    }
+
+    if (userEmail) {
+      const { data: profileByEmail } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("email", userEmail)
+        .maybeSingle();
+
+      return profileByEmail?.role === "admin";
+    }
+
+    return false;
+  };
 
   const handleChange = (index: number, value: string) => {
     if (!/^\d*$/.test(value)) return;
@@ -101,7 +130,10 @@ function VerificationForm() {
 
       toast.success("Email vérifié avec succès !", { duration: 3000 });
       setTimeout(() => {
-        window.location.href = "/dashboard-client";
+        void supabase.auth.getUser().then(async ({ data: { user } }) => {
+          const isAdmin = user ? await resolveIsAdmin(user.id, user.email) : false;
+          window.location.href = resolvePostAuthPath("/", isAdmin);
+        });
       }, 1000);
     } catch {
       toast.error("Une erreur inattendue est survenue.");
@@ -123,7 +155,7 @@ function VerificationForm() {
       if (error) {
         toast.error("Impossible de renvoyer le code. Réessayez plus tard.");
       } else {
-        toast.success("Nouveau code envoyé ! Vérifiez votre boîte mail.", { duration: 4000 });
+      toast.success("Nouveau code envoyé ! Vérifiez votre boîte mail.", { duration: 4000 });
       }
     } catch {
       toast.error("Erreur lors du renvoi.");

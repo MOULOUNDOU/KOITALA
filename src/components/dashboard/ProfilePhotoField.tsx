@@ -134,23 +134,23 @@ export default function ProfilePhotoField({
         onChange={(event) => updateAvatarUrl(event.target.value)}
       />
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3">
         <button
           type="button"
           onClick={() => cameraInputRef.current?.click()}
           disabled={uploading || !userId}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#1a3a5c] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#0f2540] disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#1a3a5c] px-3 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-[#0f2540] disabled:cursor-not-allowed disabled:opacity-60 sm:gap-2 sm:px-4 sm:py-3 sm:text-sm"
         >
-          <Camera className="h-4 w-4" />
+          <Camera className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
           {uploading ? "Envoi..." : "Prendre une photo"}
         </button>
         <button
           type="button"
           onClick={() => galleryInputRef.current?.click()}
           disabled={uploading || !userId}
-          className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#1a3a5c]/20 bg-white px-4 py-3 text-sm font-semibold text-[#1a3a5c] transition-colors hover:bg-[#f8fafc] disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-[#1a3a5c]/20 bg-white px-3 py-2.5 text-xs font-semibold text-[#1a3a5c] transition-colors hover:bg-[#f8fafc] disabled:cursor-not-allowed disabled:opacity-60 sm:gap-2 sm:px-4 sm:py-3 sm:text-sm"
         >
-          <Upload className="h-4 w-4" />
+          <Upload className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
           Choisir depuis l&apos;appareil
         </button>
       </div>

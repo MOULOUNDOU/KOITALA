@@ -487,7 +487,7 @@ export default function MessagesPage() {
                       </div>
                     </div>
 
-                    <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto lg:flex-col">
+                    <div className="flex w-full flex-row gap-2 lg:w-auto lg:flex-col">
                       <a
                         href={`mailto:${contact.email}`}
                         className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-[#1a3a5c] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#0f2540]"
@@ -546,7 +546,7 @@ export default function MessagesPage() {
                           Actions rapides
                         </p>
 
-                        <div className="mt-3 grid grid-cols-1 gap-2">
+                        <div className="mt-3 grid grid-cols-2 gap-2">
                           <a
                             href={`mailto:${contact.email}`}
                             className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-[#1a3a5c]/15 bg-white px-4 text-sm font-semibold text-[#1a3a5c] transition-all hover:border-[#1a3a5c] hover:bg-[#1a3a5c]/5"

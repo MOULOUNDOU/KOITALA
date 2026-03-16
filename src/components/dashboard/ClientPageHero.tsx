@@ -41,7 +41,7 @@ export default function ClientPageHero({
         </div>
 
         {actions ? (
-          <div className="grid grid-cols-1 gap-2 min-[430px]:grid-cols-2 sm:flex sm:items-center">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
             {actions}
           </div>
         ) : null}

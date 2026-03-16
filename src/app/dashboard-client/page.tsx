@@ -26,8 +26,6 @@ import {
   formatDate,
   formatPrice,
   getListingTypeLabel,
-  getStatusColor,
-  getStatusLabel,
 } from "@/lib/utils";
 import type { Profile } from "@/types";
 
@@ -400,17 +398,17 @@ export default function DashboardClientPage() {
     <div className="mx-auto max-w-[1450px] space-y-6 p-4 pb-8 sm:p-6 sm:pb-10 lg:p-8">
       <section className="rounded-[30px] border border-gray-100 bg-white p-5 shadow-sm sm:p-7">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-          <div className="flex items-center gap-4">
+          <div className="flex flex-col items-start gap-3 min-[430px]:flex-row min-[430px]:items-center min-[430px]:gap-4">
             <DashboardAvatar
               name={userName}
               avatarUrl={userAvatarUrl}
-              className="h-16 w-16 shrink-0 rounded-[20px] bg-[#1a3a5c]/10 text-lg text-[#1a3a5c] ring-0"
+              className="h-14 w-14 shrink-0 rounded-[18px] bg-[#1a3a5c]/10 text-base text-[#1a3a5c] ring-0 sm:h-16 sm:w-16 sm:rounded-[20px] sm:text-lg"
             />
-            <div>
+            <div className="min-w-0">
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gray-400">
                 ESPACE CLIENT KOITALA
               </p>
-              <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-[#0f1724] sm:text-3xl">
+              <h1 className="mt-2 break-words text-[1.6rem] font-extrabold leading-[1.02] tracking-tight text-[#0f1724] min-[430px]:text-[1.95rem] sm:text-3xl">
                 Bonjour, {userName}
               </h1>
               <p className="mt-1.5 text-sm text-gray-600">
@@ -665,127 +663,6 @@ export default function DashboardClientPage() {
         </div>
 
         <aside className="space-y-6">
-          <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-[#0f1724]">Demandes récentes</h2>
-              <Link href="/dashboard-client/visites" className="text-xs font-semibold text-[#1a3a5c] hover:underline">
-                Tout voir
-              </Link>
-            </div>
-            {visits.length === 0 ? (
-              <p className="text-sm text-gray-400">Aucune demande enregistrée pour le moment.</p>
-            ) : (
-              <div className="space-y-3">
-                {visits.slice(0, 4).map((visit) => {
-                  const property = pickFirst(visit.property);
-                  return (
-                    <div key={visit.id} className="rounded-2xl border border-gray-100 p-3">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-[#0f1724]">
-                            {property?.title ?? "Bien supprimé"}
-                          </p>
-                          <p className="truncate text-xs text-gray-500">
-                            {visit.preferred_date
-                              ? `Souhaitée le ${formatDate(visit.preferred_date)}`
-                              : `Créée le ${formatDate(visit.created_at)}`}
-                          </p>
-                        </div>
-                        <span
-                          className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${getStatusColor(
-                            visit.status
-                          )}`}
-                        >
-                          {getStatusLabel(visit.status)}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-
-          <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-[#0f1724]">Messages envoyés</h2>
-              <Link
-                href="/dashboard-client/messages"
-                className="text-xs font-semibold text-[#1a3a5c] hover:underline"
-              >
-                Tout voir
-              </Link>
-            </div>
-            {messages.length === 0 ? (
-              <p className="text-sm text-gray-400">Aucun message récent.</p>
-            ) : (
-              <div className="space-y-3">
-                {messages.slice(0, 4).map((message) => (
-                  <div key={message.id} className="rounded-2xl border border-gray-100 p-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-[#0f1724]">
-                          {message.subject?.trim() || "Message sans objet"}
-                        </p>
-                        <p className="mt-0.5 line-clamp-2 text-xs text-gray-500">{message.message}</p>
-                      </div>
-                      <span
-                        className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${getStatusColor(
-                          message.status
-                        )}`}
-                      >
-                        {getStatusLabel(message.status)}
-                      </span>
-                    </div>
-                    <p className="mt-1 text-[11px] text-gray-400">{formatDate(message.created_at)}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-
-          <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <h2 className="text-lg font-bold text-[#0f1724]">Favoris récents</h2>
-              <Link
-                href="/dashboard-client/favoris"
-                className="text-xs font-semibold text-[#1a3a5c] hover:underline"
-              >
-                Tout voir
-              </Link>
-            </div>
-
-            {favorites.length === 0 ? (
-              <p className="text-sm text-gray-400">Aucun favori enregistré.</p>
-            ) : (
-              <div className="space-y-3">
-                {favorites.slice(0, 3).map((favorite) => (
-                  <Link
-                    key={favorite.id}
-                    href={`/biens/${favorite.slug}`}
-                    className="flex items-center gap-3 rounded-2xl border border-gray-100 p-3 transition-colors hover:border-[#1a3a5c]/25 hover:bg-[#f8fafc]"
-                  >
-                    <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl bg-gray-100">
-                      <Image
-                        src={getPropertyImage(favorite)}
-                        alt={favorite.title}
-                        fill
-                        className="object-cover"
-                        sizes="56px"
-                      />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-[#0f1724]">{favorite.title}</p>
-                      <p className="mt-0.5 text-xs text-gray-500">{favorite.city}</p>
-                      <p className="mt-1 text-xs font-semibold text-[#1a3a5c]">{formatPrice(favorite.price)}</p>
-                    </div>
-                    <ArrowRight className="h-4 w-4 shrink-0 text-gray-300" />
-                  </Link>
-                ))}
-              </div>
-            )}
-          </section>
-
           <section className="rounded-3xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
             <div className="mb-3 flex items-center justify-between gap-3">
               <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-gray-400">

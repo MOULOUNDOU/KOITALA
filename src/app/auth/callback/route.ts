@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { resolvePostAuthPath } from "@/lib/auth/redirects";
 import { NextResponse } from "next/server";
 
 function getSafeNextPath(rawNext: string | null): string | null {
@@ -22,12 +23,6 @@ export async function GET(request: Request) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      // If a specific redirect was requested, use it
-      if (next && next !== "/") {
-        return NextResponse.redirect(new URL(next, request.url));
-      }
-
-      // Otherwise redirect based on user role
       let isAdmin = false;
 
       const { data: rpcIsAdmin, error: rpcError } = await supabase.rpc("is_admin");
@@ -57,7 +52,7 @@ export async function GET(request: Request) {
         }
       }
 
-      return NextResponse.redirect(new URL(isAdmin ? "/dashboard" : "/dashboard-client", request.url));
+      return NextResponse.redirect(new URL(resolvePostAuthPath(next, isAdmin), request.url));
     }
   }
 

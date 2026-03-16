@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import ClientSidebar from "@/components/layout/ClientSidebar";
 import MobileDashboardViewportLock from "@/components/layout/MobileDashboardViewportLock";
@@ -56,16 +57,18 @@ export default function DashboardClientLayout({ children }: { children: React.Re
 
     void syncUserName();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
-      if (!session?.user) {
-        setUserName(null);
-        setUserAvatarUrl(null);
-        setReady(false);
-        router.push("/auth/login?redirectTo=/dashboard-client");
-        return;
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event: AuthChangeEvent, session: Session | null) => {
+        if (!session?.user) {
+          setUserName(null);
+          setUserAvatarUrl(null);
+          setReady(false);
+          router.push("/auth/login?redirectTo=/dashboard-client");
+          return;
+        }
+        void syncUserName();
       }
-      void syncUserName();
-    });
+    );
 
     const handleProfileUpdated = (event: Event) => {
       const customEvent = event as CustomEvent<ProfileUpdatedEventDetail>;

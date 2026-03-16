@@ -16,6 +16,7 @@ interface PropertyCardMediaProps {
   preferVideoBubble?: boolean;
   bubbleClassName?: string;
   fallbackImageUrl?: string;
+  showVideoBadge?: boolean;
   children?: React.ReactNode;
 }
 
@@ -29,6 +30,7 @@ export default function PropertyCardMedia({
   compact = false,
   preferVideoBubble = false,
   fallbackImageUrl,
+  showVideoBadge = true,
   children,
 }: PropertyCardMediaProps) {
   const imageUrls = getPropertyImageUrls(
@@ -64,10 +66,12 @@ export default function PropertyCardMedia({
             <VolumeX className="h-3 w-3" />
             Sans son
           </div>
-          <div className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-white/92 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#0f1724] shadow-sm">
-            <Play className="h-3 w-3 fill-current" />
-            Video
-          </div>
+          {showVideoBadge && (
+            <div className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-white/92 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#0f1724] shadow-sm">
+              <Play className="h-3 w-3 fill-current" />
+              Video
+            </div>
+          )}
         </div>
       ) : embeddedVideoPreview ? (
         <div className="absolute inset-0 bg-[#09111d]">
@@ -80,10 +84,12 @@ export default function PropertyCardMedia({
             referrerPolicy="strict-origin-when-cross-origin"
           />
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent" />
-          <div className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-full bg-black/40 px-2 py-1 text-[10px] font-medium text-white backdrop-blur-sm">
-            <Play className="h-3 w-3 fill-current" />
-            Video
-          </div>
+          {showVideoBadge && (
+            <div className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-full bg-black/40 px-2 py-1 text-[10px] font-medium text-white backdrop-blur-sm">
+              <Play className="h-3 w-3 fill-current" />
+              Video
+            </div>
+          )}
         </div>
       ) : showVideoFallback ? (
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(232,184,109,0.24),_transparent_42%),linear-gradient(145deg,_#132740,_#09111d)]">

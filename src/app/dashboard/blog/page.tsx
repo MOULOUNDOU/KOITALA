@@ -121,7 +121,7 @@ export default function DashboardBlogPage() {
                 </select>
               </div>
 
-              <div className="grid grid-cols-1 gap-2 sm:flex sm:items-center sm:justify-end">
+              <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:justify-end">
                 <button
                   onClick={() => setShowForm(false)}
                   className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 sm:w-auto"

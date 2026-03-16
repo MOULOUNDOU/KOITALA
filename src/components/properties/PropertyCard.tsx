@@ -98,6 +98,7 @@ export default function PropertyCard({
             preferVideoBubble={preferVideoBubble}
             bubbleClassName="h-36 w-36 sm:h-32 sm:w-32"
             fallbackImageUrl="https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=600&q=80"
+            showVideoBadge={false}
           >
 
             {/* Overlay badges */}

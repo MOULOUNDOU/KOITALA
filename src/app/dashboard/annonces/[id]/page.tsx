@@ -74,7 +74,7 @@ const STATUSES = [
   { value: "loue", label: "Loué" },
   { value: "archive", label: "Archivé" },
 ];
-const FORM_MOBILE_BUTTON_CLASS = "w-full sm:w-auto h-11 text-sm";
+const FORM_MOBILE_BUTTON_CLASS = "h-11 min-w-0 flex-1 text-sm sm:w-auto sm:flex-none";
 const HERO_FORM_SELECT_LABEL_CLASS = "text-sm font-medium text-gray-700 normal-case tracking-normal mb-1.5";
 const HERO_FORM_SELECT_TRIGGER_CLASS = "py-3.5";
 const HERO_FORM_SELECT_DROPDOWN_CLASS = "rounded-2xl border border-gray-100 shadow-2xl";
@@ -605,8 +605,8 @@ export default function EditAnnoncePage() {
           </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-3 justify-end">
-          <Link href="/dashboard/annonces" className="w-full sm:w-auto">
+        <div className="flex flex-row gap-3 justify-end">
+          <Link href="/dashboard/annonces" className="min-w-0 flex-1 sm:w-auto sm:flex-none">
             <Button type="button" variant="ghost" className={FORM_MOBILE_BUTTON_CLASS}>
               Annuler
             </Button>

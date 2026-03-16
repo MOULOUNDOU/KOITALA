@@ -384,7 +384,7 @@ export default function ProfilPage() {
         }
       />
 
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <section className="grid grid-flow-col auto-cols-[minmax(240px,86%)] gap-4 overflow-x-auto pb-2 pr-1 sm:grid-flow-row sm:auto-cols-auto sm:grid-cols-3 sm:overflow-visible sm:pb-0">
         {[
           {
             icon: User,
@@ -410,7 +410,7 @@ export default function ProfilPage() {
         ].map((item) => (
           <div
             key={item.label}
-            className="rounded-3xl border border-transparent p-4 shadow-sm sm:p-5"
+            className="min-h-[184px] rounded-3xl border border-transparent p-4 shadow-sm sm:min-h-0 sm:p-5"
             style={{ backgroundColor: item.bgColor }}
           >
             <div
@@ -582,14 +582,17 @@ export default function ProfilPage() {
             </div>
           </div>
 
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 gap-3 min-[430px]:grid-cols-2">
             <button
               type="button"
               onClick={() => void handleExportData()}
               disabled={exportingData}
-              className="flex w-full items-center justify-between rounded-2xl border border-gray-200 px-4 py-3 text-left transition-colors hover:bg-[#f8fafc] disabled:opacity-60"
+              className="flex h-full min-h-[116px] w-full flex-col items-start gap-3 rounded-2xl border border-gray-200 px-4 py-3 text-left transition-colors hover:bg-[#f8fafc] disabled:opacity-60 min-[430px]:min-h-[132px] sm:justify-between"
             >
-              <span>
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-[#1a3a5c]/10 text-[#1a3a5c]">
+                <Download className="h-4 w-4 shrink-0" />
+              </span>
+              <span className="min-w-0">
                 <span className="block text-sm font-semibold text-[#0f1724]">
                   Exporter mes données en JSON
                 </span>
@@ -597,16 +600,18 @@ export default function ProfilPage() {
                   Télécharge visites, messages, favoris et informations de compte.
                 </span>
               </span>
-              <Download className="h-4 w-4 shrink-0 text-[#1a3a5c]" />
             </button>
 
             <button
               type="button"
               onClick={handleDownloadContactCard}
               disabled={downloadingCard}
-              className="flex w-full items-center justify-between rounded-2xl border border-gray-200 px-4 py-3 text-left transition-colors hover:bg-[#f8fafc] disabled:opacity-60"
+              className="flex h-full min-h-[116px] w-full flex-col items-start gap-3 rounded-2xl border border-gray-200 px-4 py-3 text-left transition-colors hover:bg-[#f8fafc] disabled:opacity-60 min-[430px]:min-h-[132px] sm:justify-between"
             >
-              <span>
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-[#1a3a5c]/10 text-[#1a3a5c]">
+                <Phone className="h-4 w-4 shrink-0" />
+              </span>
+              <span className="min-w-0">
                 <span className="block text-sm font-semibold text-[#0f1724]">
                   Télécharger ma carte contact
                 </span>
@@ -614,7 +619,6 @@ export default function ProfilPage() {
                   Génère un fichier `.vcf` avec vos coordonnées principales.
                 </span>
               </span>
-              <Phone className="h-4 w-4 shrink-0 text-[#1a3a5c]" />
             </button>
           </div>
         </section>

@@ -23,19 +23,10 @@ import PropertyCardMobile from "@/components/properties/PropertyCardMobile";
 import SitePagination from "@/components/ui/SitePagination";
 import { getHomepageListingsPage } from "@/lib/properties";
 import { createClient } from "@/lib/supabase/server";
-import {
-  formatDate,
-  formatPrice,
-  getListingTypeLabel,
-  getStatusColor,
-  getStatusLabel,
-} from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Tableau de bord" };
 
 const LISTING_PAGE_SIZE = 6;
-
-type RelatedPropertyTitle = { title: string } | { title: string }[] | null;
 
 interface DashboardStats {
   totalProps: number;
@@ -57,7 +48,6 @@ interface RecentVisitRow {
   email: string;
   status: string;
   created_at: string;
-  property: RelatedPropertyTitle;
 }
 
 interface RecentMessageRow {
@@ -66,17 +56,6 @@ interface RecentMessageRow {
   subject: string | null;
   status: string;
   created_at: string;
-}
-
-interface TopListingRow {
-  id: string;
-  title: string;
-  slug: string;
-  city: string;
-  views_count: number;
-  price: number;
-  listing_type: "vente" | "location";
-  is_featured: boolean;
 }
 
 interface WeeklyVisitPoint {
@@ -94,14 +73,6 @@ function toDayKey(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
     date.getDate()
   ).padStart(2, "0")}`;
-}
-
-function pickRelatedTitle(value: RelatedPropertyTitle): string {
-  if (Array.isArray(value)) {
-    return value[0]?.title ?? "—";
-  }
-
-  return value?.title ?? "—";
 }
 
 function buildWeeklyVisitSeries(rows: { created_at: string }[]): WeeklyVisitPoint[] {
@@ -232,25 +203,6 @@ async function getRecentMessages(search = ""): Promise<RecentMessageRow[]> {
   return (data as RecentMessageRow[] | null) ?? [];
 }
 
-async function getTopListings(search = ""): Promise<TopListingRow[]> {
-  const supabase = await createClient();
-  const searchPattern = toSearchPattern(search);
-  let query = supabase
-    .from("properties")
-    .select("id, title, slug, city, views_count, price, listing_type, is_featured")
-    .eq("status", "publie")
-    .order("views_count", { ascending: false })
-    .order("created_at", { ascending: false });
-
-  if (searchPattern) {
-    query = query.or(`title.ilike.${searchPattern},city.ilike.${searchPattern}`);
-  }
-
-  const { data } = await query.limit(5);
-
-  return (data as TopListingRow[] | null) ?? [];
-}
-
 async function getWeeklyVisits(): Promise<WeeklyVisitPoint[]> {
   const supabase = await createClient();
   const startDate = new Date();
@@ -282,13 +234,12 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       ? Math.floor(parsedListingPage)
       : 1;
 
-  const [stats, listingQuery, recentVisits, recentMessages, topListings, weeklyVisits] =
+  const [stats, listingQuery, recentVisits, recentMessages, weeklyVisits] =
     await Promise.all([
       getStats(),
       getHomepageListingsPage(currentListingPage, LISTING_PAGE_SIZE, searchQuery),
       getRecentVisits(searchQuery),
       getRecentMessages(searchQuery),
-      getTopListings(searchQuery),
       getWeeklyVisits(),
     ]);
 
@@ -480,7 +431,11 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         </section>
       )}
 
-      <section className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.5fr)_360px]">
+      <section
+        className={`grid grid-cols-1 gap-6 ${
+          isSearchMode ? "" : "xl:grid-cols-[minmax(0,1.5fr)_360px]"
+        }`}
+      >
         <div className="space-y-6">
           {!isSearchMode && (
             <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -664,187 +619,55 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           </section>
         </div>
 
-        <aside className="space-y-6">
-          <section
-            className={`rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6 ${
-              isSearchMode ? "anim-fade-up anim-delay-1" : ""
-            }`}
-          >
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-[#0f1724]">Demandes récentes</h2>
-              <Link href="/dashboard/demandes" className="text-xs font-semibold text-[#1a3a5c] hover:underline">
-                Tout voir
-              </Link>
-            </div>
-            {recentVisits.length === 0 ? (
-              <p className="text-sm text-gray-400">
-                {isSearchMode
-                  ? "Aucune demande ne correspond à votre recherche."
-                  : "Aucune demande récente."}
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {recentVisits.slice(0, 5).map((visit) => (
-                  <div key={visit.id} className="rounded-2xl border border-gray-100 p-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-[#0f1724]">
-                          {visit.full_name}
-                        </p>
-                        <p className="truncate text-xs text-gray-500">
-                          {pickRelatedTitle(visit.property)}
-                        </p>
-                      </div>
-                      <span
-                        className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${getStatusColor(
-                          visit.status
-                        )}`}
-                      >
-                        {getStatusLabel(visit.status)}
-                      </span>
-                    </div>
-                    <p className="mt-1 text-[11px] text-gray-400">{formatDate(visit.created_at)}</p>
-                  </div>
+        {!isSearchMode && (
+          <aside className="space-y-6">
+            <section className="rounded-3xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
+              <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-gray-400">
+                Actions rapides
+              </h2>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                {[
+                  {
+                    href: "/dashboard/annonces/nouvelle",
+                    icon: Plus,
+                    label: "Ajouter annonce",
+                    className: "bg-[#1a3a5c] text-white hover:bg-[#0f2540]",
+                  },
+                  {
+                    href: "/dashboard/demandes",
+                    icon: FileClock,
+                    label: "Suivre demandes",
+                    className:
+                      "border border-[#1a3a5c]/20 bg-white text-[#1a3a5c] hover:bg-[#f8fafc]",
+                  },
+                ].map((action) => (
+                  <Link
+                    key={action.href}
+                    href={action.href}
+                    className={`inline-flex items-center justify-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-semibold transition-colors ${action.className}`}
+                  >
+                    <action.icon className="h-4 w-4" />
+                    {action.label}
+                  </Link>
                 ))}
               </div>
-            )}
-          </section>
 
-          <section
-            className={`rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6 ${
-              isSearchMode ? "anim-fade-up anim-delay-2" : ""
-            }`}
-          >
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-[#0f1724]">Messages entrants</h2>
-              <Link href="/dashboard/messages" className="text-xs font-semibold text-[#1a3a5c] hover:underline">
-                Tout voir
+              {stats.pendingVisits > 0 && (
+                <div className="mt-3 flex items-center gap-2 rounded-xl bg-[#f4f6f9] px-3 py-2 text-xs text-[#0f1724]">
+                  <Bell className="h-3.5 w-3.5 text-[#1a3a5c]" />
+                  {stats.pendingVisits} demande(s) en attente de traitement
+                </div>
+              )}
+
+              <Link
+                href="/dashboard/annonces"
+                className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-[#1a3a5c] hover:underline"
+              >
+                Ouvrir la gestion complète <ArrowRight className="h-3.5 w-3.5" />
               </Link>
-            </div>
-            {recentMessages.length === 0 ? (
-              <p className="text-sm text-gray-400">
-                {isSearchMode
-                  ? "Aucun message ne correspond à votre recherche."
-                  : "Aucun message récent."}
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {recentMessages.map((message) => (
-                  <div key={message.id} className="rounded-2xl border border-gray-100 p-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-[#0f1724]">
-                          {message.full_name}
-                        </p>
-                        <p className="truncate text-xs text-gray-500">
-                          {message.subject?.trim() || "Message sans objet"}
-                        </p>
-                      </div>
-                      <span
-                        className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${getStatusColor(
-                          message.status
-                        )}`}
-                      >
-                        {getStatusLabel(message.status)}
-                      </span>
-                    </div>
-                    <p className="mt-1 text-[11px] text-gray-400">{formatDate(message.created_at)}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-
-          {!isSearchMode && (
-            <>
-              <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
-                <div className="mb-4 flex items-center justify-between gap-3">
-                  <h2 className="text-lg font-bold text-[#0f1724]">Top annonces</h2>
-                  <Building2 className="h-4 w-4 text-[#1a3a5c]" />
-                </div>
-                {topListings.length === 0 ? (
-                  <p className="text-sm text-gray-400">Aucune annonce à afficher.</p>
-                ) : (
-                  <div className="space-y-3">
-                    {topListings.map((listing) => (
-                      <Link
-                        key={listing.id}
-                        href={`/biens/${listing.slug}`}
-                        className="block rounded-2xl border border-gray-100 p-3 transition-colors hover:border-[#1a3a5c]/25 hover:bg-[#f8fafc]"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold text-[#0f1724]">
-                              {listing.title}
-                            </p>
-                            <p className="mt-0.5 text-xs text-gray-500">{listing.city}</p>
-                          </div>
-                          {listing.is_featured && (
-                            <span className="rounded-full bg-[#1a3a5c]/10 px-2 py-0.5 text-[10px] font-bold uppercase text-[#1a3a5c]">
-                              à la une
-                            </span>
-                          )}
-                        </div>
-                        <div className="mt-2 flex items-center justify-between text-xs">
-                          <span className="font-semibold text-[#1a3a5c]">{formatPrice(listing.price)}</span>
-                          <span className="text-gray-400">
-                            {listing.views_count} vues · {getListingTypeLabel(listing.listing_type)}
-                          </span>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </section>
-
-              <section className="rounded-3xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
-                <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-gray-400">
-                  Actions rapides
-                </h2>
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  {[
-                    {
-                      href: "/dashboard/annonces/nouvelle",
-                      icon: Plus,
-                      label: "Ajouter annonce",
-                      className: "bg-[#1a3a5c] text-white hover:bg-[#0f2540]",
-                    },
-                    {
-                      href: "/dashboard/demandes",
-                      icon: FileClock,
-                      label: "Suivre demandes",
-                      className:
-                        "border border-[#1a3a5c]/20 bg-white text-[#1a3a5c] hover:bg-[#f8fafc]",
-                    },
-                  ].map((action) => (
-                    <Link
-                      key={action.href}
-                      href={action.href}
-                      className={`inline-flex items-center justify-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-semibold transition-colors ${action.className}`}
-                    >
-                      <action.icon className="h-4 w-4" />
-                      {action.label}
-                    </Link>
-                  ))}
-                </div>
-
-                {stats.pendingVisits > 0 && (
-                  <div className="mt-3 flex items-center gap-2 rounded-xl bg-[#f4f6f9] px-3 py-2 text-xs text-[#0f1724]">
-                    <Bell className="h-3.5 w-3.5 text-[#1a3a5c]" />
-                    {stats.pendingVisits} demande(s) en attente de traitement
-                  </div>
-                )}
-
-                <Link
-                  href="/dashboard/annonces"
-                  className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-[#1a3a5c] hover:underline"
-                >
-                  Ouvrir la gestion complète <ArrowRight className="h-3.5 w-3.5" />
-                </Link>
-              </section>
-            </>
-          )}
-        </aside>
+            </section>
+          </aside>
+        )}
       </section>
     </div>
   );

@@ -59,6 +59,7 @@ export default function PropertyCardHorizontal({ property, className, preferVide
             preferVideoBubble={preferVideoBubble}
             bubbleClassName="h-20 w-20"
             fallbackImageUrl="https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=400&q=80"
+            showVideoBadge={false}
           >
             <div
               className={cn(

@@ -66,6 +66,7 @@ export default function PropertyCardMobile({
             preferVideoBubble={preferVideoBubble}
             bubbleClassName="h-24 w-24"
             fallbackImageUrl="https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=400&q=80"
+            showVideoBadge={false}
           >
             <div
               className={cn(

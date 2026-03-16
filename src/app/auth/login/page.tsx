@@ -8,6 +8,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Mail, Lock, Eye, EyeOff, ArrowLeft, Shield, Star, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { resolvePostAuthPath } from "@/lib/auth/redirects";
 import { loginSchema, type LoginInput } from "@/lib/validations";
 import SocialAuthButtons from "@/components/auth/SocialAuthButtons";
 import toast from "react-hot-toast";
@@ -125,17 +126,15 @@ function LoginForm() {
         router.refresh();
       };
 
-      // Redirect based on role if no specific redirectTo
-      if (redirectTo === "/") {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const isAdmin = await resolveIsAdmin(user.id, user.email);
-          goTo(isAdmin ? "/dashboard" : "/dashboard-client");
-        } else {
-          goTo("/");
-        }
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (user) {
+        const isAdmin = await resolveIsAdmin(user.id, user.email);
+        goTo(resolvePostAuthPath(redirectTo, isAdmin));
       } else {
-        goTo(redirectTo);
+        goTo("/");
       }
     } catch {
       toast.error("Une erreur inattendue est survenue. Veuillez réessayer.");
