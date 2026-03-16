@@ -130,11 +130,12 @@ function VerificationForm() {
 
       toast.success("Email vérifié avec succès !", { duration: 3000 });
       setTimeout(() => {
-        void supabase.auth.getUser().then(async (result) => {
+        void (async () => {
+          const result = await supabase.auth.getUser();
           const user = result.data.user;
           const isAdmin = user ? await resolveIsAdmin(user.id, user.email) : false;
           window.location.href = resolvePostAuthPath("/", isAdmin);
-        });
+        })();
       }, 1000);
     } catch {
       toast.error("Une erreur inattendue est survenue.");

@@ -92,9 +92,10 @@ export default function DashboardSidebar() {
       setAdminAvatarUrl(profile?.avatar_url?.trim() || metadataAvatar || null);
     };
 
-    supabase.auth.getUser().then((result) => {
+    void (async () => {
+      const result = await supabase.auth.getUser();
       void syncProfile(result.data.user);
-    });
+    })();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event: AuthChangeEvent, session: Session | null) => {

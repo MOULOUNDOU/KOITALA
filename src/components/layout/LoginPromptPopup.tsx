@@ -58,20 +58,27 @@ export default function LoginPromptPopup() {
     if (sessionStorage.getItem(SESSION_KEY)) return;
 
     const supabase = createClient();
-    supabase.auth.getUser().then((result) => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    void (async () => {
+      const result = await supabase.auth.getUser();
       const { data } = result;
       if (data.user) return;
 
-      const timer = setTimeout(() => {
+      timer = setTimeout(() => {
         if (!triggered.current) {
           triggered.current = true;
           setVariant(VARIANTS[Math.floor(Math.random() * VARIANTS.length)]);
           setShow(true);
         }
       }, 5000);
+    })();
 
-      return () => clearTimeout(timer);
-    });
+    return () => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+    };
   }, []);
 
   const handleClose = () => {

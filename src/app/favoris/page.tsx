@@ -17,7 +17,8 @@ export default function FavorisPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getUser().then(async (result) => {
+    void (async () => {
+      const result = await supabase.auth.getUser();
       const user = result.data.user;
       if (!user) { router.push("/auth/login?redirectTo=/favoris"); return; }
       const { data } = await supabase
@@ -31,7 +32,7 @@ export default function FavorisPage() {
         .filter(Boolean);
       setProperties(props);
       setLoading(false);
-    });
+    })();
   }, [supabase, router]);
 
   const handleFavoriteRemoved = (propertyId: string) => {

@@ -181,9 +181,10 @@ export default function Navbar() {
       });
     };
 
-    supabase.auth.getUser().then((result) => {
+    void (async () => {
+      const result = await supabase.auth.getUser();
       void syncUser(result.data.user);
-    });
+    })();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event: AuthChangeEvent, session: Session | null) => {
