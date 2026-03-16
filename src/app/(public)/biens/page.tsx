@@ -8,13 +8,41 @@ import PropertyCard from "@/components/properties/PropertyCard";
 import PropertyFilters from "@/components/properties/PropertyFilters";
 import SitePagination from "@/components/ui/SitePagination";
 import { ArrowLeft, Building2 } from "lucide-react";
+import { absoluteUrl } from "@/lib/seo";
 import type { Property, SearchFilters } from "@/types";
 
-export const metadata: Metadata = {
-  title: "Nos Biens",
-  description:
-    "Parcourez toutes nos annonces immobilières : appartements, maisons, villas, terrains et bureaux.",
-};
+interface BienPageProps {
+  searchParams: Promise<Record<string, string>>;
+}
+
+export async function generateMetadata({ searchParams }: BienPageProps): Promise<Metadata> {
+  const params = await searchParams;
+  const hasActiveFilters = Object.values(params).some((value) => typeof value === "string" && value.trim().length > 0);
+
+  return {
+    title: "Biens immobiliers a Dakar et au Senegal",
+    description:
+      "Parcourez les annonces KOITALA : appartements, maisons, villas, terrains, bureaux et biens en location ou en vente.",
+    alternates: {
+      canonical: "/biens",
+    },
+    robots: hasActiveFilters
+      ? {
+          index: false,
+          follow: true,
+        }
+      : {
+          index: true,
+          follow: true,
+        },
+    openGraph: {
+      title: "Biens immobiliers KOITALA",
+      description:
+        "Parcourez les annonces KOITALA : appartements, maisons, villas, terrains, bureaux et biens en location ou en vente.",
+      url: absoluteUrl("/biens"),
+    },
+  };
+}
 
 async function getProperties(
   filters: SearchFilters,
@@ -99,10 +127,6 @@ async function getProperties(
 
   const { data, count } = await query.range(from, to);
   return { properties: data ?? [], total: count ?? 0 };
-}
-
-interface BienPageProps {
-  searchParams: Promise<Record<string, string>>;
 }
 
 export default async function BiensPage({ searchParams }: BienPageProps) {

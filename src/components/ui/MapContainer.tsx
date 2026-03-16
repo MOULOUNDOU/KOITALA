@@ -11,6 +11,10 @@ export default function MapContainer(props: {
   zoom?: number;
   height?: string;
   className?: string;
+  popupTitle?: string;
+  popupSubtitle?: string;
+  popupImageUrl?: string | null;
+  openPopupOnLoad?: boolean;
 }) {
   return <MapView {...props} />;
 }

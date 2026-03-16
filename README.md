@@ -6,6 +6,8 @@ Application web complete pour une agence immobiliere personnelle.
 - **Next.js 15** (App Router) + TypeScript
 - **Tailwind CSS** + design system premium
 - **Supabase** (base de données, auth, storage, RLS)
+- **Resend** (emails transactionnels)
+- **MapTiler** (cartes interactives)
 - **React Hook Form** + Zod (validation)
 - **Lucide React** (icones)
 
@@ -85,6 +87,12 @@ NEXT_PUBLIC_SUPABASE_URL=https://VOTRE_PROJECT_ID.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=votre_anon_key_ici
 SUPABASE_SERVICE_ROLE_KEY=votre_service_role_key_ici
 NEXT_PUBLIC_SITE_URL=https://koitala.com
+RESEND_API_KEY=re_votre_cle_resend
+RESEND_FROM_EMAIL="KOITALA <noreply@votredomaine.com>"
+RESEND_REPLY_TO_EMAIL=amzakoita@gmail.com
+CONTACT_NOTIFICATION_EMAIL=amzakoita@gmail.com
+NEXT_PUBLIC_MAPTILER_API_KEY=votre_cle_maptiler
+NEXT_PUBLIC_MAPTILER_MAP_STYLE=streets-v4
 ```
 
 ### 4. Executer le schema SQL
@@ -180,7 +188,8 @@ npm start
 
 - **app/(public)/page.tsx** : Ce fichier contient uniquement `notFound()`. La vraie page d accueil est dans `app/page.tsx` pour eviter un conflit de route Next.js.
 - Les images Unsplash sont utilisees comme placeholder. Remplacez-les par vos vraies photos via le formulaire d upload dans le dashboard.
-- La carte de localisation utilise OpenStreetMap (aucune cle API requise).
+- Les formulaires de contact et de demande de visite peuvent envoyer des emails via **Resend** quand `RESEND_API_KEY` et `RESEND_FROM_EMAIL` sont configures.
+- Les cartes publiques utilisent **MapTiler** via `NEXT_PUBLIC_MAPTILER_API_KEY`. Pour `NEXT_PUBLIC_MAPTILER_MAP_STYLE`, utilisez un identifiant comme `streets-v4` plutot qu'une URL complete `style.json`.
 - Le blog supporte le HTML basique dans le champ content.
 
 ## Personnalisation

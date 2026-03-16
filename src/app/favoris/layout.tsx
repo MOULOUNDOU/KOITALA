@@ -7,6 +7,6 @@ export const metadata: Metadata = {
   },
 };
 
-export default function AuthLayout({ children }: { children: React.ReactNode }) {
+export default function FavorisLayout({ children }: { children: React.ReactNode }) {
   return children;
 }

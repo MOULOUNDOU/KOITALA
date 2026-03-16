@@ -3,7 +3,15 @@
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, CalendarCheck, Clock3 } from "lucide-react";
+import {
+  ArrowRight,
+  CalendarCheck,
+  CheckCircle2,
+  Clock3,
+  Compass,
+  XCircle,
+} from "lucide-react";
+import ClientPageHero from "@/components/dashboard/ClientPageHero";
 import { createClient } from "@/lib/supabase/client";
 import { formatDate, getStatusColor, getStatusLabel } from "@/lib/utils";
 
@@ -44,7 +52,9 @@ export default function VisitesPage() {
     let mounted = true;
 
     const loadVisits = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) {
         if (mounted) setLoading(false);
         return;
@@ -71,38 +81,101 @@ export default function VisitesPage() {
 
   if (loading) {
     return (
-      <div className="p-8 flex justify-center">
-        <div className="w-8 h-8 border-2 border-[#1a3a5c] border-t-transparent rounded-full animate-spin" />
+      <div className="flex justify-center p-8">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#1a3a5c] border-t-transparent" />
       </div>
     );
   }
 
   const pendingCount = visits.filter((visit) => visit.status === "en_attente").length;
+  const confirmedCount = visits.filter((visit) => visit.status === "confirme").length;
+  const cancelledCount = visits.filter((visit) => visit.status === "annule").length;
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-6">
-      <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 sm:p-6">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-[#0f1724]">Mes demandes de visite</h1>
-            <p className="text-sm text-gray-500 mt-1">
-              {visits.length} demande{visits.length !== 1 ? "s" : ""}
+    <div className="mx-auto max-w-[1450px] space-y-6 p-4 pb-8 sm:p-6 sm:pb-10 lg:p-8">
+      <ClientPageHero
+        title="Mes demandes de visite"
+        description="Centralisez vos demandes, leur statut et les prochaines étapes depuis un écran unique."
+        chips={[
+          { icon: CalendarCheck, value: visits.length, label: "demandes" },
+          { icon: Clock3, value: pendingCount, label: "en attente" },
+          { icon: CheckCircle2, value: confirmedCount, label: "confirmées" },
+        ]}
+        actions={
+          <>
+            <Link
+              href="/dashboard-client"
+              className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-[#1a3a5c] transition-colors hover:bg-gray-50 sm:text-sm"
+            >
+              Retour dashboard
+            </Link>
+            <Link
+              href="/biens"
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#1a3a5c] px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#0f2540] sm:text-sm"
+            >
+              <Compass className="h-4 w-4" />
+              Explorer les biens
+            </Link>
+          </>
+        }
+      />
+
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        {[
+          {
+            icon: CalendarCheck,
+            label: "Demandes totales",
+            value: visits.length,
+            helper: "Historique complet",
+            bgColor: "#1d4ed8",
+          },
+          {
+            icon: Clock3,
+            label: "En attente",
+            value: pendingCount,
+            helper: "Réponse KOITALA à venir",
+            bgColor: "#047857",
+          },
+          {
+            icon: XCircle,
+            label: "Annulées",
+            value: cancelledCount,
+            helper: `${confirmedCount} confirmée(s)`,
+            bgColor: "#6b4226",
+          },
+        ].map((item) => (
+          <div
+            key={item.label}
+            className="rounded-3xl border border-transparent p-4 shadow-sm sm:p-5"
+            style={{ backgroundColor: item.bgColor }}
+          >
+            <div
+              className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-2xl text-white"
+              style={{ backgroundColor: "rgba(255,255,255,0.2)" }}
+            >
+              <item.icon className="h-4 w-4" />
+            </div>
+            <p className="font-display text-[11px] font-semibold uppercase tracking-[0.22em] text-white/75">
+              {item.label}
             </p>
+            <p className="font-display mt-2 text-2xl font-extrabold text-white sm:text-3xl">
+              {item.value}
+            </p>
+            <p className="mt-1 text-xs font-semibold text-white/90">{item.helper}</p>
           </div>
-          <div className="inline-flex items-center gap-1.5 rounded-full bg-[#1a3a5c]/10 px-3 py-1.5 text-sm font-medium text-[#1a3a5c]">
-            <Clock3 className="w-4 h-4" /> {pendingCount} en attente
-          </div>
-        </div>
+        ))}
       </section>
 
       {visits.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col items-center justify-center py-20 text-center px-4">
-          <CalendarCheck className="w-14 h-14 text-gray-200 mb-4" />
-          <h3 className="text-lg font-semibold text-gray-700 mb-1">Aucune demande de visite</h3>
-          <p className="text-sm text-gray-400 mb-6 max-w-md">Planifiez une visite depuis une annonce pour la retrouver ici.</p>
+        <div className="rounded-3xl border border-gray-100 bg-white px-4 py-20 text-center shadow-sm">
+          <CalendarCheck className="mx-auto mb-4 h-14 w-14 text-gray-200" />
+          <h3 className="text-lg font-semibold text-gray-700">Aucune demande de visite</h3>
+          <p className="mx-auto mt-2 max-w-md text-sm text-gray-400">
+            Planifiez une visite depuis une annonce pour la retrouver ici.
+          </p>
           <Link
             href="/biens"
-            className="px-5 py-2.5 bg-[#1a3a5c] text-white text-sm font-semibold rounded-xl hover:bg-[#0f2540] transition-colors"
+            className="mt-6 inline-flex items-center justify-center rounded-xl bg-[#1a3a5c] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#0f2540]"
           >
             Voir les annonces
           </Link>
@@ -112,9 +185,9 @@ export default function VisitesPage() {
           {visits.map((visit) => {
             const property = pickFirst(visit.property);
             return (
-              <article key={visit.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-3 sm:p-4">
-                <div className="flex flex-col sm:flex-row gap-4 sm:items-center">
-                  <div className="relative w-full sm:w-44 h-36 sm:h-28 rounded-xl overflow-hidden shrink-0 bg-gray-100">
+              <article key={visit.id} className="rounded-3xl border border-gray-100 bg-white p-3 shadow-sm sm:p-4">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                  <div className="relative h-36 w-full shrink-0 overflow-hidden rounded-2xl bg-gray-100 sm:h-28 sm:w-44">
                     <Image
                       src={getVisitImage(property)}
                       alt={property?.title ?? "Bien immobilier"}
@@ -127,12 +200,12 @@ export default function VisitesPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="font-semibold text-[#0f1724] text-base sm:text-lg line-clamp-1">
+                        <p className="line-clamp-1 text-base font-semibold text-[#0f1724] sm:text-lg">
                           {property?.title ?? "Bien supprimé"}
                         </p>
-                        <p className="text-xs text-gray-400 mt-1">Envoyée le {formatDate(visit.created_at)}</p>
+                        <p className="mt-1 text-xs text-gray-400">Envoyée le {formatDate(visit.created_at)}</p>
                       </div>
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium shrink-0 ${getStatusColor(visit.status)}`}>
+                      <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${getStatusColor(visit.status)}`}>
                         {getStatusLabel(visit.status)}
                       </span>
                     </div>
@@ -141,23 +214,23 @@ export default function VisitesPage() {
                       <p>
                         Date souhaitée: {visit.preferred_date ? formatDate(visit.preferred_date) : "Non précisée"}
                       </p>
-                      {visit.message && <p className="line-clamp-2">Message: {visit.message}</p>}
+                      {visit.message ? <p className="line-clamp-2">Message: {visit.message}</p> : null}
                     </div>
 
-                    <div className="mt-3 flex justify-end">
+                    <div className="mt-4 flex justify-end">
                       {property?.slug ? (
                         <Link
                           href={`/biens/${property.slug}`}
                           className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#1a3a5c] hover:text-[#0f2540]"
                         >
-                          Voir l&apos;annonce <ArrowRight className="w-4 h-4" />
+                          Voir l&apos;annonce <ArrowRight className="h-4 w-4" />
                         </Link>
                       ) : (
                         <Link
                           href="/biens"
                           className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#1a3a5c] hover:text-[#0f2540]"
                         >
-                          Explorer les biens <ArrowRight className="w-4 h-4" />
+                          Explorer les biens <ArrowRight className="h-4 w-4" />
                         </Link>
                       )}
                     </div>

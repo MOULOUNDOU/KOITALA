@@ -8,12 +8,14 @@ import MobileDashboardViewportLock from "@/components/layout/MobileDashboardView
 
 interface ProfileUpdatedEventDetail {
   full_name?: string;
+  avatar_url?: string | null;
 }
 
 export default function DashboardClientLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
   const [userName, setUserName] = useState<string | null>(null);
+  const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -33,17 +35,22 @@ export default function DashboardClientLayout({ children }: { children: React.Re
         typeof user.user_metadata?.full_name === "string"
           ? user.user_metadata.full_name.trim()
           : "";
+      const metadataAvatar =
+        typeof user.user_metadata?.avatar_url === "string"
+          ? user.user_metadata.avatar_url.trim()
+          : "";
       const emailFallback = user.email?.split("@")[0] ?? "Client";
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("full_name")
+        .select("full_name, avatar_url")
         .eq("id", user.id)
         .maybeSingle();
 
       if (!mounted) return;
 
       setUserName(profile?.full_name?.trim() || metadataName || emailFallback);
+      setUserAvatarUrl(profile?.avatar_url?.trim() || metadataAvatar || null);
       setReady(true);
     };
 
@@ -52,6 +59,7 @@ export default function DashboardClientLayout({ children }: { children: React.Re
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
       if (!session?.user) {
         setUserName(null);
+        setUserAvatarUrl(null);
         setReady(false);
         router.push("/auth/login?redirectTo=/dashboard-client");
         return;
@@ -64,6 +72,12 @@ export default function DashboardClientLayout({ children }: { children: React.Re
       const updatedName = customEvent.detail?.full_name?.trim();
       if (updatedName) {
         setUserName(updatedName);
+      }
+
+      if (typeof customEvent.detail?.avatar_url === "string") {
+        setUserAvatarUrl(customEvent.detail.avatar_url.trim() || null);
+      } else if (customEvent.detail?.avatar_url === null) {
+        setUserAvatarUrl(null);
       }
     };
 
@@ -87,7 +101,7 @@ export default function DashboardClientLayout({ children }: { children: React.Re
   return (
     <div className="dashboard-client-scope flex h-[100svh] md:h-screen bg-[#f4f6f9] overflow-hidden">
       <MobileDashboardViewportLock containerId="dashboard-client-scroll-root" />
-      <ClientSidebar userName={userName} />
+      <ClientSidebar userName={userName} userAvatarUrl={userAvatarUrl} />
       <div
         id="dashboard-client-scroll-root"
         data-dashboard-scroll-root

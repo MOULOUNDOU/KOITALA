@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Controller, type Resolver, useForm } from "react-hook-form";
+import { Controller, type Resolver, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   ArrowLeft,
@@ -21,10 +21,12 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { propertySchema, type PropertyInput } from "@/lib/validations";
 import { generateSlug } from "@/lib/utils";
+import GoogleMapsLocationField from "@/components/dashboard/GoogleMapsLocationField";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Textarea from "@/components/ui/Textarea";
 import CustomSelect from "@/components/ui/CustomSelect";
+import PropertyMapSection from "@/components/properties/PropertyMapSection";
 import toast from "react-hot-toast";
 
 const PROPERTY_TYPES = [
@@ -87,6 +89,12 @@ const HERO_FORM_SELECT_TRIGGER_CLASS = "py-3.5";
 const HERO_FORM_SELECT_DROPDOWN_CLASS = "rounded-2xl border border-gray-100 shadow-2xl";
 const MAX_VIDEO_SIZE_BYTES = 100 * 1024 * 1024;
 
+function createUploadToken(): string {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `${Math.floor(Math.random() * 1_000_000_000)}`;
+}
+
 export default function NouvelleAnnoncePage() {
   const router = useRouter();
   const supabase = createClient();
@@ -108,7 +116,6 @@ export default function NouvelleAnnoncePage() {
     getValues,
     setValue,
     trigger,
-    watch,
     formState: { errors, isSubmitting },
   } = useForm<PropertyInput>({
     resolver: zodResolver(propertySchema) as Resolver<PropertyInput>,
@@ -127,10 +134,36 @@ export default function NouvelleAnnoncePage() {
     },
   });
 
-  const title = watch("title");
-  const listingType = watch("listing_type");
-  const rentalCategory = watch("rental_category") ?? "";
-  const rentPaymentPeriod = watch("rent_payment_period") ?? "";
+  const [
+    title,
+    listingType,
+    rentalCategoryValue,
+    rentPaymentPeriodValue,
+    address,
+    neighborhood,
+    city,
+    postalCode,
+    country,
+    latitude,
+    longitude,
+  ] = useWatch({
+    control,
+    name: [
+      "title",
+      "listing_type",
+      "rental_category",
+      "rent_payment_period",
+      "address",
+      "neighborhood",
+      "city",
+      "postal_code",
+      "country",
+      "latitude",
+      "longitude",
+    ],
+  });
+  const rentalCategory = rentalCategoryValue ?? "";
+  const rentPaymentPeriod = rentPaymentPeriodValue ?? "";
   const progressPercent = (step / TOTAL_STEPS) * 100;
   const stepTransitionClass = stepDirection === "forward" ? "anim-slide-right" : "anim-slide-left";
   const paymentPeriodOptions = useMemo(
@@ -321,7 +354,7 @@ export default function NouvelleAnnoncePage() {
       return;
     }
 
-    const slug = generateSlug(data.title) + "-" + Date.now();
+    const slug = `${generateSlug(data.title)}-${createUploadToken()}`;
     const normalizedData = {
       ...data,
       listing_type: currentListingType,
@@ -373,7 +406,7 @@ export default function NouvelleAnnoncePage() {
         const img = images[i];
         if (!img.file) continue;
         const ext = img.file.name.split(".").pop();
-        const path = `properties/${property.id}/${Date.now()}-${i}.${ext}`;
+        const path = `properties/${property.id}/${createUploadToken()}-${i}.${ext}`;
         const { data: uploaded } = await supabase.storage
           .from("property-images")
           .upload(path, img.file, { upsert: true });
@@ -410,7 +443,7 @@ export default function NouvelleAnnoncePage() {
     // Upload video
     if (videoFile) {
       const ext = videoFile.name.split(".").pop();
-      const videoPath = `properties/${property.id}/video-${Date.now()}.${ext}`;
+      const videoPath = `properties/${property.id}/video-${createUploadToken()}.${ext}`;
       const { data: videoUploaded, error: videoUploadError } = await supabase.storage
         .from("property-videos")
         .upload(videoPath, videoFile, { upsert: true });
@@ -691,51 +724,72 @@ export default function NouvelleAnnoncePage() {
 
           {/* Location */}
           {step === 3 && (
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-              <h2 className="font-semibold text-[#0f1724] mb-5">Localisation</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Input
-                  label="Adresse"
-                  placeholder="123 Rue de la Paix"
-                  {...register("address")}
+            <div className="space-y-4">
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+                <h2 className="font-semibold text-[#0f1724] mb-5">Localisation</h2>
+                <GoogleMapsLocationField
+                  onResolved={({ lat, lng }) => {
+                    setValue("latitude", lat, { shouldDirty: true, shouldValidate: true });
+                    setValue("longitude", lng, { shouldDirty: true, shouldValidate: true });
+                  }}
                 />
-                <Input
-                  label="Quartier"
-                  placeholder="Plateau"
-                  {...register("neighborhood")}
-                />
-                <Input
-                  label="Ville *"
-                  placeholder="Dakar"
-                  error={errors.city?.message}
-                  {...register("city")}
-                />
-                <Input
-                  label="Code postal"
-                  placeholder="10700"
-                  {...register("postal_code")}
-                />
-                <Input
-                  label="Pays"
-                  {...register("country")}
-                />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Input
+                    label="Adresse"
+                    placeholder="123 Rue de la Paix"
+                    {...register("address")}
+                  />
+                  <Input
+                    label="Quartier"
+                    placeholder="Plateau"
+                    {...register("neighborhood")}
+                  />
+                  <Input
+                    label="Ville *"
+                    placeholder="Dakar"
+                    error={errors.city?.message}
+                    {...register("city")}
+                  />
+                  <Input
+                    label="Code postal"
+                    placeholder="10700"
+                    {...register("postal_code")}
+                  />
+                  <Input
+                    label="Pays"
+                    {...register("country")}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4 mt-4">
+                  <Input
+                    label="Latitude (GPS)"
+                    type="number"
+                    step="any"
+                    placeholder="14.7167"
+                    {...register("latitude", { setValueAs: parseOptionalNumber })}
+                  />
+                  <Input
+                    label="Longitude (GPS)"
+                    type="number"
+                    step="any"
+                    placeholder="-17.4677"
+                    {...register("longitude", { setValueAs: parseOptionalNumber })}
+                  />
+                </div>
               </div>
-              <div className="grid grid-cols-2 gap-4 mt-4">
-                <Input
-                  label="Latitude (GPS)"
-                  type="number"
-                  step="any"
-                  placeholder="14.7167"
-                  {...register("latitude", { setValueAs: parseOptionalNumber })}
-                />
-                <Input
-                  label="Longitude (GPS)"
-                  type="number"
-                  step="any"
-                  placeholder="-17.4677"
-                  {...register("longitude", { setValueAs: parseOptionalNumber })}
-                />
-              </div>
+
+              <PropertyMapSection
+                address={address}
+                neighborhood={neighborhood}
+                city={city}
+                postalCode={postalCode}
+                country={country}
+                latitude={latitude}
+                longitude={longitude}
+                title="Aperçu carte"
+                description="Chaque annonce affichera cette carte. Sans coordonnées GPS, nous estimons la position à partir de l'adresse."
+                compact
+              />
             </div>
           )}
 

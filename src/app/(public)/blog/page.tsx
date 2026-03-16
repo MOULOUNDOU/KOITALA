@@ -5,12 +5,21 @@ import Image from "next/image";
 import Link from "next/link";
 import { Calendar, Tag, ArrowRight, BookOpen } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { formatDate, truncateText } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
+import { absoluteUrl } from "@/lib/seo";
 import type { BlogPost } from "@/types";
 
 export const metadata: Metadata = {
   title: "Blog Immobilier",
   description: "Conseils, actualités et guides immobiliers par KOITALA.",
+  alternates: {
+    canonical: "/blog",
+  },
+  openGraph: {
+    title: "Blog immobilier KOITALA",
+    description: "Conseils, actualites et guides immobiliers par KOITALA.",
+    url: absoluteUrl("/blog"),
+  },
 };
 
 async function getPosts(): Promise<BlogPost[]> {

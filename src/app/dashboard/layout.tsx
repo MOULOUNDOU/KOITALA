@@ -1,6 +1,14 @@
+import type { Metadata } from "next";
 import type { Viewport } from "next";
 import DashboardSidebar from "@/components/layout/DashboardSidebar";
 import MobileDashboardViewportLock from "@/components/layout/MobileDashboardViewportLock";
+
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 export const viewport: Viewport = {
   width: "device-width",

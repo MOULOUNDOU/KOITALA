@@ -1,7 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { divIcon, type Marker as LeafletMarker } from "leaflet";
 import { AlertTriangle, ExternalLink, MapPin } from "lucide-react";
+import { MapContainer as LeafletMap, Marker, Popup, TileLayer, ZoomControl } from "react-leaflet";
+import { cn } from "@/lib/utils";
+import {
+  getGoogleMapsDirectionsUrl,
+  getMapTilerAttribution,
+  getMapTilerStyleId,
+  getMapTilerTileUrl,
+  getOpenStreetMapPlaceUrl,
+} from "@/lib/maptiler";
 
 interface MapViewProps {
   lat?: number;
@@ -10,71 +20,14 @@ interface MapViewProps {
   zoom?: number;
   height?: string;
   className?: string;
+  popupTitle?: string;
+  popupSubtitle?: string;
+  popupImageUrl?: string | null;
+  openPopupOnLoad?: boolean;
 }
 
 const DEFAULT_LAT = 14.7247;
 const DEFAULT_LNG = -17.4952;
-const GOOGLE_MAPS_SCRIPT_ID = "koitala-google-maps-script";
-
-declare global {
-  interface Window {
-    google?: {
-      maps?: any;
-    };
-    __koitalaGoogleMapsPromise?: Promise<any>;
-  }
-}
-
-function escapeHtml(value: string) {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/\"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
-
-function loadGoogleMapsApi(apiKey: string) {
-  if (typeof window === "undefined") {
-    return Promise.reject(new Error("google-maps-client-only"));
-  }
-
-  if (window.google?.maps) {
-    return Promise.resolve(window.google.maps);
-  }
-
-  if (window.__koitalaGoogleMapsPromise) {
-    return window.__koitalaGoogleMapsPromise;
-  }
-
-  window.__koitalaGoogleMapsPromise = new Promise((resolve, reject) => {
-    const onReady = () => {
-      if (window.google?.maps) {
-        resolve(window.google.maps);
-        return;
-      }
-      reject(new Error("google-maps-unavailable"));
-    };
-
-    const existingScript = document.getElementById(GOOGLE_MAPS_SCRIPT_ID) as HTMLScriptElement | null;
-    if (existingScript) {
-      existingScript.addEventListener("load", onReady, { once: true });
-      existingScript.addEventListener("error", () => reject(new Error("google-maps-script-error")), { once: true });
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.id = GOOGLE_MAPS_SCRIPT_ID;
-    script.async = true;
-    script.defer = true;
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&language=fr`;
-    script.onload = onReady;
-    script.onerror = () => reject(new Error("google-maps-script-error"));
-    document.head.appendChild(script);
-  });
-
-  return window.__koitalaGoogleMapsPromise;
-}
 
 export default function MapView({
   lat = DEFAULT_LAT,
@@ -83,117 +36,65 @@ export default function MapView({
   zoom = 15,
   height = "360px",
   className = "",
+  popupTitle,
+  popupSubtitle,
+  popupImageUrl,
+  openPopupOnLoad = false,
 }: MapViewProps) {
-  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-  const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<any>(null);
-  const markerRef = useRef<any>(null);
-  const infoWindowRef = useRef<any>(null);
-  const [status, setStatus] = useState<"loading" | "ready" | "missing_key" | "error">("loading");
-
-  const mapsUrl = useMemo(() => `https://www.google.com/maps?q=${lat},${lng}`,
+  const apiKey = process.env.NEXT_PUBLIC_MAPTILER_API_KEY?.trim() ?? "";
+  const styleId = useMemo(() => getMapTilerStyleId(), []);
+  const tileUrl = useMemo(
+    () => (apiKey ? getMapTilerTileUrl(apiKey, styleId) : ""),
+    [apiKey, styleId]
+  );
+  const openStreetMapUrl = useMemo(
+    () => getOpenStreetMapPlaceUrl(lat, lng, zoom),
+    [lat, lng, zoom]
+  );
+  const directionsUrl = useMemo(
+    () => getGoogleMapsDirectionsUrl(lat, lng),
     [lat, lng]
+  );
+  const [tileLoadCount, setTileLoadCount] = useState(0);
+  const [tileErrorCount, setTileErrorCount] = useState(0);
+  const tileKey = tileUrl || "missing-key";
+  const showFallback = !tileUrl || (tileLoadCount === 0 && tileErrorCount >= 4);
+  const markerRef = useRef<LeafletMarker | null>(null);
+  const markerIcon = useMemo(
+    () =>
+      divIcon({
+        className: "koitala-map-marker",
+        html: `
+          <div style="position:relative;width:32px;height:32px;">
+            <div style="position:absolute;inset:0;border-radius:9999px;background:#1a3a5c;border:3px solid rgba(255,255,255,0.95);box-shadow:0 10px 24px rgba(15,23,36,0.24);"></div>
+            <div style="position:absolute;left:50%;top:50%;width:10px;height:10px;border-radius:9999px;background:#e8b86d;transform:translate(-50%,-50%);"></div>
+          </div>
+        `,
+        iconSize: [32, 32],
+        iconAnchor: [16, 16],
+        popupAnchor: [0, -16],
+      }),
+    []
   );
 
   useEffect(() => {
-    let cancelled = false;
+    if (!openPopupOnLoad) return;
 
-    if (!apiKey) {
-      setStatus("missing_key");
-      return;
-    }
-
-    if (!containerRef.current) return;
-
-    setStatus("loading");
-
-    void loadGoogleMapsApi(apiKey)
-      .then((maps) => {
-        if (cancelled || !containerRef.current) return;
-
-        const center = { lat, lng };
-        const popupContent = `
-          <div style="font-family:Arial,sans-serif;padding:6px 8px;min-width:160px">
-            <div style="font-size:13px;font-weight:700;color:#1a3a5c;line-height:1.4">${escapeHtml(label)}</div>
-          </div>
-        `;
-
-        if (!mapRef.current) {
-          mapRef.current = new maps.Map(containerRef.current, {
-            center,
-            zoom,
-            mapTypeControl: true,
-            streetViewControl: true,
-            fullscreenControl: true,
-            zoomControl: true,
-            clickableIcons: false,
-            gestureHandling: "cooperative",
-            styles: [
-              {
-                featureType: "poi",
-                stylers: [{ visibility: "off" }],
-              },
-            ],
-          });
-
-          markerRef.current = new maps.Marker({
-            map: mapRef.current,
-            position: center,
-            title: label,
-            animation: maps.Animation.DROP,
-          });
-
-          infoWindowRef.current = new maps.InfoWindow({
-            content: popupContent,
-          });
-
-          markerRef.current.addListener("click", () => {
-            infoWindowRef.current?.open({
-              anchor: markerRef.current,
-              map: mapRef.current,
-            });
-          });
-
-          infoWindowRef.current.open({
-            anchor: markerRef.current,
-            map: mapRef.current,
-          });
-        }
-
-        mapRef.current.setCenter(center);
-        mapRef.current.setZoom(zoom);
-        markerRef.current?.setPosition(center);
-        markerRef.current?.setTitle(label);
-        infoWindowRef.current?.setContent(popupContent);
-
-        setStatus("ready");
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setStatus("error");
-        }
-      });
+    const timer = window.setTimeout(() => {
+      markerRef.current?.openPopup();
+    }, 120);
 
     return () => {
-      cancelled = true;
+      window.clearTimeout(timer);
     };
-  }, [apiKey, label, lat, lng, zoom]);
-
-  useEffect(() => {
-    return () => {
-      markerRef.current?.setMap?.(null);
-      markerRef.current = null;
-      infoWindowRef.current?.close?.();
-      infoWindowRef.current = null;
-      mapRef.current = null;
-    };
-  }, []);
-
-  const showFallback = status === "missing_key" || status === "error";
+  }, [label, lat, lng, openPopupOnLoad, popupImageUrl, popupSubtitle, popupTitle]);
 
   return (
     <div
-      className={`relative overflow-hidden rounded-2xl border border-gray-100 shadow-sm ${className}`}
+      className={cn(
+        "relative overflow-hidden rounded-2xl border border-gray-100 shadow-sm",
+        className
+      )}
       style={{ height }}
     >
       {showFallback ? (
@@ -203,37 +104,95 @@ export default function MapView({
           </div>
           <div className="space-y-2">
             <p className="text-base font-semibold text-[#0f1724]">
-              {status === "missing_key" ? "Google Maps n'est pas encore active" : "La carte Google Maps n'a pas pu etre chargee"}
+              {!tileUrl ? "MapTiler n'est pas encore configure" : "La carte MapTiler n'a pas pu etre chargee"}
             </p>
             <p className="max-w-md text-sm leading-6 text-gray-600">
-              {status === "missing_key"
-                ? "Ajoutez NEXT_PUBLIC_GOOGLE_MAPS_API_KEY dans l'environnement pour afficher une vraie carte Google Maps interactive."
-                : "Verifiez la cle Google Maps, les restrictions de domaine et l'activation de l'API JavaScript Maps dans Google Cloud."}
+              {!tileUrl
+                ? "Ajoutez NEXT_PUBLIC_MAPTILER_API_KEY dans l'environnement pour afficher la carte interactive MapTiler."
+                : `Verifiez la cle MapTiler, le style "${styleId}" et les restrictions eventuelles sur votre cle.`}
             </p>
           </div>
           <a
-            href={mapsUrl}
+            href={openStreetMapUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 rounded-xl bg-[#1a3a5c] px-4 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:bg-[#0f2540]"
           >
             <ExternalLink className="h-4 w-4" />
-            Ouvrir dans Google Maps
+            Ouvrir la localisation
           </a>
         </div>
       ) : (
         <>
-          <div ref={containerRef} className="h-full w-full" />
+          <LeafletMap
+            center={[lat, lng]}
+            zoom={zoom}
+            className="h-full w-full"
+            scrollWheelZoom={false}
+            zoomControl={false}
+          >
+            <TileLayer
+              key={tileKey}
+              attribution={getMapTilerAttribution()}
+              url={tileUrl}
+              eventHandlers={{
+                tileload: () => setTileLoadCount((current) => current + 1),
+                tileerror: () => setTileErrorCount((current) => current + 1),
+              }}
+            />
+            <ZoomControl position="bottomright" />
+            <Marker position={[lat, lng]} icon={markerIcon} ref={markerRef}>
+              <Popup autoPan>
+                <div className="w-[180px] overflow-hidden rounded-2xl">
+                  {popupImageUrl ? (
+                    <>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={popupImageUrl}
+                        alt={popupTitle || label}
+                        className="h-24 w-full rounded-xl object-cover"
+                      />
+                    </>
+                  ) : null}
+                  <div className={cn("space-y-1", popupImageUrl ? "pt-2" : "")}>
+                    <p className="text-sm font-bold leading-5 text-[#0f1724]">
+                      {popupTitle || label}
+                    </p>
+                    <p className="text-xs leading-5 text-gray-500">
+                      {popupSubtitle || label}
+                    </p>
+                  </div>
+                  <a
+                    href={directionsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-3 inline-flex w-full items-center justify-center rounded-xl bg-[#1a3a5c] px-3 py-2 text-xs font-semibold !text-white no-underline transition-colors hover:bg-[#0f2540] hover:!text-white"
+                  >
+                    Y aller
+                  </a>
+                </div>
+              </Popup>
+            </Marker>
+          </LeafletMap>
 
-          <div className="absolute bottom-3 right-3 z-[1000]">
+          <div className="absolute bottom-3 right-3 z-[1000] flex flex-col items-end gap-2">
             <a
-              href={mapsUrl}
+              href={directionsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 rounded-xl bg-[#1a3a5c] px-3 py-2 text-xs font-semibold text-white shadow-md transition-all duration-200 hover:bg-[#0f2540]"
+            >
+              <ExternalLink className="h-3 w-3" />
+              Itinéraire
+            </a>
+            <a
+              href={openStreetMapUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1.5 rounded-xl border border-gray-100 bg-white px-3 py-1.5 text-xs font-semibold text-[#1a3a5c] shadow-md transition-all duration-200 hover:bg-[#1a3a5c] hover:text-white"
             >
               <ExternalLink className="h-3 w-3" />
-              Ouvrir dans Google Maps
+              Ouvrir la carte
             </a>
           </div>
 
@@ -243,15 +202,6 @@ export default function MapView({
               {label}
             </div>
           </div>
-
-          {status === "loading" && (
-            <div className="absolute inset-0 z-[999] flex items-center justify-center bg-white/70 backdrop-blur-[1px]">
-              <div className="flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-sm border border-gray-100">
-                <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#1a3a5c] border-t-transparent" />
-                <span className="text-sm font-medium text-[#1a3a5c]">Chargement de Google Maps...</span>
-              </div>
-            </div>
-          )}
         </>
       )}
     </div>

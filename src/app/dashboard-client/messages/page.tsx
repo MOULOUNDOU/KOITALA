@@ -7,7 +7,9 @@ import {
   MessageCircle,
   MessageSquare,
   Send,
+  ShieldCheck,
 } from "lucide-react";
+import ClientPageHero from "@/components/dashboard/ClientPageHero";
 import { createClient } from "@/lib/supabase/client";
 import { formatDate, getStatusColor, getStatusLabel } from "@/lib/utils";
 
@@ -34,7 +36,9 @@ export default function MessagesPage() {
     let mounted = true;
 
     const loadMessages = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) {
         if (mounted) setLoading(false);
         return;
@@ -61,46 +65,103 @@ export default function MessagesPage() {
 
   if (loading) {
     return (
-      <div className="p-8 flex justify-center">
-        <div className="w-8 h-8 border-2 border-[#1a3a5c] border-t-transparent rounded-full animate-spin" />
+      <div className="flex justify-center p-8">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#1a3a5c] border-t-transparent" />
       </div>
     );
   }
 
   const newMessages = messages.filter((message) => message.status === "nouveau").length;
+  const handledMessages = messages.filter(
+    (message) => message.status === "lu" || message.status === "traite"
+  ).length;
+  const propertyMessages = messages.filter((message) => pickFirst(message.property)?.title).length;
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-6">
-      <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 sm:p-6">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-[#0f1724]">Mes messages</h1>
-            <p className="text-sm text-gray-500 mt-1">
-              {messages.length} message{messages.length !== 1 ? "s" : ""} envoyé{messages.length !== 1 ? "s" : ""}
-            </p>
-          </div>
-          <div className="flex items-center gap-2 text-xs sm:text-sm">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#1a3a5c]/10 text-[#1a3a5c] font-medium">
-              <MessageSquare className="w-4 h-4" /> {newMessages} nouveau{newMessages > 1 ? "x" : ""}
-            </span>
+    <div className="mx-auto max-w-[1450px] space-y-6 p-4 pb-8 sm:p-6 sm:pb-10 lg:p-8">
+      <ClientPageHero
+        title="Mes messages"
+        description="Retrouvez l'historique de vos demandes envoyées à l'agence et les biens concernés."
+        chips={[
+          { icon: MessageSquare, value: messages.length, label: "messages" },
+          { icon: Send, value: newMessages, label: "nouveaux" },
+          { icon: ShieldCheck, value: handledMessages, label: "consultés/traités" },
+        ]}
+        actions={
+          <>
+            <Link
+              href="/dashboard-client"
+              className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-[#1a3a5c] transition-colors hover:bg-gray-50 sm:text-sm"
+            >
+              Retour dashboard
+            </Link>
             <Link
               href="/contact"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#1a3a5c] text-white font-medium hover:bg-[#0f2540] transition-colors"
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#1a3a5c] px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#0f2540] sm:text-sm"
             >
-              <Send className="w-4 h-4" /> Nouveau message
+              <Send className="h-4 w-4" />
+              Nouveau message
             </Link>
+          </>
+        }
+      />
+
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        {[
+          {
+            icon: MessageSquare,
+            label: "Messages envoyés",
+            value: messages.length,
+            helper: "Historique complet",
+            bgColor: "#1d4ed8",
+          },
+          {
+            icon: Send,
+            label: "Nouveaux",
+            value: newMessages,
+            helper: "En attente de lecture",
+            bgColor: "#047857",
+          },
+          {
+            icon: ShieldCheck,
+            label: "Concernant un bien",
+            value: propertyMessages,
+            helper: `${handledMessages} message(s) suivis`,
+            bgColor: "#6b4226",
+          },
+        ].map((item) => (
+          <div
+            key={item.label}
+            className="rounded-3xl border border-transparent p-4 shadow-sm sm:p-5"
+            style={{ backgroundColor: item.bgColor }}
+          >
+            <div
+              className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-2xl text-white"
+              style={{ backgroundColor: "rgba(255,255,255,0.2)" }}
+            >
+              <item.icon className="h-4 w-4" />
+            </div>
+            <p className="font-display text-[11px] font-semibold uppercase tracking-[0.22em] text-white/75">
+              {item.label}
+            </p>
+            <p className="font-display mt-2 text-2xl font-extrabold text-white sm:text-3xl">
+              {item.value}
+            </p>
+            <p className="mt-1 text-xs font-semibold text-white/90">{item.helper}</p>
           </div>
-        </div>
+        ))}
       </section>
 
       {messages.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col items-center justify-center py-20 text-center px-4">
-          <MessageCircle className="w-14 h-14 text-gray-200 mb-4" />
-          <h3 className="text-lg font-semibold text-gray-700 mb-1">Aucun message envoyé</h3>
-          <p className="text-sm text-gray-400 mb-6 max-w-md">Vos demandes envoyées à l&apos;agence apparaîtront ici.</p>
+        <div className="rounded-3xl border border-gray-100 bg-white px-4 py-20 text-center shadow-sm">
+          <MessageCircle className="mx-auto mb-4 h-14 w-14 text-gray-200" />
+          <h3 className="text-lg font-semibold text-gray-700">Aucun message envoyé</h3>
+          <p className="mx-auto mt-2 max-w-md text-sm text-gray-400">
+            Vos demandes envoyées à l&apos;agence apparaîtront ici.
+          </p>
           <Link
             href="/contact"
-            className="px-5 py-2.5 bg-[#1a3a5c] text-white text-sm font-semibold rounded-xl hover:bg-[#0f2540] transition-colors"
+            className="mt-6 inline-flex items-center justify-center rounded-xl bg-[#1a3a5c] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#0f2540]"
           >
             Contacter KOITALA
           </Link>
@@ -111,27 +172,25 @@ export default function MessagesPage() {
             const property = pickFirst(message.property);
 
             return (
-              <article key={message.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-5">
+              <article key={message.id} className="rounded-3xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
                 <div className="flex items-start gap-3 sm:gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-[#1a3a5c]/10 text-[#1a3a5c] flex items-center justify-center shrink-0 mt-0.5">
-                    <MessageSquare className="w-5 h-5" />
+                  <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#1a3a5c]/10 text-[#1a3a5c]">
+                    <MessageSquare className="h-5 w-5" />
                   </div>
 
-                  <div className="flex-1 min-w-0">
+                  <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="font-semibold text-[#0f1724] line-clamp-1">
+                      <p className="line-clamp-1 font-semibold text-[#0f1724]">
                         {message.subject?.trim() || "Message sans objet"}
                       </p>
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(message.status)}`}>
+                      <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${getStatusColor(message.status)}`}>
                         {getStatusLabel(message.status)}
                       </span>
                     </div>
 
-                    <p className="text-xs text-gray-400 mt-1">Envoyé le {formatDate(message.created_at)}</p>
+                    <p className="mt-1 text-xs text-gray-400">Envoyé le {formatDate(message.created_at)}</p>
 
-                    <p className="text-sm text-gray-600 mt-3 leading-relaxed line-clamp-3">
-                      {message.message}
-                    </p>
+                    <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-gray-600">{message.message}</p>
 
                     <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
                       {property?.title ? (
@@ -145,14 +204,14 @@ export default function MessagesPage() {
                           href={`/biens/${property.slug}`}
                           className="inline-flex items-center gap-1 text-xs font-semibold text-[#1a3a5c] hover:text-[#0f2540]"
                         >
-                          Voir le bien <ArrowRight className="w-3.5 h-3.5" />
+                          Voir le bien <ArrowRight className="h-3.5 w-3.5" />
                         </Link>
                       ) : (
                         <Link
                           href="/contact"
                           className="inline-flex items-center gap-1 text-xs font-semibold text-[#1a3a5c] hover:text-[#0f2540]"
                         >
-                          Envoyer un nouveau message <ArrowRight className="w-3.5 h-3.5" />
+                          Envoyer un nouveau message <ArrowRight className="h-3.5 w-3.5" />
                         </Link>
                       )}
                     </div>

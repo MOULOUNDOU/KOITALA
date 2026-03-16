@@ -7,13 +7,20 @@ import {
   ArrowRight,
   Bell,
   CalendarCheck,
+  Compass,
   Heart,
   Home,
+  LineChart,
   MapPin,
   MessageSquare,
   Phone,
+  ShieldCheck,
+  TrendingDown,
+  TrendingUp,
   UserRound,
 } from "lucide-react";
+import DashboardAvatar from "@/components/layout/DashboardAvatar";
+import WeeklyVisitsChart from "@/components/dashboard/WeeklyVisitsChart";
 import { createClient } from "@/lib/supabase/client";
 import {
   formatDate,
@@ -72,6 +79,11 @@ interface DashboardFavorite extends DashboardProperty {
   saved_at: string;
 }
 
+interface WeeklyVisitPoint {
+  label: string;
+  total: number;
+}
+
 function pickFirst<T>(value: T | T[] | null | undefined): T | null {
   if (Array.isArray(value)) return value[0] ?? null;
   return value ?? null;
@@ -96,6 +108,52 @@ function getPropertyImage(
   if (firstImage) return firstImage;
 
   return "https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=1200&q=80";
+}
+
+function toDayKey(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
+    date.getDate()
+  ).padStart(2, "0")}`;
+}
+
+function buildWeeklyVisitSeries(rows: { created_at: string }[]): WeeklyVisitPoint[] {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const days: { key: string; label: string }[] = [];
+  for (let offset = 6; offset >= 0; offset -= 1) {
+    const day = new Date(today);
+    day.setDate(today.getDate() - offset);
+    days.push({
+      key: toDayKey(day),
+      label: day.toLocaleDateString("fr-FR", { weekday: "short" }).replace(".", ""),
+    });
+  }
+
+  const counts = new Map(days.map((day) => [day.key, 0]));
+  rows.forEach((row) => {
+    const createdAt = new Date(row.created_at);
+    const key = toDayKey(createdAt);
+    if (counts.has(key)) {
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+  });
+
+  return days.map((day) => ({
+    label: day.label,
+    total: counts.get(day.key) ?? 0,
+  }));
+}
+
+function countRowsBetween(
+  rows: { created_at: string }[],
+  startInclusive: Date,
+  endExclusive: Date
+): number {
+  return rows.filter((row) => {
+    const createdAt = new Date(row.created_at);
+    return createdAt >= startInclusive && createdAt < endExclusive;
+  }).length;
 }
 
 export default function DashboardClientPage() {
@@ -124,6 +182,10 @@ export default function DashboardClientPage() {
         typeof user.user_metadata?.full_name === "string"
           ? user.user_metadata.full_name.trim()
           : "";
+      const metadataAvatar =
+        typeof user.user_metadata?.avatar_url === "string"
+          ? user.user_metadata.avatar_url.trim()
+          : "";
       const emailFallback = user.email?.split("@")[0] ?? "Client";
 
       const [
@@ -133,43 +195,43 @@ export default function DashboardClientPage() {
         { data: favs },
         { data: featuredProperties },
         { data: recentProperties },
-      ] =
-        await Promise.all([
-          supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
-          supabase
-            .from("visit_requests")
-            .select("id, status, preferred_date, created_at, message, property:properties(slug, title, main_image_url)")
-            .eq("user_id", user.id)
-            .order("created_at", { ascending: false })
-            .limit(5),
-          supabase
-            .from("contacts")
-            .select("id, subject, message, status, created_at, property:properties(slug, title)")
-            .eq("email", user.email ?? "")
-            .order("created_at", { ascending: false })
-            .limit(5),
-          supabase
-            .from("favorites")
-            .select("id, created_at, property:properties(id, slug, title, city, price, listing_type, main_image_url, property_images(url, is_main, order_index))")
-            .eq("user_id", user.id)
-            .order("created_at", { ascending: false })
-            .limit(5),
-          supabase
-            .from("properties")
-            .select("id, slug, title, city, price, listing_type, main_image_url, property_images(url, is_main, order_index)")
-            .eq("status", "publie")
-            .eq("is_featured", true)
-            .order("created_at", { ascending: false })
-            .order("id", { ascending: false })
-            .limit(6),
-          supabase
-            .from("properties")
-            .select("id, slug, title, city, price, listing_type, main_image_url, property_images(url, is_main, order_index)")
-            .eq("status", "publie")
-            .order("created_at", { ascending: false })
-            .order("id", { ascending: false })
-            .limit(6),
-        ]);
+      ] = await Promise.all([
+        supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
+        supabase
+          .from("visit_requests")
+          .select(
+            "id, status, preferred_date, created_at, message, property:properties(slug, title, main_image_url)"
+          )
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("contacts")
+          .select("id, subject, message, status, created_at, property:properties(slug, title)")
+          .eq("email", user.email ?? "")
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("favorites")
+          .select(
+            "id, created_at, property:properties(id, slug, title, city, price, listing_type, main_image_url, property_images(url, is_main, order_index))"
+          )
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("properties")
+          .select("id, slug, title, city, price, listing_type, main_image_url, property_images(url, is_main, order_index)")
+          .eq("status", "publie")
+          .eq("is_featured", true)
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: false })
+          .limit(6),
+        supabase
+          .from("properties")
+          .select("id, slug, title, city, price, listing_type, main_image_url, property_images(url, is_main, order_index)")
+          .eq("status", "publie")
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: false })
+          .limit(6),
+      ]);
 
       if (!mounted) return;
 
@@ -191,12 +253,13 @@ export default function DashboardClientPage() {
       const recentItems = (recentProperties as DashboardProperty[] | null) ?? [];
       const homepageItems = Array.from(
         new Map([...featuredItems, ...recentItems].map((property) => [property.id, property])).values()
-      );
+      ).slice(0, 6);
 
       setProfile({
         ...(prof ?? {}),
         full_name: profileName,
         email: prof?.email ?? user.email ?? "",
+        avatar_url: prof?.avatar_url?.trim() || metadataAvatar || "",
       });
       setVisits((vis as DashboardVisit[] | null) ?? []);
       setMessages((msgs as DashboardMessage[] | null) ?? []);
@@ -217,8 +280,113 @@ export default function DashboardClientPage() {
   }, [supabase]);
 
   const userName = profile.full_name?.trim() || "Client";
+  const userAvatarUrl = profile.avatar_url?.toString().trim() ?? "";
   const pendingVisits = visits.filter((visit) => visit.status === "en_attente").length;
+  const confirmedVisits = visits.filter((visit) => visit.status === "confirme").length;
+  const completedVisits = visits.filter((visit) => visit.status === "realise").length;
+  const cancelledVisits = visits.filter((visit) => visit.status === "annule").length;
   const unreadMessages = messages.filter((message) => message.status === "nouveau").length;
+  const answeredMessages = messages.filter(
+    (message) => message.status === "lu" || message.status === "traite"
+  ).length;
+  const completedProfileFields = [profile.full_name, profile.email, profile.phone].filter(
+    (value) => typeof value === "string" && value.trim().length > 0
+  ).length;
+  const profileCompletion = Math.round((completedProfileFields / 3) * 100);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const upcomingVisits = visits
+    .filter(
+      (visit) =>
+        visit.preferred_date &&
+        new Date(visit.preferred_date) >= today &&
+        visit.status !== "annule" &&
+        visit.status !== "realise"
+    )
+    .sort((left, right) => {
+      const leftDate = left.preferred_date ? new Date(left.preferred_date).getTime() : Number.MAX_SAFE_INTEGER;
+      const rightDate = right.preferred_date ? new Date(right.preferred_date).getTime() : Number.MAX_SAFE_INTEGER;
+      return leftDate - rightDate;
+    });
+
+  const nextVisit = upcomingVisits[0] ?? null;
+  const nextVisitProperty = pickFirst(nextVisit?.property);
+
+  const weeklyVisits = buildWeeklyVisitSeries(visits);
+  const weeklyTotalVisits = weeklyVisits.reduce((sum, point) => sum + point.total, 0);
+  const peakVisitPoint = weeklyVisits.reduce(
+    (top, point) => (point.total > top.total ? point : top),
+    { label: "-", total: 0 }
+  );
+
+  const currentWeekStart = new Date(today);
+  currentWeekStart.setDate(today.getDate() - 6);
+  const previousWeekStart = new Date(currentWeekStart);
+  previousWeekStart.setDate(currentWeekStart.getDate() - 7);
+
+  const previousWeekVisits = countRowsBetween(visits, previousWeekStart, currentWeekStart);
+  const weeklyTrend =
+    previousWeekVisits === 0
+      ? weeklyTotalVisits > 0
+        ? 100
+        : 0
+      : Math.round(((weeklyTotalVisits - previousWeekVisits) / previousWeekVisits) * 100);
+
+  const statusBoard = [
+    { key: "en_attente", label: "En attente", value: pendingVisits, tone: "bg-[#e8b86d]" },
+    { key: "confirme", label: "Confirmées", value: confirmedVisits, tone: "bg-[#1a3a5c]" },
+    { key: "realise", label: "Réalisées", value: completedVisits, tone: "bg-[#0f2540]" },
+    { key: "annule", label: "Annulées", value: cancelledVisits, tone: "bg-slate-400" },
+  ];
+  const maxStatusValue = Math.max(...statusBoard.map((item) => item.value), 1);
+
+  const headerChips = [
+    { icon: Bell, value: pendingVisits, label: "en attente" },
+    { icon: MessageSquare, value: unreadMessages, label: "nouveaux messages" },
+    { icon: ShieldCheck, value: `${profileCompletion}%`, label: "profil complété" },
+  ];
+
+  const spotlight = nextVisit
+    ? {
+        eyebrow: "Prochaine visite",
+        title: nextVisit.preferred_date
+          ? `Rendez-vous prévu le ${formatDate(nextVisit.preferred_date)}`
+          : "Une visite attend votre confirmation",
+        description: nextVisitProperty?.title
+          ? `Suivez votre échange pour ${nextVisitProperty.title}.`
+          : "Retrouvez vos prochaines demandes de visite en un coup d'œil.",
+        href: "/dashboard-client/visites",
+        cta: "Voir mes visites",
+        icon: CalendarCheck,
+      }
+    : unreadMessages > 0
+      ? {
+          eyebrow: "Messages à suivre",
+          title: `${unreadMessages} message(s) réclament votre attention`,
+          description: "Consultez les derniers échanges envoyés à l'agence depuis votre espace client.",
+          href: "/dashboard-client/messages",
+          cta: "Ouvrir mes messages",
+          icon: MessageSquare,
+        }
+      : profileCompletion < 100
+        ? {
+            eyebrow: "Profil à finaliser",
+            title: `Votre profil est complété à ${profileCompletion}%`,
+            description: "Ajoutez vos coordonnées pour accélérer les échanges sur les visites et demandes.",
+            href: "/dashboard-client/parametres",
+            cta: "Compléter mon profil",
+            icon: UserRound,
+          }
+        : {
+            eyebrow: "Favoris",
+            title: `${favorites.length} bien(s) sauvegardé(s) dans votre sélection`,
+            description: "Retrouvez rapidement les biens que vous suivez déjà ou explorez de nouvelles annonces.",
+            href: "/dashboard-client/favoris",
+            cta: "Voir mes favoris",
+            icon: Heart,
+          };
 
   if (loading) {
     return (
@@ -229,107 +397,264 @@ export default function DashboardClientPage() {
   }
 
   return (
-    <div className="space-y-6 p-4 sm:p-6 lg:p-8">
-      <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-[#0f1724] sm:text-3xl">Bonjour, {userName}</h1>
-            <p className="mt-1 text-sm text-gray-500">Espace utilisateur</p>
+    <div className="mx-auto max-w-[1450px] space-y-6 p-4 pb-8 sm:p-6 sm:pb-10 lg:p-8">
+      <section className="rounded-[30px] border border-gray-100 bg-white p-5 shadow-sm sm:p-7">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          <div className="flex items-center gap-4">
+            <DashboardAvatar
+              name={userName}
+              avatarUrl={userAvatarUrl}
+              className="h-16 w-16 shrink-0 rounded-[20px] bg-[#1a3a5c]/10 text-lg text-[#1a3a5c] ring-0"
+            />
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gray-400">
+                ESPACE CLIENT KOITALA
+              </p>
+              <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-[#0f1724] sm:text-3xl">
+                Bonjour, {userName}
+              </h1>
+              <p className="mt-1.5 text-sm text-gray-600">
+                Suivez vos visites, favoris et messages depuis un tableau de bord unifié.
+              </p>
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 sm:flex sm:items-center">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
             <Link
-              href="/dashboard-client/profil"
-              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#1a3a5c]/20 bg-white px-4 py-2.5 text-sm font-semibold text-[#1a3a5c] transition-all hover:border-[#1a3a5c]/40 hover:bg-[#f8fafc]"
+              href="/dashboard-client/visites"
+              className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-[#1a3a5c] transition-colors hover:bg-gray-50 sm:text-sm"
             >
-              <UserRound className="h-4 w-4" />
-              Profil
+              Mes visites
             </Link>
             <Link
               href="/biens"
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1a3a5c] px-4 py-2.5 text-sm font-semibold text-white transition-all hover:bg-[#0f2540]"
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#1a3a5c] px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#0f2540] sm:text-sm"
             >
-              <Home className="h-4 w-4" />
-              Annonces
+              <Compass className="h-4 w-4" />
+              Explorer les biens
             </Link>
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
+          <div className="rounded-3xl border border-[#1a3a5c]/10 bg-[#f8fafc] p-4 sm:p-5">
+            <div className="flex items-start gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#1a3a5c] text-white">
+                <spotlight.icon className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gray-400">
+                  {spotlight.eyebrow}
+                </p>
+                <p className="mt-1 text-lg font-bold text-[#0f1724]">{spotlight.title}</p>
+                <p className="mt-1.5 text-sm text-gray-600">{spotlight.description}</p>
+                <Link
+                  href={spotlight.href}
+                  className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-[#1a3a5c] hover:underline"
+                >
+                  {spotlight.cta}
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 min-[430px]:flex min-[430px]:items-center">
+            {headerChips.map((chip) => (
+              <div
+                key={chip.label}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-[#0f1724]"
+              >
+                <chip.icon className="h-3.5 w-3.5 text-[#1a3a5c]" />
+                {chip.value} {chip.label}
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
       <section className="grid grid-cols-2 gap-4 xl:grid-cols-4">
         {[
-          { label: "Favoris", value: favorites.length, icon: Heart },
-          { label: "Visites", value: visits.length, icon: CalendarCheck },
-          { label: "Messages", value: messages.length, icon: MessageSquare },
-          { label: "Biens", value: availableProperties.length, icon: Home },
+          {
+            icon: Heart,
+            label: "Favoris",
+            value: favorites.length,
+            helper: `${favorites.length} bien(s) suivis`,
+            bgColor: "#1d4ed8",
+          },
+          {
+            icon: CalendarCheck,
+            label: "Demandes",
+            value: visits.length,
+            helper: `${pendingVisits} en attente`,
+            bgColor: "#047857",
+          },
+          {
+            icon: MessageSquare,
+            label: "Messages",
+            value: messages.length,
+            helper: `${unreadMessages} nouveaux`,
+            bgColor: "#6b4226",
+          },
+          {
+            icon: Home,
+            label: "Biens à explorer",
+            value: availableProperties.length,
+            helper: "Sélection KOITALA",
+            bgColor: "#b91c1c",
+          },
         ].map((item) => (
-          <div key={item.label} className="rounded-3xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
-            <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[#1a3a5c]/10 text-[#1a3a5c]">
+          <div
+            key={item.label}
+            className="rounded-3xl border border-transparent p-4 shadow-sm sm:p-5"
+            style={{ backgroundColor: item.bgColor }}
+          >
+            <div
+              className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-2xl text-white"
+              style={{ backgroundColor: "rgba(255,255,255,0.2)" }}
+            >
               <item.icon className="h-4 w-4" />
             </div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">{item.label}</p>
-            <p className="mt-2 text-2xl font-extrabold text-[#0f1724]">{item.value}</p>
+            <p className="font-display text-[11px] font-semibold uppercase tracking-[0.22em] text-white/75">
+              {item.label}
+            </p>
+            <p className="font-display mt-2 text-2xl font-extrabold text-white sm:text-3xl">
+              {item.value}
+            </p>
+            <p className="mt-1 text-xs font-semibold text-white/90">{item.helper}</p>
           </div>
         ))}
       </section>
 
-      {(pendingVisits > 0 || unreadMessages > 0) && (
-        <section className="rounded-2xl border border-[#1a3a5c]/20 bg-[#f4f6f9] p-4 sm:p-5">
-          <div className="flex items-start gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#1a3a5c]/10 text-[#1a3a5c]">
-              <Bell className="h-4 w-4" />
-            </div>
-            <div className="text-sm text-[#0f1724]">
-              {pendingVisits > 0 && <p>{pendingVisits} visite(s) en attente</p>}
-              {unreadMessages > 0 && <p>{unreadMessages} message(s) nouveau(x)</p>}
-            </div>
-          </div>
-        </section>
-      )}
-
-      <section className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.35fr)_360px]">
+      <section className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.5fr)_360px]">
         <div className="space-y-6">
-          <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <h2 className="text-lg font-bold text-[#0f1724]">Annonces de l&apos;accueil</h2>
-              <Link href="/biens" className="text-sm font-semibold text-[#1a3a5c] hover:text-[#0f2540]">
-                Voir tout
-              </Link>
+          <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
+              <div className="mb-4 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <h2 className="text-lg font-bold text-[#0f1724]">Pipeline des visites</h2>
+                <span className="inline-flex max-w-full items-center rounded-full border border-[#1a3a5c]/20 bg-[#1a3a5c]/5 px-2.5 py-1 text-xs font-semibold text-[#1a3a5c]">
+                  {visits.length} au total
+                </span>
+              </div>
+              <div className="space-y-3">
+                {statusBoard.map((item) => {
+                  const width =
+                    item.value === 0
+                      ? 0
+                      : Math.max(12, Math.round((item.value / maxStatusValue) * 100));
+                  return (
+                    <div key={item.key} className="space-y-1.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-semibold text-[#0f1724]">{item.label}</span>
+                        <span className="text-gray-500">{item.value}</span>
+                      </div>
+                      <div className="h-2 overflow-hidden rounded-full bg-gray-100">
+                        <div className={`h-full rounded-full ${item.tone}`} style={{ width: `${width}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
+              <div className="mb-4 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <h2 className="text-lg font-bold text-[#0f1724]">Demandes sur 7 jours</h2>
+                <span className="inline-flex max-w-full items-center rounded-full border border-[#1a3a5c]/20 bg-[#1a3a5c]/5 px-2.5 py-1 text-xs font-semibold text-[#1a3a5c]">
+                  {weeklyTotalVisits} cette semaine
+                </span>
+              </div>
+              <WeeklyVisitsChart data={weeklyVisits} />
+
+              <div className="mt-3 flex flex-col items-start gap-3 text-xs sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-gray-500">
+                  Pic: <span className="font-semibold text-[#0f1724]">{peakVisitPoint.total}</span> demande(s),{" "}
+                  {peakVisitPoint.label}
+                </p>
+                <span
+                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-semibold ${
+                    weeklyTrend >= 0
+                      ? "bg-[#1a3a5c]/10 text-[#1a3a5c]"
+                      : "bg-slate-100 text-slate-700"
+                  }`}
+                >
+                  {weeklyTrend >= 0 ? (
+                    <TrendingUp className="h-3.5 w-3.5" />
+                  ) : (
+                    <TrendingDown className="h-3.5 w-3.5" />
+                  )}
+                  {weeklyTrend >= 0 ? "+" : ""}
+                  {weeklyTrend}% vs semaine précédente
+                </span>
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-3xl border border-gray-100 bg-white shadow-sm">
+            <div className="flex flex-col gap-4 border-b border-gray-100 px-4 py-4 sm:px-5 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-[#0f1724] sm:text-xl">Biens à découvrir</h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  Une sélection proche de l&apos;accueil pour relancer votre recherche.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
+                <Link
+                  href="/dashboard-client/favoris"
+                  className="inline-flex items-center justify-center rounded-xl border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-600 transition-colors hover:bg-gray-50 sm:text-sm"
+                >
+                  Mes favoris
+                </Link>
+                <Link
+                  href="/biens"
+                  className="inline-flex items-center justify-center rounded-xl bg-[#1a3a5c] px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#0f2540] sm:text-sm"
+                >
+                  Explorer
+                </Link>
+              </div>
             </div>
 
             {availableProperties.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-gray-200 bg-[#f4f6f9] py-8 text-center text-sm text-gray-500">
-                Aucune annonce
+              <div className="px-6 py-12 text-center">
+                <Home className="mx-auto mb-3 h-12 w-12 text-gray-200" />
+                <p className="text-sm text-gray-400">Aucune annonce disponible pour le moment.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2 sm:p-5 xl:grid-cols-3">
                 {availableProperties.map((property) => (
                   <Link
                     key={property.id}
                     href={`/biens/${property.slug}`}
                     className="group overflow-hidden rounded-3xl border border-gray-100 bg-white transition-all hover:border-[#1a3a5c]/20 hover:shadow-md"
                   >
-                    <div className="relative h-40 overflow-hidden">
+                    <div className="relative h-48 overflow-hidden">
                       <Image
                         src={getPropertyImage(property)}
                         alt={property.title}
                         fill
                         className="object-cover transition-transform duration-500 group-hover:scale-105"
-                        sizes="(max-width: 768px) 100vw, 50vw"
+                        sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 33vw"
                       />
                       <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-[#1a3a5c] backdrop-blur">
                         {getListingTypeLabel(property.listing_type)}
                       </span>
                     </div>
                     <div className="p-4">
-                      <p className="truncate text-sm font-bold text-[#0f1724]">{property.title}</p>
-                      <p className="mt-1 inline-flex items-center gap-1 text-xs text-gray-500">
-                        <MapPin className="h-3.5 w-3.5 text-[#1a3a5c]" />
-                        {property.city}
-                      </p>
-                      <div className="mt-3 flex items-center justify-between gap-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-bold text-[#0f1724]">{property.title}</p>
+                          <p className="mt-1 inline-flex items-center gap-1 text-xs text-gray-500">
+                            <MapPin className="h-3.5 w-3.5 text-[#1a3a5c]" />
+                            {property.city}
+                          </p>
+                        </div>
+                        <ArrowRight className="h-4 w-4 shrink-0 text-gray-300 transition-colors group-hover:text-[#1a3a5c]" />
+                      </div>
+                      <div className="mt-4 flex items-center justify-between gap-3">
                         <p className="text-sm font-extrabold text-[#1a3a5c]">{formatPrice(property.price)}</p>
-                        <ArrowRight className="h-4 w-4 text-gray-300 transition-colors group-hover:text-[#1a3a5c]" />
+                        <span className="rounded-full bg-[#f4f6f9] px-2.5 py-1 text-[11px] font-semibold text-[#0f1724]">
+                          Voir le bien
+                        </span>
                       </div>
                     </div>
                   </Link>
@@ -337,111 +662,108 @@ export default function DashboardClientPage() {
               </div>
             )}
           </section>
-
-          <section className="grid grid-cols-1 gap-6 2xl:grid-cols-2">
-            <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <h2 className="text-lg font-bold text-[#0f1724]">Dernières visites</h2>
-                <Link href="/dashboard-client/visites" className="text-sm font-semibold text-[#1a3a5c] hover:text-[#0f2540]">
-                  Tout voir
-                </Link>
-              </div>
-
-              {visits.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-gray-200 bg-[#f4f6f9] py-8 text-center text-sm text-gray-500">
-                  Aucune visite
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {visits.slice(0, 3).map((visit) => {
-                    const property = pickFirst(visit.property);
-                    return (
-                      <div key={visit.id} className="flex items-center gap-3 rounded-2xl border border-gray-100 px-3.5 py-3">
-                        <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl bg-gray-100">
-                          <Image
-                            src={getPropertyImage(property)}
-                            alt={property?.title ?? "Bien"}
-                            fill
-                            className="object-cover"
-                            sizes="56px"
-                          />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold text-[#0f1724]">
-                            {property?.title ?? "Bien supprimé"}
-                          </p>
-                          <p className="mt-0.5 text-xs text-gray-400">
-                            {visit.preferred_date ? `${formatDate(visit.preferred_date)} · ` : ""}
-                            {formatDate(visit.created_at)}
-                          </p>
-                        </div>
-                        <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${getStatusColor(visit.status)}`}>
-                          {getStatusLabel(visit.status)}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <h2 className="text-lg font-bold text-[#0f1724]">Messages récents</h2>
-                <Link href="/dashboard-client/messages" className="text-sm font-semibold text-[#1a3a5c] hover:text-[#0f2540]">
-                  Tout voir
-                </Link>
-              </div>
-
-              {messages.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-gray-200 bg-[#f4f6f9] py-8 text-center text-sm text-gray-500">
-                  Aucun message
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {messages.slice(0, 3).map((message) => (
-                    <div key={message.id} className="flex items-start gap-3 rounded-2xl border border-gray-100 px-3.5 py-3">
-                      <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[#1a3a5c]/10 text-[#1a3a5c]">
-                        <MessageSquare className="h-4 w-4" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold text-[#0f1724]">
-                          {message.subject?.trim() || "Message"}
-                        </p>
-                        <p className="mt-0.5 line-clamp-2 text-xs text-gray-500">{message.message}</p>
-                        <p className="mt-1 text-[11px] text-gray-400">{formatDate(message.created_at)}</p>
-                      </div>
-                      <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${getStatusColor(message.status)}`}>
-                        {getStatusLabel(message.status)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </section>
         </div>
 
         <aside className="space-y-6">
           <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-[#0f1724]">Demandes récentes</h2>
+              <Link href="/dashboard-client/visites" className="text-xs font-semibold text-[#1a3a5c] hover:underline">
+                Tout voir
+              </Link>
+            </div>
+            {visits.length === 0 ? (
+              <p className="text-sm text-gray-400">Aucune demande enregistrée pour le moment.</p>
+            ) : (
+              <div className="space-y-3">
+                {visits.slice(0, 4).map((visit) => {
+                  const property = pickFirst(visit.property);
+                  return (
+                    <div key={visit.id} className="rounded-2xl border border-gray-100 p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-[#0f1724]">
+                            {property?.title ?? "Bien supprimé"}
+                          </p>
+                          <p className="truncate text-xs text-gray-500">
+                            {visit.preferred_date
+                              ? `Souhaitée le ${formatDate(visit.preferred_date)}`
+                              : `Créée le ${formatDate(visit.created_at)}`}
+                          </p>
+                        </div>
+                        <span
+                          className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${getStatusColor(
+                            visit.status
+                          )}`}
+                        >
+                          {getStatusLabel(visit.status)}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
+          <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-[#0f1724]">Messages envoyés</h2>
+              <Link
+                href="/dashboard-client/messages"
+                className="text-xs font-semibold text-[#1a3a5c] hover:underline"
+              >
+                Tout voir
+              </Link>
+            </div>
+            {messages.length === 0 ? (
+              <p className="text-sm text-gray-400">Aucun message récent.</p>
+            ) : (
+              <div className="space-y-3">
+                {messages.slice(0, 4).map((message) => (
+                  <div key={message.id} className="rounded-2xl border border-gray-100 p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-[#0f1724]">
+                          {message.subject?.trim() || "Message sans objet"}
+                        </p>
+                        <p className="mt-0.5 line-clamp-2 text-xs text-gray-500">{message.message}</p>
+                      </div>
+                      <span
+                        className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${getStatusColor(
+                          message.status
+                        )}`}
+                      >
+                        {getStatusLabel(message.status)}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-[11px] text-gray-400">{formatDate(message.created_at)}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
             <div className="mb-4 flex items-center justify-between gap-3">
               <h2 className="text-lg font-bold text-[#0f1724]">Favoris récents</h2>
-              <Link href="/dashboard-client/favoris" className="text-sm font-semibold text-[#1a3a5c] hover:text-[#0f2540]">
+              <Link
+                href="/dashboard-client/favoris"
+                className="text-xs font-semibold text-[#1a3a5c] hover:underline"
+              >
                 Tout voir
               </Link>
             </div>
 
             {favorites.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-gray-200 bg-[#f4f6f9] py-8 text-center text-sm text-gray-500">
-                Aucun favori
-              </div>
+              <p className="text-sm text-gray-400">Aucun favori enregistré.</p>
             ) : (
               <div className="space-y-3">
-                {favorites.slice(0, 4).map((favorite) => (
+                {favorites.slice(0, 3).map((favorite) => (
                   <Link
                     key={favorite.id}
                     href={`/biens/${favorite.slug}`}
-                    className="flex items-center gap-3 rounded-2xl border border-gray-100 px-3.5 py-3 transition-all hover:border-[#1a3a5c]/20 hover:bg-[#f8fafc]"
+                    className="flex items-center gap-3 rounded-2xl border border-gray-100 p-3 transition-colors hover:border-[#1a3a5c]/25 hover:bg-[#f8fafc]"
                   >
                     <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl bg-gray-100">
                       <Image
@@ -454,8 +776,8 @@ export default function DashboardClientPage() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold text-[#0f1724]">{favorite.title}</p>
-                      <p className="mt-0.5 text-xs text-gray-400">{favorite.city}</p>
-                      <p className="mt-1 text-sm font-bold text-[#1a3a5c]">{formatPrice(favorite.price)}</p>
+                      <p className="mt-0.5 text-xs text-gray-500">{favorite.city}</p>
+                      <p className="mt-1 text-xs font-semibold text-[#1a3a5c]">{formatPrice(favorite.price)}</p>
                     </div>
                     <ArrowRight className="h-4 w-4 shrink-0 text-gray-300" />
                   </Link>
@@ -464,24 +786,65 @@ export default function DashboardClientPage() {
             )}
           </section>
 
-          <section className="rounded-3xl border border-[#1a3a5c]/20 bg-[#1a3a5c] p-5 text-white shadow-sm sm:p-6">
-            <h2 className="text-lg font-bold">Assistance</h2>
-            <div className="mt-4 space-y-3">
-              <Link
-                href="/contact"
-                className="inline-flex w-full items-center justify-between rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-semibold transition-colors hover:bg-white/15"
-              >
-                Écrire à l&apos;agence
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-              <a
-                href="tel:+221766752135"
-                className="inline-flex w-full items-center justify-between rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-semibold transition-colors hover:bg-white/15"
-              >
-                Appeler
-                <Phone className="h-4 w-4" />
-              </a>
+          <section className="rounded-3xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-gray-400">
+                Actions utiles
+              </h2>
+              <LineChart className="h-4 w-4 text-[#1a3a5c]" />
             </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                {
+                  href: "/dashboard-client/parametres",
+                  icon: UserRound,
+                  label: "Paramètres",
+                  className: "bg-[#1a3a5c] text-white hover:bg-[#0f2540]",
+                },
+                {
+                  href: "/contact",
+                  icon: MessageSquare,
+                  label: "Contacter KOITALA",
+                  className:
+                    "border border-[#1a3a5c]/20 bg-white text-[#1a3a5c] hover:bg-[#f8fafc]",
+                },
+              ].map((action) => (
+                <Link
+                  key={action.href}
+                  href={action.href}
+                  className={`inline-flex items-center justify-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-semibold transition-colors ${action.className}`}
+                >
+                  <action.icon className="h-4 w-4" />
+                  {action.label}
+                </Link>
+              ))}
+            </div>
+
+            <div className="mt-3 space-y-2 rounded-2xl bg-[#f4f6f9] p-3 text-xs text-[#0f1724]">
+              <div className="flex items-center gap-2">
+                <Bell className="h-3.5 w-3.5 text-[#1a3a5c]" />
+                <span>{pendingVisits} demande(s) en attente de retour</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Phone className="h-3.5 w-3.5 text-[#1a3a5c]" />
+                <a href="tel:+221766752135" className="font-semibold text-[#1a3a5c] hover:underline">
+                  +221 76 675 21 35
+                </a>
+              </div>
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-3.5 w-3.5 text-[#1a3a5c]" />
+                <span>{answeredMessages} message(s) déjà consulté(s) ou traités</span>
+              </div>
+            </div>
+
+            <Link
+              href="/biens"
+              className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-[#1a3a5c] hover:underline"
+            >
+              Reprendre ma recherche
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
           </section>
         </aside>
       </section>

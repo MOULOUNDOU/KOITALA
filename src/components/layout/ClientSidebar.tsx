@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -18,11 +18,12 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
+import DashboardAvatar from "@/components/layout/DashboardAvatar";
 import SignOutConfirmDialog from "@/components/ui/SignOutConfirmDialog";
 
 const navItems = [
-  { label: "Dashboard",     href: "/dashboard-client",           icon: LayoutDashboard, exact: true },
-  { label: "Mon profil",    href: "/dashboard-client/profil",    icon: User },
+  { label: "Tableau de bord", href: "/dashboard-client",         icon: LayoutDashboard, exact: true },
+  { label: "Paramètres",    href: "/dashboard-client/parametres", icon: User },
   { label: "Mes visites",   href: "/dashboard-client/visites",   icon: CalendarCheck },
   { label: "Mes messages",  href: "/dashboard-client/messages",  icon: MessageSquare },
   { label: "Mes favoris",   href: "/dashboard-client/favoris",   icon: Heart },
@@ -34,15 +35,17 @@ const bottomItems = [
 
 interface ClientSidebarProps {
   userName?: string | null;
+  userAvatarUrl?: string | null;
 }
 
-export default function ClientSidebar({ userName }: ClientSidebarProps) {
+export default function ClientSidebar({ userName, userAvatarUrl }: ClientSidebarProps) {
   const pathname = usePathname();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [desktopExpanded, setDesktopExpanded] = useState(false);
   const [showSignOutDialog, setShowSignOutDialog] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const displayName = userName?.trim() || "Client";
 
   const confirmSignOut = async () => {
     setShowSignOutDialog(false);
@@ -143,12 +146,31 @@ export default function ClientSidebar({ userName }: ClientSidebarProps) {
           </span>
         </Link>
 
-        {desktopExpanded && userName && (
-          <div className="mb-4 rounded-xl border border-white/10 bg-white/8 px-3 py-2.5 anim-fade-up">
-            <p className="truncate text-sm font-semibold text-white">{userName}</p>
+        <div
+          className={cn(
+            "mb-4 flex items-center transition-all duration-300",
+            desktopExpanded
+              ? "gap-3 rounded-2xl border border-white/10 bg-white/8 px-3 py-2.5"
+              : "justify-center"
+          )}
+        >
+          <DashboardAvatar
+            name={displayName}
+            avatarUrl={userAvatarUrl}
+            className={cn("shrink-0 transition-all duration-300", desktopExpanded ? "h-12 w-12" : "h-11 w-11")}
+          />
+          <div
+            className={cn(
+              "min-w-0 transition-all duration-200",
+              desktopExpanded
+                ? "max-w-[150px] translate-x-0 opacity-100"
+                : "pointer-events-none max-w-0 -translate-x-2 overflow-hidden opacity-0"
+            )}
+          >
+            <p className="truncate text-sm font-semibold text-white">{displayName}</p>
             <p className="text-[11px] text-white/65">Espace client</p>
           </div>
-        )}
+        </div>
 
         <nav className={cn("flex flex-1 flex-col gap-1.5", desktopExpanded ? "items-stretch" : "items-center")}>
           {navItems.map((item) => (
@@ -167,6 +189,8 @@ export default function ClientSidebar({ userName }: ClientSidebarProps) {
           ))}
           <Link
             href="/"
+            target="_blank"
+            rel="noopener noreferrer"
             className={cn(
               "group flex items-center rounded-xl text-white/80 transition-all duration-300 hover:bg-white/10 hover:text-white",
               desktopExpanded ? "h-11 w-full justify-start gap-2.5 px-2.5" : "h-11 w-11 justify-center"
@@ -217,9 +241,16 @@ export default function ClientSidebar({ userName }: ClientSidebarProps) {
           <Image src="/logo-koitala.png" alt="KOITALA" width={32} height={32} className="w-8 h-8 rounded-lg object-cover" />
           <span className="text-lg font-bold text-white">KOI<span className="text-[#e8b86d]">TALA</span></span>
         </Link>
-        <button onClick={() => setMobileOpen(!mobileOpen)} className="w-10 h-10 flex items-center justify-center text-white">
-          {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-        </button>
+        <div className="flex items-center gap-2">
+          <DashboardAvatar
+            name={displayName}
+            avatarUrl={userAvatarUrl}
+            className="h-9 w-9 shrink-0 text-xs"
+          />
+          <button onClick={() => setMobileOpen(!mobileOpen)} className="w-10 h-10 flex items-center justify-center text-white">
+            {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
+        </div>
       </div>
 
       <div
@@ -237,19 +268,19 @@ export default function ClientSidebar({ userName }: ClientSidebarProps) {
         )}
         aria-hidden={!mobileOpen}
       >
-        {userName && (
-          <div className="px-4 py-4 border-b border-white/10">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-[#1a3a5c] rounded-full flex items-center justify-center text-[#e8b86d] text-sm font-bold">
-                {userName.charAt(0).toUpperCase()}
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-white">{userName}</p>
-                <p className="text-xs text-gray-400">Client</p>
-              </div>
+        <div className="px-4 py-4 border-b border-white/10">
+          <div className="flex items-center gap-3">
+            <DashboardAvatar
+              name={displayName}
+              avatarUrl={userAvatarUrl}
+              className="h-10 w-10 shrink-0 text-sm"
+            />
+            <div>
+              <p className="text-sm font-semibold text-white">{displayName}</p>
+              <p className="text-xs text-gray-400">Client</p>
             </div>
           </div>
-        )}
+        </div>
         <nav className="px-3 py-4">
           <ul className="space-y-1">
             {navItems.map((item) => {
@@ -261,7 +292,7 @@ export default function ClientSidebar({ userName }: ClientSidebarProps) {
                     onClick={() => setMobileOpen(false)}
                     className={cn(
                       "flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all",
-                      active ? "bg-[#1a3a5c] text-white" : "text-gray-400 hover:text-white hover:bg-white/5"
+                      active ? "bg-white/10 text-white" : "text-white/70 hover:text-white hover:bg-white/5"
                     )}
                   >
                     <item.icon className="w-5 h-5 shrink-0" />
@@ -278,8 +309,14 @@ export default function ClientSidebar({ userName }: ClientSidebarProps) {
               <item.icon className="w-5 h-5" /> {item.label}
             </Link>
           ))}
-          <Link href="/" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm text-gray-400 hover:text-white hover:bg-white/5 transition-all mb-1">
-            <ExternalLink className="w-5 h-5" /> Retour au site
+          <Link
+            href="/"
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => setMobileOpen(false)}
+            className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm text-white/80 hover:text-white hover:bg-white/5 transition-all mb-1"
+          >
+            <ExternalLink className="w-5 h-5" /> Voir le site
           </Link>
           <button
             onClick={() => setShowSignOutDialog(true)}

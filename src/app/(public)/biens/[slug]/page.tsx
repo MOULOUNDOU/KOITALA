@@ -27,8 +27,16 @@ import PropertyCard from "@/components/properties/PropertyCard";
 import PropertyCardMobile from "@/components/properties/PropertyCardMobile";
 import VisitRequestForm from "@/components/properties/VisitRequestForm";
 import ContactPropertyForm from "@/components/properties/ContactPropertyForm";
-import MapContainer from "@/components/ui/MapContainer";
+import PropertyMapSection from "@/components/properties/PropertyMapSection";
 import PropertyDetailGallery from "@/components/properties/PropertyDetailGallery";
+import {
+  absoluteUrl,
+  buildBreadcrumbJsonLd,
+  buildPropertyJsonLd,
+  resolveSeoImages,
+  sanitizeDescription,
+  serializeJsonLd,
+} from "@/lib/seo";
 import type { Property } from "@/types";
 
 interface Props {
@@ -67,13 +75,32 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const property = await getProperty(slug);
   if (!property) return { title: "Bien non trouvé" };
+
+  const canonicalPath = `/biens/${property.slug}`;
+  const description = sanitizeDescription(
+    property.description,
+    `${property.title} a ${property.city}. Consultez les photos, le prix et la localisation sur KOITALA.`
+  );
+  const images = resolveSeoImages(property.main_image_url);
+
   return {
     title: property.title,
-    description: property.description ?? undefined,
+    description,
+    alternates: {
+      canonical: canonicalPath,
+    },
     openGraph: {
+      type: "website",
+      url: absoluteUrl(canonicalPath),
       title: property.title,
-      description: property.description ?? undefined,
-      images: property.main_image_url ? [property.main_image_url] : [],
+      description,
+      images,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: property.title,
+      description,
+      images,
     },
   };
 }
@@ -95,6 +122,17 @@ export default async function PropertyDetailPage({ params }: Props) {
       }
       return a.order_index - b.order_index;
     });
+  const mapPreviewImageUrl = property.main_image_url ?? sortedImages[0]?.url ?? null;
+  const seoImages = resolveSeoImages(
+    property.main_image_url,
+    ...sortedImages.map((image) => image.url)
+  );
+  const propertyJsonLd = buildPropertyJsonLd(property, seoImages);
+  const breadcrumbJsonLd = buildBreadcrumbJsonLd([
+    { name: "Accueil", path: "/" },
+    { name: "Biens", path: "/biens" },
+    { name: property.title, path: `/biens/${property.slug}` },
+  ]);
 
   const galleryMedia: Array<{
     id: string;
@@ -190,6 +228,14 @@ export default async function PropertyDetailPage({ params }: Props) {
 
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(propertyJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(breadcrumbJsonLd) }}
+      />
       {/* Back nav — desktop */}
       <div className="hidden sm:block bg-[#f4f6f9] pt-24 pb-4">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -359,19 +405,21 @@ export default async function PropertyDetailPage({ params }: Props) {
                 </div>
               )}
 
-            {/* Location */}
-            {property.latitude && property.longitude && (
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-6">
-                <h2 className="!text-lg sm:!text-xl font-semibold text-[#0f1724] mb-4">Localisation</h2>
-                <MapContainer
-                  lat={property.latitude}
-                  lng={property.longitude}
-                  label={[property.neighborhood, property.city].filter(Boolean).join(", ") || "Localisation"}
-                  zoom={15}
-                  height="280px"
-                />
-              </div>
-            )}
+            <PropertyMapSection
+              address={property.address}
+              neighborhood={property.neighborhood}
+              city={property.city}
+              postalCode={property.postal_code}
+              country={property.country}
+              latitude={property.latitude}
+              longitude={property.longitude}
+              description="Repérez le bien sur la carte et ouvrez la localisation détaillée si besoin."
+              height="280px"
+              popupTitle={property.title}
+              popupSubtitle={[property.neighborhood, property.city].filter(Boolean).join(", ") || "Localisation"}
+              popupImageUrl={mapPreviewImageUrl}
+              openPopupOnLoad
+            />
 
             {/* Similar properties */}
             {similar.length > 0 && (

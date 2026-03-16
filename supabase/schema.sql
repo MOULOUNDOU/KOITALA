@@ -358,6 +358,10 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('property-videos', 'property-videos', TRUE)
 ON CONFLICT (id) DO NOTHING;
 
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('avatars', 'avatars', TRUE)
+ON CONFLICT (id) DO NOTHING;
+
 -- Storage policies
 CREATE POLICY "storage_property_images_public_read"
 ON storage.objects FOR SELECT USING (bucket_id = 'property-images');
@@ -379,6 +383,16 @@ ON storage.objects FOR SELECT USING (bucket_id = 'property-videos');
 CREATE POLICY "storage_property_videos_admin_write"
 ON storage.objects FOR INSERT
 WITH CHECK (bucket_id = 'property-videos' AND public.is_admin());
+
+CREATE POLICY "storage_avatars_public_read"
+ON storage.objects FOR SELECT USING (bucket_id = 'avatars');
+
+CREATE POLICY "storage_avatars_user_write"
+ON storage.objects FOR INSERT TO authenticated
+WITH CHECK (
+  bucket_id = 'avatars'
+  AND (storage.foldername(name))[1] = (SELECT auth.uid()::text)
+);
 
 -- ============================================================
 -- SAMPLE DATA (optionnel – à supprimer en production)

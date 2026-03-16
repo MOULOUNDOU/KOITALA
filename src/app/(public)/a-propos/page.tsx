@@ -4,11 +4,21 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { Shield, Star, Users, TrendingUp, ArrowRight } from "lucide-react";
+import { absoluteUrl } from "@/lib/seo";
 
 export const metadata: Metadata = {
-  title: "À propos",
+  title: "A propos de KOITALA",
   description:
-    "Agence Immobilière KOITALA : 23 ans d'expérience professionnelle et 12 ans dans l'immobilier. Votre partenaire pour résidents et expatriés.",
+    "Decouvrez KOITALA, agence immobiliere a Dakar, son experience, ses valeurs et son accompagnement pour les residents et expatries.",
+  alternates: {
+    canonical: "/a-propos",
+  },
+  openGraph: {
+    title: "A propos de KOITALA",
+    description:
+      "Decouvrez KOITALA, agence immobiliere a Dakar, son experience, ses valeurs et son accompagnement pour les residents et expatries.",
+    url: absoluteUrl("/a-propos"),
+  },
 };
 
 const VALUES = [

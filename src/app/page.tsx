@@ -22,10 +22,24 @@ import HowItWorksMobileCarousel from "@/components/layout/HowItWorksMobileCarous
 import { HOW_IT_WORKS_STEPS } from "@/components/layout/howItWorksData";
 import TestimonialsMobileCarousel from "@/components/layout/TestimonialsMobileCarousel";
 import { getFeaturedProperties, getRecentProperties } from "@/lib/properties";
+import { SITE_DESCRIPTION, absoluteUrl } from "@/lib/seo";
 
 export const metadata: Metadata = {
-  title: "KOITALA - Agence Immobilière | Achat, Vente, Construction & Location",
-  description: "Agence Immobilière KOITALA : votre partenaire pour tous vos projets immobiliers, y compris pour les expatriés. Achat, vente, construction clé en main et gestion locative.",
+  title: "Agence immobiliere a Dakar | Achat, vente, location et construction",
+  description: SITE_DESCRIPTION,
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    title: "KOITALA | Agence immobiliere a Dakar",
+    description: SITE_DESCRIPTION,
+    url: absoluteUrl("/"),
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "KOITALA | Agence immobiliere a Dakar",
+    description: SITE_DESCRIPTION,
+  },
 };
 
 const STATS = [

@@ -2,9 +2,18 @@ import type { Metadata } from "next";
 import type { Viewport } from "next";
 import { Cormorant_Garamond, Plus_Jakarta_Sans } from "next/font/google";
 import { Toaster } from "react-hot-toast";
+import "leaflet/dist/leaflet.css";
+import { AGENCY_INFO } from "@/lib/agency";
 import PageTransition from "@/components/layout/PageTransition";
 import ScrollToTop from "@/components/layout/ScrollToTop";
 import StickyContactBar from "@/components/layout/StickyContactBar";
+import {
+  DEFAULT_KEYWORDS,
+  SITE_DESCRIPTION,
+  SITE_NAME,
+  SITE_URL,
+  absoluteUrl,
+} from "@/lib/seo";
 import "./globals.css";
 
 const jakarta = Plus_Jakarta_Sans({
@@ -27,17 +36,56 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
+  applicationName: SITE_NAME,
   title: {
-    default: "KOITALA – Agence Immobilière",
+    default: "KOITALA | Agence immobiliere a Dakar",
     template: "%s | KOITALA",
   },
-  description:
-    "Agence Immobilière KOITALA : votre partenaire pour tous vos projets immobiliers, y compris pour les expatriés. Achat, vente, construction clé en main et gestion locative.",
-  keywords: ["immobilier", "agence", "KOITALA", "Dakar", "vente", "location", "construction", "expatriés", "gestion locative"],
+  description: SITE_DESCRIPTION,
+  keywords: [...DEFAULT_KEYWORDS],
+  alternates: {
+    canonical: "/",
+  },
+  authors: [{ name: SITE_NAME, url: SITE_URL }],
+  creator: SITE_NAME,
+  publisher: AGENCY_INFO.legalName,
+  category: "real estate",
+  referrer: "origin-when-cross-origin",
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
   openGraph: {
     type: "website",
     locale: "fr_FR",
-    siteName: "KOITALA",
+    url: SITE_URL,
+    siteName: SITE_NAME,
+    title: "KOITALA | Agence immobiliere a Dakar",
+    description: SITE_DESCRIPTION,
+    images: [
+      {
+        url: absoluteUrl(AGENCY_INFO.logoPath),
+        alt: "Logo KOITALA",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "KOITALA | Agence immobiliere a Dakar",
+    description: SITE_DESCRIPTION,
+    images: [absoluteUrl(AGENCY_INFO.logoPath)],
+  },
+  icons: {
+    icon: AGENCY_INFO.logoPath,
+    apple: AGENCY_INFO.logoPath,
   },
 };
 

@@ -3,27 +3,38 @@ export const dynamic = 'force-dynamic';
 import type { Metadata } from "next";
 import { Phone, Mail, MapPin, Clock } from "lucide-react";
 import ContactPropertyForm from "@/components/properties/ContactPropertyForm";
+import MapContainer from "@/components/ui/MapContainer";
+import { AGENCY_INFO } from "@/lib/agency";
+import { absoluteUrl } from "@/lib/seo";
 
 export const metadata: Metadata = {
   title: "Contact",
-  description: "Contactez l'agence KOITALA pour tous vos projets immobiliers.",
+  description: "Contactez KOITALA pour vos projets immobiliers a Dakar : achat, vente, location, gestion locative et construction.",
+  alternates: {
+    canonical: "/contact",
+  },
+  openGraph: {
+    title: "Contact KOITALA",
+    description: "Contactez KOITALA pour vos projets immobiliers a Dakar.",
+    url: absoluteUrl("/contact"),
+  },
 };
 
 const INFO = [
   {
     icon: Phone,
     title: "Téléphone",
-    lines: ["+221 76 675 21 35", "+221 77 444 88 39"],
+    lines: [AGENCY_INFO.phone, AGENCY_INFO.secondaryPhone],
   },
   {
     icon: Mail,
     title: "Email",
-    lines: ["amzakoita@gmail.com"],
+    lines: [AGENCY_INFO.email],
   },
   {
     icon: MapPin,
     title: "Adresse",
-    lines: ["Mamelles Aviation", "Dakar, Sénégal"],
+    lines: [AGENCY_INFO.addressLine1, "Dakar, Senegal"],
   },
   {
     icon: Clock,
@@ -67,13 +78,13 @@ export default function ContactPage() {
             <ContactPropertyForm />
 
             <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
-              <iframe
-                src="https://www.google.com/maps/embed?pb=!1m14!1m12!1m3!1d15435.945269107686!2d-17.4915584!3d14.71336565!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!5e0!3m2!1sfr!2ssn!4v1773614550534!5m2!1sfr!2ssn"
-                title="Localisation KOITALA"
-                loading="lazy"
-                allowFullScreen
-                referrerPolicy="no-referrer-when-downgrade"
-                className="h-[380px] w-full"
+              <MapContainer
+                lat={AGENCY_INFO.latitude}
+                lng={AGENCY_INFO.longitude}
+                label={`${AGENCY_INFO.name} - ${AGENCY_INFO.addressLine1}, Dakar`}
+                zoom={15}
+                height="380px"
+                className="rounded-none border-0 shadow-none"
               />
             </div>
           </div>

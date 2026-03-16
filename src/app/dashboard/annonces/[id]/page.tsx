@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { Controller, type Resolver, useForm } from "react-hook-form";
+import { Controller, type Resolver, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   ArrowLeft,
@@ -21,10 +21,12 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { propertySchema, type PropertyInput } from "@/lib/validations";
 import { getEmbeddedVideoUrl, isDirectVideoUrl } from "@/lib/utils";
+import GoogleMapsLocationField from "@/components/dashboard/GoogleMapsLocationField";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Textarea from "@/components/ui/Textarea";
 import CustomSelect from "@/components/ui/CustomSelect";
+import PropertyMapSection from "@/components/properties/PropertyMapSection";
 import toast from "react-hot-toast";
 
 const PROPERTY_TYPES = [
@@ -78,6 +80,12 @@ const HERO_FORM_SELECT_TRIGGER_CLASS = "py-3.5";
 const HERO_FORM_SELECT_DROPDOWN_CLASS = "rounded-2xl border border-gray-100 shadow-2xl";
 const MAX_VIDEO_SIZE_BYTES = 100 * 1024 * 1024;
 
+function createUploadToken(): string {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `${Math.floor(Math.random() * 1_000_000_000)}`;
+}
+
 export default function EditAnnoncePage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
@@ -95,16 +103,42 @@ export default function EditAnnoncePage() {
     getValues,
     reset,
     setValue,
-    watch,
     formState: { errors, isSubmitting },
   } = useForm<PropertyInput>({
     resolver: zodResolver(propertySchema) as Resolver<PropertyInput>,
     shouldUnregister: false,
   });
-  const listingType = watch("listing_type");
-  const rentalCategory = watch("rental_category") ?? "";
-  const rentPaymentPeriod = watch("rent_payment_period") ?? "";
-  const currentVideoUrl = watch("video_url")?.trim() || "";
+  const [
+    listingType,
+    rentalCategoryValue,
+    rentPaymentPeriodValue,
+    address,
+    neighborhood,
+    city,
+    postalCode,
+    country,
+    latitude,
+    longitude,
+    currentVideoUrlValue,
+  ] = useWatch({
+    control,
+    name: [
+      "listing_type",
+      "rental_category",
+      "rent_payment_period",
+      "address",
+      "neighborhood",
+      "city",
+      "postal_code",
+      "country",
+      "latitude",
+      "longitude",
+      "video_url",
+    ],
+  });
+  const rentalCategory = rentalCategoryValue ?? "";
+  const rentPaymentPeriod = rentPaymentPeriodValue ?? "";
+  const currentVideoUrl = currentVideoUrlValue?.trim() || "";
   const directVideoPreview = videoPreview || (currentVideoUrl && isDirectVideoUrl(currentVideoUrl) ? currentVideoUrl : null);
   const embeddedVideoPreview = !videoPreview ? getEmbeddedVideoUrl(currentVideoUrl) : null;
   const paymentPeriodOptions = useMemo(
@@ -242,7 +276,7 @@ export default function EditAnnoncePage() {
 
     if (videoFile) {
       const ext = videoFile.name.split(".").pop();
-      const videoPath = `properties/${params.id}/video-${Date.now()}.${ext}`;
+      const videoPath = `properties/${params.id}/video-${createUploadToken()}.${ext}`;
       const { data: videoUploaded, error: videoUploadError } = await supabase.storage
         .from("property-videos")
         .upload(videoPath, videoFile, { upsert: true });
@@ -458,16 +492,37 @@ export default function EditAnnoncePage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-          <h2 className="font-semibold text-[#0f1724] mb-5">Localisation</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Input label="Adresse" {...register("address")} />
-            <Input label="Quartier" {...register("neighborhood")} />
-            <Input label="Ville *" error={errors.city?.message} {...register("city")} />
-            <Input label="Code postal" {...register("postal_code")} />
-            <Input label="Latitude" type="number" step="any" {...register("latitude", { valueAsNumber: true })} />
-            <Input label="Longitude" type="number" step="any" {...register("longitude", { valueAsNumber: true })} />
+        <div className="space-y-4">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+            <h2 className="font-semibold text-[#0f1724] mb-5">Localisation</h2>
+            <GoogleMapsLocationField
+              onResolved={({ lat, lng }) => {
+                setValue("latitude", lat, { shouldDirty: true, shouldValidate: true });
+                setValue("longitude", lng, { shouldDirty: true, shouldValidate: true });
+              }}
+            />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input label="Adresse" {...register("address")} />
+              <Input label="Quartier" {...register("neighborhood")} />
+              <Input label="Ville *" error={errors.city?.message} {...register("city")} />
+              <Input label="Code postal" {...register("postal_code")} />
+              <Input label="Latitude" type="number" step="any" {...register("latitude", { valueAsNumber: true })} />
+              <Input label="Longitude" type="number" step="any" {...register("longitude", { valueAsNumber: true })} />
+            </div>
           </div>
+
+          <PropertyMapSection
+            address={address}
+            neighborhood={neighborhood}
+            city={city}
+            postalCode={postalCode}
+            country={country}
+            latitude={latitude}
+            longitude={longitude}
+            title="Aperçu carte"
+            description="La fiche publique affichera cette carte. Sans coordonnées GPS, la position est estimée via l'adresse."
+            compact
+          />
         </div>
 
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">

@@ -7,6 +7,14 @@ import { notFound } from "next/navigation";
 import { Calendar, Tag, ArrowLeft, User } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/utils";
+import {
+  absoluteUrl,
+  buildBlogPostingJsonLd,
+  buildBreadcrumbJsonLd,
+  resolveSeoImages,
+  sanitizeDescription,
+  serializeJsonLd,
+} from "@/lib/seo";
 import type { BlogPost } from "@/types";
 
 interface Props {
@@ -28,13 +36,31 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const post = await getPost(slug);
   if (!post) return { title: "Article non trouvé" };
+
+  const canonicalPath = `/blog/${post.slug}`;
+  const description = sanitizeDescription(post.excerpt, post.title);
+  const images = resolveSeoImages(post.cover_image_url);
+
   return {
     title: post.title,
-    description: post.excerpt ?? undefined,
+    description,
+    alternates: {
+      canonical: canonicalPath,
+    },
     openGraph: {
+      type: "article",
+      url: absoluteUrl(canonicalPath),
       title: post.title,
-      description: post.excerpt ?? undefined,
-      images: post.cover_image_url ? [post.cover_image_url] : [],
+      description,
+      images,
+      publishedTime: post.published_at ?? post.created_at,
+      modifiedTime: post.updated_at,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: post.title,
+      description,
+      images,
     },
   };
 }
@@ -44,8 +70,23 @@ export default async function BlogPostPage({ params }: Props) {
   const post = await getPost(slug);
   if (!post) notFound();
 
+  const postJsonLd = buildBlogPostingJsonLd(post);
+  const breadcrumbJsonLd = buildBreadcrumbJsonLd([
+    { name: "Accueil", path: "/" },
+    { name: "Blog", path: "/blog" },
+    { name: post.title, path: `/blog/${post.slug}` },
+  ]);
+
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(postJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(breadcrumbJsonLd) }}
+      />
       <div className="bg-[#0f1724] pt-28 pb-10">
         <div className="max-w-3xl mx-auto px-4 sm:px-6">
           <Link

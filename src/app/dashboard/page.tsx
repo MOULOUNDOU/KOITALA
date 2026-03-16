@@ -485,9 +485,9 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           {!isSearchMode && (
             <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
               <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
-                <div className="mb-4 flex items-center justify-between gap-3">
+                <div className="mb-4 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <h2 className="text-lg font-bold text-[#0f1724]">Pipeline des annonces</h2>
-                  <span className="rounded-full border border-[#1a3a5c]/20 bg-[#1a3a5c]/5 px-2.5 py-1 text-xs font-semibold text-[#1a3a5c]">
+                  <span className="inline-flex max-w-full items-center rounded-full border border-[#1a3a5c]/20 bg-[#1a3a5c]/5 px-2.5 py-1 text-xs font-semibold text-[#1a3a5c]">
                     {stats.totalProps} au total
                   </span>
                 </div>
@@ -516,15 +516,15 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
               </div>
 
               <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
-                <div className="mb-4 flex items-center justify-between gap-3">
+                <div className="mb-4 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <h2 className="text-lg font-bold text-[#0f1724]">Flux demandes (7 jours)</h2>
-                  <span className="rounded-full border border-[#1a3a5c]/20 bg-[#1a3a5c]/5 px-2.5 py-1 text-xs font-semibold text-[#1a3a5c]">
+                  <span className="inline-flex max-w-full items-center rounded-full border border-[#1a3a5c]/20 bg-[#1a3a5c]/5 px-2.5 py-1 text-xs font-semibold text-[#1a3a5c]">
                     {weeklyTotalVisits} cette semaine
                   </span>
                 </div>
                 <WeeklyVisitsChart data={weeklyVisits} />
 
-                <div className="mt-3 flex items-center justify-between gap-3 text-xs">
+                <div className="mt-3 flex flex-col items-start gap-3 text-xs sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-gray-500">
                     Pic: <span className="font-semibold text-[#0f1724]">{peakVisitPoint.total}</span>{" "}
                     demande(s), {peakVisitPoint.label}

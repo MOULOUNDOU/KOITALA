@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
+import DashboardAvatar from "@/components/layout/DashboardAvatar";
 import SignOutConfirmDialog from "@/components/ui/SignOutConfirmDialog";
 
 const navItems = [
@@ -36,13 +37,93 @@ const bottomItems = [
   { label: "Paramètres", href: "/dashboard/parametres", icon: Settings },
 ];
 
+interface ProfileUpdatedEventDetail {
+  full_name?: string;
+  avatar_url?: string | null;
+}
+
 export default function DashboardSidebar() {
   const pathname = usePathname();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [desktopExpanded, setDesktopExpanded] = useState(false);
   const [showSignOutDialog, setShowSignOutDialog] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [adminName, setAdminName] = useState("Administrateur");
+  const [adminAvatarUrl, setAdminAvatarUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const syncProfile = async (
+      authUser: {
+        id: string;
+        email?: string | null;
+        user_metadata?: { full_name?: unknown; avatar_url?: unknown };
+      } | null
+    ) => {
+      if (!authUser) {
+        if (!mounted) return;
+        setAdminName("Administrateur");
+        setAdminAvatarUrl(null);
+        return;
+      }
+
+      const metadataName =
+        typeof authUser.user_metadata?.full_name === "string"
+          ? authUser.user_metadata.full_name.trim()
+          : "";
+      const metadataAvatar =
+        typeof authUser.user_metadata?.avatar_url === "string"
+          ? authUser.user_metadata.avatar_url.trim()
+          : "";
+      const emailFallback = authUser.email?.split("@")[0] ?? "Administrateur";
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name, avatar_url")
+        .eq("id", authUser.id)
+        .maybeSingle();
+
+      if (!mounted) return;
+
+      setAdminName(profile?.full_name?.trim() || metadataName || emailFallback);
+      setAdminAvatarUrl(profile?.avatar_url?.trim() || metadataAvatar || null);
+    };
+
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      void syncProfile(user);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+      void syncProfile(session?.user ?? null);
+    });
+
+    const handleProfileUpdated = (event: Event) => {
+      const customEvent = event as CustomEvent<ProfileUpdatedEventDetail>;
+      const updatedName = customEvent.detail?.full_name?.trim();
+
+      if (updatedName) {
+        setAdminName(updatedName);
+      }
+
+      if (typeof customEvent.detail?.avatar_url === "string") {
+        setAdminAvatarUrl(customEvent.detail.avatar_url.trim() || null);
+      } else if (customEvent.detail?.avatar_url === null) {
+        setAdminAvatarUrl(null);
+      }
+    };
+
+    window.addEventListener("koitala:profile-updated", handleProfileUpdated as EventListener);
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+      window.removeEventListener("koitala:profile-updated", handleProfileUpdated as EventListener);
+    };
+  }, [supabase]);
+
+  const displayName = adminName.trim() || "Administrateur";
 
   const confirmSignOut = async () => {
     setShowSignOutDialog(false);
@@ -143,6 +224,32 @@ export default function DashboardSidebar() {
           </span>
         </Link>
 
+        <div
+          className={cn(
+            "mb-4 flex items-center transition-all duration-300",
+            desktopExpanded
+              ? "gap-3 rounded-2xl border border-white/10 bg-white/8 px-3 py-2.5"
+              : "justify-center"
+          )}
+        >
+          <DashboardAvatar
+            name={displayName}
+            avatarUrl={adminAvatarUrl}
+            className={cn("shrink-0 transition-all duration-300", desktopExpanded ? "h-12 w-12" : "h-11 w-11")}
+          />
+          <div
+            className={cn(
+              "min-w-0 transition-all duration-200",
+              desktopExpanded
+                ? "max-w-[150px] translate-x-0 opacity-100"
+                : "pointer-events-none max-w-0 -translate-x-2 overflow-hidden opacity-0"
+            )}
+          >
+            <p className="truncate text-sm font-semibold text-white">{displayName}</p>
+            <p className="text-[11px] text-white/65">Administrateur</p>
+          </div>
+        </div>
+
         {/* Main nav */}
         <nav className={cn("flex flex-1 flex-col gap-1.5", desktopExpanded ? "items-stretch" : "items-center")}>
           {navItems.map((item) => (
@@ -215,9 +322,16 @@ export default function DashboardSidebar() {
           <Image src="/logo-koitala.png" alt="KOITALA" width={32} height={32} className="w-8 h-8 rounded-lg object-cover" />
           <span className="text-lg font-bold text-white">KOI<span className="text-[#e8b86d]">TALA</span></span>
         </Link>
-        <button onClick={() => setMobileOpen(!mobileOpen)} className="w-10 h-10 flex items-center justify-center text-white">
-          {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-        </button>
+        <div className="flex items-center gap-2">
+          <DashboardAvatar
+            name={displayName}
+            avatarUrl={adminAvatarUrl}
+            className="h-9 w-9 shrink-0 text-xs"
+          />
+          <button onClick={() => setMobileOpen(!mobileOpen)} className="w-10 h-10 flex items-center justify-center text-white">
+            {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
+        </div>
       </div>
 
       {/* Mobile overlay */}
@@ -236,6 +350,19 @@ export default function DashboardSidebar() {
         )}
         aria-hidden={!mobileOpen}
       >
+        <div className="px-4 py-4 border-b border-white/10">
+          <div className="flex items-center gap-3">
+            <DashboardAvatar
+              name={displayName}
+              avatarUrl={adminAvatarUrl}
+              className="h-10 w-10 shrink-0 text-sm"
+            />
+            <div>
+              <p className="text-sm font-semibold text-white">{displayName}</p>
+              <p className="text-xs text-gray-400">Administrateur</p>
+            </div>
+          </div>
+        </div>
         <nav className="px-3 py-4">
           <ul className="space-y-1">
             {[...navItems, ...bottomItems].map((item) => {
