@@ -57,11 +57,14 @@ function RegisterForm() {
 
   const onSubmit = async (data: RegisterInput) => {
     try {
+      const normalizedEmail = data.email.trim().toLowerCase();
+      const normalizedFullName = data.full_name.trim();
+
       const { data: signUpData, error } = await supabase.auth.signUp({
-        email: data.email,
+        email: normalizedEmail,
         password: data.password,
         options: {
-          data: { full_name: data.full_name },
+          data: { full_name: normalizedFullName },
         },
       });
 
@@ -71,7 +74,7 @@ function RegisterForm() {
         if (msg.includes("already registered") || msg.includes("already been registered") || msg.includes("user already exists")) {
           toast.error("Un compte existe déjà avec cet email. Connectez-vous ou réinitialisez votre mot de passe.", { duration: 4000 });
           setTimeout(() => {
-            router.push(`/auth/login?email=${encodeURIComponent(data.email)}`);
+            router.push(`/auth/login?email=${encodeURIComponent(normalizedEmail)}`);
           }, 2000);
           return;
         }
@@ -104,13 +107,18 @@ function RegisterForm() {
       if (signUpData?.user?.identities && signUpData.user.identities.length === 0) {
         toast.error("Un compte existe déjà avec cet email. Essayez de vous connecter.", { duration: 4000 });
         setTimeout(() => {
-          router.push("/auth/login");
+          router.push(`/auth/login?email=${encodeURIComponent(normalizedEmail)}`);
         }, 2000);
         return;
       }
 
+      if (!signUpData?.user?.id) {
+        toast.error("Impossible de créer le compte pour le moment. Veuillez réessayer.");
+        return;
+      }
+
       toast.success("Compte créé ! Un code de vérification a été envoyé à votre email.", { duration: 5000 });
-      router.push(`/auth/verification?email=${encodeURIComponent(data.email)}`);
+      router.push(`/auth/verification?email=${encodeURIComponent(normalizedEmail)}`);
     } catch {
       toast.error("Une erreur inattendue est survenue. Veuillez réessayer.");
     }

@@ -20,6 +20,22 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE UNIQUE INDEX IF NOT EXISTS profiles_email_unique_ci_idx
+  ON public.profiles ((LOWER(TRIM(email))));
+
+CREATE OR REPLACE FUNCTION public.normalize_profile_email()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.email := LOWER(TRIM(NEW.email));
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS normalize_profile_email ON public.profiles;
+CREATE TRIGGER normalize_profile_email
+  BEFORE INSERT OR UPDATE ON public.profiles
+  FOR EACH ROW EXECUTE FUNCTION public.normalize_profile_email();
+
 -- Auto-create profile on signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
@@ -27,7 +43,7 @@ BEGIN
   INSERT INTO public.profiles (id, email, full_name)
   VALUES (
     NEW.id,
-    NEW.email,
+    LOWER(TRIM(NEW.email)),
     COALESCE(NEW.raw_user_meta_data->>'full_name', '')
   );
   RETURN NEW;

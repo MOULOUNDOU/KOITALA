@@ -82,8 +82,9 @@ function LoginForm() {
 
   const onSubmit = async (data: LoginInput) => {
     try {
+      const normalizedEmail = data.email.trim().toLowerCase();
       const { error } = await supabase.auth.signInWithPassword({
-        email: data.email,
+        email: normalizedEmail,
         password: data.password,
       });
 
@@ -91,32 +92,14 @@ function LoginForm() {
         const msg = error.message.toLowerCase();
 
         if (msg.includes("invalid login credentials") || msg.includes("invalid_credentials")) {
-          // Check if the user exists by trying to find the account
-          const { data: signUpCheck } = await supabase.auth.signUp({
-            email: data.email,
-            password: data.password,
-            options: { data: { full_name: "" } },
-          });
-
-          // If identities array is empty, the user exists but password is wrong
-          // If identities array has items, account was just created (doesn't exist yet)
-          if (signUpCheck?.user?.identities && signUpCheck.user.identities.length > 0) {
-            // Account didn't exist — clean up by informing user and redirecting to register
-            toast.error("Aucun compte trouvé avec cet email. Redirection vers l'inscription...", { duration: 3000 });
-            setTimeout(() => {
-              router.push(`/auth/register?email=${encodeURIComponent(data.email)}`);
-            }, 1500);
-            return;
-          }
-
-          toast.error("Mot de passe incorrect. Vérifiez vos identifiants ou réinitialisez votre mot de passe.");
+          toast.error("Email ou mot de passe incorrect.");
           return;
         }
 
         if (msg.includes("email not confirmed")) {
           toast.error("Votre email n'est pas encore confirmé. Redirection vers la vérification...", { duration: 3000 });
           setTimeout(() => {
-            router.push(`/auth/verification?email=${encodeURIComponent(data.email)}`);
+            router.push(`/auth/verification?email=${encodeURIComponent(normalizedEmail)}`);
           }, 1500);
           return;
         }

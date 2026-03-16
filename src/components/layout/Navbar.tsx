@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { Heart, User, LogOut, ChevronDown, Building2, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
@@ -96,7 +96,6 @@ export default function Navbar() {
   const [biensMobileOpen, setBiensMobileOpen] = useState(false);
   const [servicesMobileOpen, setServicesMobileOpen] = useState(false);
   const pathname = usePathname();
-  const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
   const accountHref = user?.role === "admin" ? "/dashboard" : "/dashboard-client";
 
@@ -190,12 +189,17 @@ export default function Navbar() {
   }, [supabase]);
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
     setUser(null);
     setDropdownOpen(false);
     setIsOpen(false);
-    router.push("/");
-    router.refresh();
+
+    try {
+      await supabase.auth.signOut({ scope: "local" });
+    } catch {
+      // Fallback handled by server signout route below.
+    }
+
+    window.location.assign("/auth/signout");
   };
 
   const isHome = pathname === "/";

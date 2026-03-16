@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Building2,
@@ -37,14 +37,19 @@ const bottomItems = [
 
 export default function DashboardSidebar() {
   const pathname = usePathname();
-  const router = useRouter();
   const supabase = createClient();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    router.push("/");
-    router.refresh();
+    setMobileOpen(false);
+
+    try {
+      await supabase.auth.signOut({ scope: "local" });
+    } catch {
+      // Fallback handled by server signout route below.
+    }
+
+    window.location.assign("/auth/signout");
   };
 
   const isActive = (href: string, exact?: boolean) =>
