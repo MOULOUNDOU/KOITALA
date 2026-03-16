@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
+import SignOutConfirmDialog from "@/components/ui/SignOutConfirmDialog";
 
 const navItems = [
   { label: "Tableau de bord",    href: "/dashboard",              icon: LayoutDashboard, exact: true },
@@ -39,39 +40,60 @@ export default function DashboardSidebar() {
   const pathname = usePathname();
   const supabase = createClient();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [desktopExpanded, setDesktopExpanded] = useState(false);
+  const [showSignOutDialog, setShowSignOutDialog] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
-  const handleSignOut = async () => {
+  const confirmSignOut = async () => {
+    setShowSignOutDialog(false);
+    setIsSigningOut(true);
     setMobileOpen(false);
 
     try {
       await supabase.auth.signOut({ scope: "local" });
     } catch {
       // Fallback handled by server signout route below.
+    } finally {
+      window.location.assign("/auth/signout");
     }
-
-    window.location.assign("/auth/signout");
   };
 
   const isActive = (href: string, exact?: boolean) =>
     exact ? pathname === href : pathname.startsWith(href);
 
-  /* ── Icon button used in both desktop & mobile ── */
-  const NavIcon = ({ item }: { item: typeof navItems[0] }) => {
-    const active = isActive(item.href, item.exact);
+  const DesktopNavItem = ({ item }: { item: (typeof navItems)[number] | (typeof bottomItems)[number] }) => {
+    const active = isActive(item.href, "exact" in item ? item.exact : undefined);
+
     return (
       <Link
         href={item.href}
         onClick={() => setMobileOpen(false)}
         className={cn(
-          "relative group flex items-center justify-center w-11 h-11 rounded-xl transition-all",
+          "group relative flex items-center rounded-xl transition-all duration-300 ease-out",
+          desktopExpanded ? "h-11 w-full justify-start gap-2.5 px-2.5" : "h-11 w-11 justify-center",
           active
-            ? "bg-[#1a3a5c] text-white shadow-lg shadow-[#1a3a5c]/30"
-            : "text-gray-500 hover:text-white hover:bg-white/8"
+            ? "bg-white/12 text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.16)]"
+            : "text-white/80 hover:bg-white/10 hover:text-white"
         )}
       >
-        <item.icon className="w-5 h-5" />
-        {/* Tooltip */}
-        <span className="absolute left-full ml-3 px-2.5 py-1 bg-[#1a3a5c] text-white text-xs font-medium rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50 shadow-lg">
+        <span
+          className={cn(
+            "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-all duration-300",
+            active
+              ? "bg-white text-[#1a3a5c] shadow-sm"
+              : "bg-white/10 text-white/90 group-hover:bg-white/20 group-hover:text-white"
+          )}
+        >
+          <item.icon className="h-[18px] w-[18px]" />
+        </span>
+        <span
+          className={cn(
+            "whitespace-nowrap text-sm font-semibold transition-all duration-200",
+            desktopExpanded
+              ? "max-w-[220px] translate-x-0 opacity-100"
+              : "pointer-events-none max-w-0 -translate-x-2 overflow-hidden opacity-0"
+          )}
+        >
           {item.label}
         </span>
       </Link>
@@ -81,42 +103,106 @@ export default function DashboardSidebar() {
   return (
     <>
       {/* ═══ DESKTOP: icon-only sidebar ═══ */}
-      <aside className="hidden md:flex flex-col items-center w-[72px] bg-[#1a3a5c] min-h-screen py-4 shrink-0">
-        {/* Logo */}
-        <Link href="/dashboard" className="mb-6">
-          <Image src="/logo-koitala.png" alt="KOITALA" width={44} height={44} className="w-11 h-11 rounded-xl object-cover" />
+      <aside
+        className={cn(
+          "hidden md:flex min-h-screen shrink-0 flex-col bg-[#1a3a5c] py-4 transition-[width,padding] duration-300 ease-out",
+          desktopExpanded ? "w-[252px] px-3" : "w-[72px] px-2"
+        )}
+        onMouseEnter={() => setDesktopExpanded(true)}
+        onMouseLeave={() => setDesktopExpanded(false)}
+        onFocusCapture={() => setDesktopExpanded(true)}
+        onBlur={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+            setDesktopExpanded(false);
+          }
+        }}
+      >
+        <Link
+          href="/dashboard"
+          className={cn(
+            "mb-6 flex items-center rounded-xl transition-all duration-300",
+            desktopExpanded ? "w-full gap-3 px-2" : "justify-center"
+          )}
+        >
+          <Image
+            src="/logo-koitala.png"
+            alt="KOITALA"
+            width={44}
+            height={44}
+            className="h-11 w-11 shrink-0 rounded-xl object-cover"
+          />
+          <span
+            className={cn(
+              "whitespace-nowrap text-base font-bold tracking-tight text-white transition-all duration-200",
+              desktopExpanded
+                ? "max-w-[160px] translate-x-0 opacity-100"
+                : "pointer-events-none max-w-0 -translate-x-2 overflow-hidden opacity-0"
+            )}
+          >
+            KOITALA
+          </span>
         </Link>
 
         {/* Main nav */}
-        <nav className="flex-1 flex flex-col items-center gap-1.5">
+        <nav className={cn("flex flex-1 flex-col gap-1.5", desktopExpanded ? "items-stretch" : "items-center")}>
           {navItems.map((item) => (
-            <NavIcon key={item.href} item={item} />
+            <DesktopNavItem key={item.href} item={item} />
           ))}
         </nav>
 
         {/* Bottom */}
-        <div className="flex flex-col items-center gap-1.5 pt-4 border-t border-white/10 mt-2">
+        <div
+          className={cn(
+            "mt-2 flex flex-col gap-1.5 border-t border-white/10 pt-4",
+            desktopExpanded ? "items-stretch" : "items-center"
+          )}
+        >
           {bottomItems.map((item) => (
-            <NavIcon key={item.href} item={item} />
+            <DesktopNavItem key={item.href} item={item} />
           ))}
           <Link
             href="/"
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Voir le site (nouvel onglet)"
-            className="relative group flex items-center justify-center w-11 h-11 rounded-xl text-white/80 hover:text-white hover:bg-white/8 transition-all"
+            className={cn(
+              "group flex items-center rounded-xl text-white/80 transition-all duration-300 hover:bg-white/10 hover:text-white",
+              desktopExpanded ? "h-11 w-full justify-start gap-2.5 px-2.5" : "h-11 w-11 justify-center"
+            )}
           >
-            <ExternalLink className="w-5 h-5" />
-            <span className="absolute left-full ml-3 px-2.5 py-1 bg-[#1a3a5c] text-white text-xs font-medium rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50 shadow-lg">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/10 text-white/90 transition-all duration-300 group-hover:bg-white/20 group-hover:text-white">
+              <ExternalLink className="h-[18px] w-[18px]" />
+            </span>
+            <span
+              className={cn(
+                "whitespace-nowrap text-sm font-semibold transition-all duration-200",
+                desktopExpanded
+                  ? "max-w-[220px] translate-x-0 opacity-100"
+                  : "pointer-events-none max-w-0 -translate-x-2 overflow-hidden opacity-0"
+              )}
+            >
               Voir le site
             </span>
           </Link>
           <button
-            onClick={handleSignOut}
-            className="relative group flex items-center justify-center w-11 h-11 rounded-xl text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all"
+            onClick={() => setShowSignOutDialog(true)}
+            disabled={isSigningOut}
+            className={cn(
+              "group flex items-center rounded-xl bg-[#6b4226] text-white transition-all duration-300 hover:bg-[#55331d] disabled:cursor-not-allowed disabled:opacity-70",
+              desktopExpanded ? "h-11 w-full justify-start gap-2.5 px-2.5" : "h-11 w-11 justify-center"
+            )}
           >
-            <LogOut className="w-5 h-5" />
-            <span className="absolute left-full ml-3 px-2.5 py-1 bg-[#1a3a5c] text-white text-xs font-medium rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50 shadow-lg">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/20 text-white">
+              <LogOut className="h-[18px] w-[18px]" />
+            </span>
+            <span
+              className={cn(
+                "whitespace-nowrap text-sm font-semibold transition-all duration-200",
+                desktopExpanded
+                  ? "max-w-[220px] translate-x-0 opacity-100"
+                  : "pointer-events-none max-w-0 -translate-x-2 overflow-hidden opacity-0"
+              )}
+            >
               Déconnexion
             </span>
           </button>
@@ -182,11 +268,22 @@ export default function DashboardSidebar() {
           >
             <ExternalLink className="w-5 h-5" /> Voir le site
           </Link>
-          <button onClick={handleSignOut} className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all">
+          <button
+            onClick={() => setShowSignOutDialog(true)}
+            disabled={isSigningOut}
+            className="w-full flex items-center gap-3 px-3 py-3 rounded-xl bg-[#6b4226] text-sm font-semibold text-white transition-all hover:bg-[#55331d] disabled:cursor-not-allowed disabled:opacity-70"
+          >
             <LogOut className="w-5 h-5" /> Déconnexion
           </button>
         </div>
       </div>
+
+      <SignOutConfirmDialog
+        open={showSignOutDialog}
+        loading={isSigningOut}
+        onCancel={() => setShowSignOutDialog(false)}
+        onConfirm={confirmSignOut}
+      />
     </>
   );
 }

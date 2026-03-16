@@ -60,7 +60,12 @@ export default function PropertyCardHorizontal({ property, className, preferVide
             bubbleClassName="h-20 w-20"
             fallbackImageUrl="https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=400&q=80"
           >
-            <div className="absolute bottom-2 left-2 px-1.5 py-0.5 rounded bg-[#1a3a5c] text-white text-[9px] font-bold uppercase">
+            <div
+              className={cn(
+                "absolute bottom-2 left-2 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase text-white",
+                property.listing_type === "vente" ? "bg-[#1a3a5c]" : "bg-[#6b4226]"
+              )}
+            >
               {getListingTypeLabel(property.listing_type)}
             </div>
             <div
@@ -86,7 +91,7 @@ export default function PropertyCardHorizontal({ property, className, preferVide
                 {getPropertyTypeLabel(property.property_type)}
               </span>
               {rentalCategoryLabel && (
-                <span className="inline-block w-fit px-1.5 py-0.5 rounded-md bg-[#e8b86d]/20 text-[9px] font-semibold text-[#1a3a5c]">
+                <span className="inline-block w-fit rounded-md bg-[#6b4226]/15 px-1.5 py-0.5 text-[9px] font-semibold text-[#6b4226]">
                   {rentalCategoryLabel}
                 </span>
               )}

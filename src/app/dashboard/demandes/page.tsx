@@ -124,8 +124,8 @@ function getSummaryCards(visits: VisitCard[]) {
       value: counts.en_attente,
       helper: "Demandes à traiter en priorité",
       icon: Clock3,
-      tone: "bg-white text-[#0f1724] border-[#e8b86d]/60",
-      iconTone: "bg-[#e8b86d]/20 text-[#1a3a5c]",
+      tone: "bg-white text-[#0f1724] border-gray-200",
+      iconTone: "bg-[#1a3a5c]/10 text-[#1a3a5c]",
     },
     {
       key: "confirme",
@@ -283,7 +283,7 @@ export default function DemandesPage() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto space-y-6">
-      <section className="relative overflow-hidden rounded-[28px] border border-[#1a3a5c]/10 bg-[radial-gradient(circle_at_top_left,_rgba(232,184,109,0.18),_transparent_32%),linear-gradient(180deg,#ffffff_0%,#f7f9fc_100%)] p-5 sm:p-6 lg:p-7 shadow-sm">
+      <section className="rounded-[28px] border border-gray-100 bg-white p-5 shadow-sm sm:p-6 lg:p-7">
         <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-2xl">
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0f1724]">
@@ -336,7 +336,7 @@ export default function DemandesPage() {
       </section>
 
       {pendingVisits > 0 && (
-        <section className="rounded-3xl border border-[#e8b86d]/50 bg-[#fff9ef] px-4 py-4 sm:px-5">
+        <section className="rounded-3xl border border-gray-200 bg-[#f8fafc] px-4 py-4 sm:px-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-sm font-semibold text-[#0f1724]">
@@ -549,7 +549,7 @@ export default function DemandesPage() {
                     </div>
 
                     {visit.message && (
-                      <div className="mt-4 rounded-2xl border border-[#e8b86d]/35 bg-[#fffaf2] px-4 py-3">
+                      <div className="mt-4 rounded-2xl border border-gray-200 bg-[#f8fafc] px-4 py-3">
                         <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#1a3a5c]">
                           Message du prospect
                         </p>

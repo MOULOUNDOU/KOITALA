@@ -19,7 +19,10 @@ export async function GET(request: NextRequest) {
   const rent_payment_period = searchParams.get("rent_payment_period");
   const property_type = searchParams.get("property_type");
   const city = searchParams.get("city");
+  const textQuery = searchParams.get("query") ?? searchParams.get("q");
   const featured = searchParams.get("featured");
+  const parsedLimit = Number(searchParams.get("limit") ?? "50");
+  const limit = Number.isFinite(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 100) : 50;
 
   if (status) query = query.eq("status", status);
   else query = query.eq("status", "publie");
@@ -57,9 +60,17 @@ export async function GET(request: NextRequest) {
 
   if (property_type) query = query.eq("property_type", property_type);
   if (city) query = query.ilike("city", `%${city}%`);
+  if (textQuery) {
+    const normalized = textQuery.replace(/[,%()'"`]/g, " ").trim();
+    if (normalized) {
+      query = query.or(
+        `title.ilike.%${normalized}%,description.ilike.%${normalized}%,city.ilike.%${normalized}%,neighborhood.ilike.%${normalized}%`
+      );
+    }
+  }
   if (featured === "true") query = query.eq("is_featured", true);
 
-  const { data, error } = await query.limit(50);
+  const { data, error } = await query.limit(limit);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data);
 }

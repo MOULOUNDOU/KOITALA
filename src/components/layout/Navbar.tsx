@@ -8,6 +8,7 @@ import { Heart, User, LogOut, ChevronDown, Building2, ArrowRight } from "lucide-
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import type { Profile } from "@/types";
+import SignOutConfirmDialog from "@/components/ui/SignOutConfirmDialog";
 
 const CATEGORIES = [
   {
@@ -95,6 +96,8 @@ export default function Navbar() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [biensMobileOpen, setBiensMobileOpen] = useState(false);
   const [servicesMobileOpen, setServicesMobileOpen] = useState(false);
+  const [showSignOutDialog, setShowSignOutDialog] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const pathname = usePathname();
   const supabase = useMemo(() => createClient(), []);
   const accountHref = user?.role === "admin" ? "/dashboard" : "/dashboard-client";
@@ -188,7 +191,9 @@ export default function Navbar() {
     return () => subscription.unsubscribe();
   }, [supabase]);
 
-  const handleSignOut = async () => {
+  const confirmSignOut = async () => {
+    setShowSignOutDialog(false);
+    setIsSigningOut(true);
     setUser(null);
     setDropdownOpen(false);
     setIsOpen(false);
@@ -197,9 +202,16 @@ export default function Navbar() {
       await supabase.auth.signOut({ scope: "local" });
     } catch {
       // Fallback handled by server signout route below.
+    } finally {
+      window.location.assign("/auth/signout");
     }
+  };
 
-    window.location.assign("/auth/signout");
+  const handleSignOutClick = () => {
+    if (isSigningOut) return;
+    setDropdownOpen(false);
+    setIsOpen(false);
+    setShowSignOutDialog(true);
   };
 
   const isHome = pathname === "/";
@@ -404,8 +416,8 @@ export default function Navbar() {
                       )}
                       <hr className="my-1 border-gray-100" />
                       <button
-                        onClick={handleSignOut}
-                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"
+                        onClick={handleSignOutClick}
+                        className="mx-2 mt-1 flex w-[calc(100%-1rem)] items-center justify-center gap-2 rounded-xl bg-[#6b4226] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#55331d]"
                       >
                         <LogOut className="w-4 h-4" />
                         Déconnexion
@@ -583,8 +595,8 @@ export default function Navbar() {
                     <Building2 className="w-4 h-4" /> Dashboard
                   </Link>
                 )}
-                <button onClick={handleSignOut}
-                  className="w-full flex items-center gap-3 px-3 py-3 text-sm text-red-600 hover:bg-red-50 rounded-xl transition-colors">
+                <button onClick={handleSignOutClick}
+                  className="w-full flex items-center justify-center gap-2 px-3 py-3 text-sm font-semibold text-white bg-[#6b4226] hover:bg-[#55331d] rounded-xl transition-colors">
                   <LogOut className="w-4 h-4" /> Déconnexion
                 </button>
               </div>
@@ -603,6 +615,13 @@ export default function Navbar() {
           </div>
         </div>
       </nav>
+
+      <SignOutConfirmDialog
+        open={showSignOutDialog}
+        loading={isSigningOut}
+        onCancel={() => setShowSignOutDialog(false)}
+        onConfirm={confirmSignOut}
+      />
     </header>
   );
 }

@@ -53,6 +53,19 @@ body {
   font-size: 16px;
 }
 
+body.signout-dialog-open {
+  overflow: hidden;
+}
+
+body > *:not([data-signout-dialog="true"]) {
+  transition: filter 220ms ease;
+}
+
+body.signout-dialog-open > *:not([data-signout-dialog="true"]) {
+  filter: blur(6px);
+  pointer-events: none;
+}
+
 .font-display {
   font-family: var(--font-display, Georgia, serif);
   letter-spacing: -0.02em;

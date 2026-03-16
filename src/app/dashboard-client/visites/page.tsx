@@ -89,7 +89,7 @@ export default function VisitesPage() {
               {visits.length} demande{visits.length !== 1 ? "s" : ""}
             </p>
           </div>
-          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#e8b86d]/20 text-[#1a3a5c] text-sm font-medium">
+          <div className="inline-flex items-center gap-1.5 rounded-full bg-[#1a3a5c]/10 px-3 py-1.5 text-sm font-medium text-[#1a3a5c]">
             <Clock3 className="w-4 h-4" /> {pendingCount} en attente
           </div>
         </div>

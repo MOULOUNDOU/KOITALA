@@ -68,8 +68,8 @@ function getSummaryCards(messages: MessageCard[]) {
       value: counts.nouveau,
       helper: "Messages a ouvrir en priorite",
       icon: Sparkles,
-      tone: "bg-white text-[#0f1724] border-[#e8b86d]/60",
-      iconTone: "bg-[#e8b86d]/20 text-[#1a3a5c]",
+      tone: "bg-white text-[#0f1724] border-gray-200",
+      iconTone: "bg-[#1a3a5c]/10 text-[#1a3a5c]",
     },
     {
       key: "lu",
@@ -226,7 +226,7 @@ export default function MessagesPage() {
 
   return (
     <div className="min-h-full max-w-[1400px] mx-auto space-y-6 p-4 pb-8 sm:p-6 sm:pb-10 lg:p-8">
-      <section className="relative overflow-hidden rounded-[28px] border border-[#1a3a5c]/10 bg-[radial-gradient(circle_at_top_left,_rgba(232,184,109,0.18),_transparent_32%),linear-gradient(180deg,#ffffff_0%,#f7f9fc_100%)] p-5 shadow-sm sm:p-6 lg:p-7">
+      <section className="rounded-[28px] border border-gray-100 bg-white p-5 shadow-sm sm:p-6 lg:p-7">
         <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-2xl">
             <h1 className="text-2xl font-extrabold tracking-tight text-[#0f1724] sm:text-3xl">
@@ -279,7 +279,7 @@ export default function MessagesPage() {
       </section>
 
       {newMessages > 0 && (
-        <section className="rounded-3xl border border-[#e8b86d]/50 bg-[#fff9ef] px-4 py-4 sm:px-5">
+        <section className="rounded-3xl border border-gray-200 bg-[#f8fafc] px-4 py-4 sm:px-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-sm font-semibold text-[#0f1724]">
@@ -413,7 +413,7 @@ export default function MessagesPage() {
                                   {contact.full_name}
                                 </p>
                                 {contact.status === "nouveau" && (
-                                  <span className="inline-flex items-center gap-1 rounded-full bg-[#e8b86d]/20 px-2.5 py-1 text-[11px] font-semibold text-[#1a3a5c]">
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-[#1a3a5c]/10 px-2.5 py-1 text-[11px] font-semibold text-[#1a3a5c]">
                                     <Sparkles className="h-3.5 w-3.5" />
                                     Nouveau
                                   </span>
@@ -532,7 +532,7 @@ export default function MessagesPage() {
                 {isExpanded && (
                   <div className="border-t border-gray-100 bg-[#fcfdff] px-4 py-4 sm:px-5">
                     <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.25fr)_320px]">
-                      <div className="rounded-2xl border border-[#e8b86d]/35 bg-[#fffaf2] p-4">
+                      <div className="rounded-2xl border border-gray-200 bg-[#f8fafc] p-4">
                         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#1a3a5c]">
                           Message complet
                         </p>
@@ -573,7 +573,7 @@ export default function MessagesPage() {
                               className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-[#1a3a5c]/15 bg-white px-4 text-sm font-semibold text-[#1a3a5c] transition-all hover:border-[#1a3a5c] hover:bg-[#1a3a5c]/5"
                             >
                               <Building2 className="h-4 w-4" />
-                              Ouvrir l'annonce
+                              Ouvrir l&apos;annonce
                             </a>
                           )}
                         </div>

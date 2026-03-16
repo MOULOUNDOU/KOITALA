@@ -67,7 +67,12 @@ export default function PropertyCardMobile({
             bubbleClassName="h-24 w-24"
             fallbackImageUrl="https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=400&q=80"
           >
-            <div className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-md bg-[#1a3a5c] text-white text-[10px] font-bold uppercase">
+            <div
+              className={cn(
+                "absolute top-2.5 left-2.5 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase text-white",
+                property.listing_type === "vente" ? "bg-[#1a3a5c]" : "bg-[#6b4226]"
+              )}
+            >
               {getListingTypeLabel(property.listing_type)}
             </div>
             {showFavoriteButton && (
@@ -96,7 +101,7 @@ export default function PropertyCardMobile({
                 {getPropertyTypeLabel(property.property_type)}
               </span>
               {rentalCategoryLabel && (
-                <span className="inline-block px-2 py-0.5 rounded-md bg-[#e8b86d]/20 text-[10px] font-semibold text-[#1a3a5c]">
+                <span className="inline-block rounded-md bg-[#6b4226]/15 px-2 py-0.5 text-[10px] font-semibold text-[#6b4226]">
                   {rentalCategoryLabel}
                 </span>
               )}

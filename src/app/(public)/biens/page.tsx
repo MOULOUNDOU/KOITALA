@@ -126,6 +126,8 @@ export default async function BiensPage({ searchParams }: BienPageProps) {
     bedrooms: params.bedrooms ? Number(params.bedrooms) : "",
     query: params.query ?? "",
   };
+  const normalizedSearchQuery = String(filters.query ?? "").trim();
+  const isSearchMode = normalizedSearchQuery.length > 0;
 
   const parsedPage = Number(params.page ?? "1");
   let currentPage = Number.isFinite(parsedPage) && parsedPage > 0 ? Math.floor(parsedPage) : 1;
@@ -171,23 +173,47 @@ export default async function BiensPage({ searchParams }: BienPageProps) {
           </Link>
           <h1 className="text-3xl font-bold text-white mb-2">Nos biens</h1>
           <p className="text-gray-400">
-            {total} bien{total !== 1 ? "s" : ""}{" "}
-            disponible{total !== 1 ? "s" : ""}
+            {isSearchMode ? (
+              <>
+                Résultats pour &quot;{normalizedSearchQuery}&quot;: {total} bien
+                {total !== 1 ? "s" : ""}
+              </>
+            ) : (
+              <>
+                {total} bien{total !== 1 ? "s" : ""}{" "}
+                disponible{total !== 1 ? "s" : ""}
+              </>
+            )}
           </p>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <div className="flex flex-col lg:flex-row gap-8">
+        <div className={`flex flex-col ${isSearchMode ? "gap-4" : "gap-8 lg:flex-row"}`}>
           {/* Filters sidebar */}
-          <div className="lg:w-72 shrink-0">
-            <Suspense fallback={null}>
-              <PropertyFilters />
-            </Suspense>
-          </div>
+          {!isSearchMode && (
+            <div className="lg:w-72 shrink-0 anim-fade-up">
+              <Suspense fallback={null}>
+                <PropertyFilters />
+              </Suspense>
+            </div>
+          )}
 
           {/* Properties grid */}
-          <div className="flex-1 min-w-0">
+          <div className={`flex-1 min-w-0 ${isSearchMode ? "anim-fade-up" : ""}`}>
+            {isSearchMode && (
+              <div className="mb-5 flex flex-col gap-2 rounded-2xl border border-[#1a3a5c]/15 bg-[#f8fafc] px-4 py-3 anim-fade-up sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm text-[#0f1724]">
+                  Mode recherche actif: seuls les résultats correspondants sont affichés.
+                </p>
+                <Link
+                  href="/biens"
+                  className="inline-flex w-fit items-center rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 transition-colors hover:bg-gray-50"
+                >
+                  Effacer la recherche
+                </Link>
+              </div>
+            )}
             {properties.length > 0 ? (
               <>
                 <div className="flex items-center justify-between mb-5">
@@ -198,7 +224,11 @@ export default async function BiensPage({ searchParams }: BienPageProps) {
                     sur {total} résultat{total !== 1 ? "s" : ""}
                   </p>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+                <div
+                  className={`grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 ${
+                    isSearchMode ? "anim-fade-up anim-delay-1" : ""
+                  }`}
+                >
                   {properties.map((property) => (
                     <PropertyCard key={property.id} property={property} preferVideoBubble />
                   ))}
@@ -218,7 +248,9 @@ export default async function BiensPage({ searchParams }: BienPageProps) {
                   Aucun bien trouvé
                 </h3>
                 <p className="text-sm text-gray-400">
-                  Modifiez vos critères de recherche pour voir plus de résultats.
+                  {isSearchMode
+                    ? `Aucun résultat pour "${normalizedSearchQuery}".`
+                    : "Modifiez vos critères de recherche pour voir plus de résultats."}
                 </p>
               </div>
             )}

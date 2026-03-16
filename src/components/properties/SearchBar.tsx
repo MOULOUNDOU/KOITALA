@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
+import { useDeferredValue, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search, MapPin, Home, DollarSign, SlidersHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -46,6 +47,16 @@ const PAYMENT_PERIOD_OPTS_BY_CATEGORY: Record<string, { value: string; label: st
   colocation: [{ value: "mois", label: "Par mois" }],
 };
 
+interface SuggestionProperty {
+  id: string;
+  slug: string;
+  title: string;
+  city: string | null;
+  neighborhood: string | null;
+  price: number;
+  listing_type: "vente" | "location";
+}
+
 export default function SearchBar({ className }: { className?: string }) {
   const router = useRouter();
   const [filters, setFilters] = useState({
@@ -59,7 +70,59 @@ export default function SearchBar({ className }: { className?: string }) {
     min_price: "",
     max_price: "",
   });
+  const [suggestions, setSuggestions] = useState<SuggestionProperty[]>([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const deferredQuery = useDeferredValue(filters.query.trim());
+  const isQuickSearchActive = filters.query.trim().length >= 2;
+
+  useEffect(() => {
+    if (deferredQuery.length < 2) {
+      return;
+    }
+
+    const controller = new AbortController();
+    const params = new URLSearchParams();
+    params.set("query", deferredQuery);
+    params.set("limit", "6");
+    params.set("status", "publie");
+
+    if (filters.listing_type) params.set("listing_type", filters.listing_type);
+    if (filters.rental_category) params.set("rental_category", filters.rental_category);
+    if (filters.rent_payment_period) params.set("rent_payment_period", filters.rent_payment_period);
+    if (filters.city) params.set("city", filters.city);
+
+    fetch(`/api/properties?${params.toString()}`, {
+      signal: controller.signal,
+      cache: "no-store",
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Impossible de charger les suggestions.");
+        return response.json();
+      })
+      .then((data: SuggestionProperty[]) => {
+        if (!Array.isArray(data)) {
+          setSuggestions([]);
+          return;
+        }
+        setSuggestions(data.slice(0, 6));
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setSuggestions([]);
+      })
+      .finally(() => {
+        setLoadingSuggestions(false);
+      });
+
+    return () => controller.abort();
+  }, [
+    deferredQuery,
+    filters.city,
+    filters.listing_type,
+    filters.rent_payment_period,
+    filters.rental_category,
+  ]);
 
   const buildSearchParams = (nextFilters: typeof filters) => {
     const params = new URLSearchParams();
@@ -141,36 +204,85 @@ export default function SearchBar({ className }: { className?: string }) {
             type="text"
             placeholder="Mot-clé, titre, adresse..."
             value={filters.query}
-            onChange={(e) => setFilters((f) => ({ ...f, query: e.target.value }))}
+            onChange={(e) => {
+              const nextQuery = e.target.value;
+              setFilters((f) => ({ ...f, query: nextQuery }));
+              if (nextQuery.trim().length < 2) {
+                setSuggestions([]);
+                setLoadingSuggestions(false);
+              } else {
+                setLoadingSuggestions(true);
+              }
+            }}
             className="w-full pl-11 pr-4 py-3.5 rounded-xl border border-gray-200 text-base focus:outline-none focus:ring-2 focus:ring-[#1a3a5c]/30 focus:border-[#1a3a5c]"
           />
         </div>
 
-        {/* Row 2: City + Quartier */}
-        <div className="grid grid-cols-1 min-[430px]:grid-cols-2 gap-2 sm:gap-3 mb-3">
-          <CustomSelect
-            value={filters.city}
-            onChange={(v) => setFilters((f) => ({ ...f, city: v, neighborhood: "" }))}
-            options={cityOpts}
-            placeholder="Ville"
-            icon={<MapPin className="w-4 h-4" />}
-            searchable
-            clearable
-            dropUp
-          />
-          <CustomSelect
-            value={filters.neighborhood}
-            onChange={(v) => setFilters((f) => ({ ...f, neighborhood: v }))}
-            options={neighOpts}
-            placeholder="Quartier"
-            icon={<MapPin className="w-4 h-4" />}
-            searchable
-            clearable
-            dropUp
-          />
-        </div>
+        {isQuickSearchActive && (
+          <div className="mb-3 rounded-2xl border border-gray-200 bg-white p-2.5 anim-fade-up">
+            <div className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">
+              Résultats instantanés
+            </div>
+            {loadingSuggestions ? (
+              <p className="px-2 py-3 text-sm text-gray-500">Recherche en cours...</p>
+            ) : suggestions.length === 0 ? (
+              <p className="px-2 py-3 text-sm text-gray-500">Aucune annonce trouvée.</p>
+            ) : (
+              <div className="space-y-1">
+                {suggestions.map((item) => (
+                  <Link
+                    key={item.id}
+                    href={`/biens/${item.slug}`}
+                    className="flex items-center justify-between rounded-xl px-2 py-2.5 transition-colors hover:bg-[#f4f6f9]"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-[#0f1724]">{item.title}</p>
+                      <p className="truncate text-xs text-gray-500">
+                        {[item.neighborhood, item.city].filter(Boolean).join(", ") || "Ville non précisée"}
+                      </p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="text-sm font-semibold text-[#1a3a5c]">
+                        {new Intl.NumberFormat("fr-FR").format(Math.round(item.price))} FCFA
+                      </p>
+                      <p className="text-[11px] text-gray-400">
+                        {item.listing_type === "vente" ? "Vente" : "Location"}
+                      </p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
-        {(filters.listing_type === "location" || filters.rental_category) && (
+        {/* Row 2: City + Quartier */}
+        {!isQuickSearchActive && (
+          <div className="grid grid-cols-1 min-[430px]:grid-cols-2 gap-2 sm:gap-3 mb-3 anim-fade-up">
+            <CustomSelect
+              value={filters.city}
+              onChange={(v) => setFilters((f) => ({ ...f, city: v, neighborhood: "" }))}
+              options={cityOpts}
+              placeholder="Ville"
+              icon={<MapPin className="w-4 h-4" />}
+              searchable
+              clearable
+              dropUp
+            />
+            <CustomSelect
+              value={filters.neighborhood}
+              onChange={(v) => setFilters((f) => ({ ...f, neighborhood: v }))}
+              options={neighOpts}
+              placeholder="Quartier"
+              icon={<MapPin className="w-4 h-4" />}
+              searchable
+              clearable
+              dropUp
+            />
+          </div>
+        )}
+
+        {!isQuickSearchActive && (filters.listing_type === "location" || filters.rental_category) && (
           <div className="mb-3">
             <CustomSelect
               value={filters.rental_category}
@@ -193,7 +305,7 @@ export default function SearchBar({ className }: { className?: string }) {
           </div>
         )}
 
-        {(filters.listing_type === "location" || filters.rental_category) && (
+        {!isQuickSearchActive && (filters.listing_type === "location" || filters.rental_category) && (
           <div className="mb-3">
             <CustomSelect
               value={filters.rent_payment_period}
@@ -209,40 +321,47 @@ export default function SearchBar({ className }: { className?: string }) {
 
         {/* Row 3: Type + Search button */}
         <div className="flex flex-col min-[430px]:flex-row gap-2 sm:gap-3">
-          <div className="flex-1">
-            <CustomSelect
-              value={filters.property_type}
-              onChange={(v) => setFilters((f) => ({ ...f, property_type: v }))}
-              options={typeOpts}
-              placeholder="Type de bien"
-              icon={<Home className="w-4 h-4" />}
-              clearable
-              dropUp
-            />
-          </div>
+          {!isQuickSearchActive && (
+            <div className="flex-1 anim-fade-up">
+              <CustomSelect
+                value={filters.property_type}
+                onChange={(v) => setFilters((f) => ({ ...f, property_type: v }))}
+                options={typeOpts}
+                placeholder="Type de bien"
+                icon={<Home className="w-4 h-4" />}
+                clearable
+                dropUp
+              />
+            </div>
+          )}
           <button
             type="submit"
-            className="w-full min-[430px]:w-auto px-5 sm:px-7 py-3 bg-[#1a3a5c] text-white font-semibold rounded-xl hover:bg-[#0f2540] active:scale-95 transition-all flex items-center justify-center gap-2 whitespace-nowrap shadow-md text-sm sm:text-base"
+            className={cn(
+              "px-5 py-3 bg-[#1a3a5c] text-white font-semibold rounded-xl hover:bg-[#0f2540] active:scale-95 transition-all flex items-center justify-center gap-2 whitespace-nowrap shadow-md text-sm sm:text-base",
+              isQuickSearchActive ? "w-full anim-fade-up" : "w-full min-[430px]:w-auto sm:px-7"
+            )}
           >
             <Search className="w-5 h-5" />
-            <span className="hidden sm:inline">Rechercher</span>
+            <span>{isQuickSearchActive ? "Voir les résultats" : "Rechercher"}</span>
           </button>
         </div>
 
         {/* Advanced toggle */}
-        <div className="mt-3">
-          <button
-            type="button"
-            onClick={() => setShowAdvanced(!showAdvanced)}
-            className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-[#1a3a5c] transition-colors"
-          >
-            <SlidersHorizontal className="w-3.5 h-3.5" />
-            {showAdvanced ? "Masquer" : "Filtres avancés"}
-          </button>
-        </div>
+        {!isQuickSearchActive && (
+          <div className="mt-3">
+            <button
+              type="button"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-[#1a3a5c] transition-colors"
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              {showAdvanced ? "Masquer" : "Filtres avancés"}
+            </button>
+          </div>
+        )}
 
         {/* Advanced filters */}
-        {showAdvanced && (
+        {!isQuickSearchActive && showAdvanced && (
           <div className="mt-4 pt-4 border-t border-gray-100 grid grid-cols-1 min-[430px]:grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="relative">
               <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />

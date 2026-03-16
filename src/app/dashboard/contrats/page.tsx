@@ -257,33 +257,6 @@ export default function ContratsPage() {
   const stepTransitionClass = stepDirection === "forward" ? "anim-slide-right" : "anim-slide-left";
   const currentStep = STEPS.find((item) => item.id === step) ?? STEPS[0];
 
-  const checkpoints = useMemo(
-    () => [
-      {
-        label: "Client",
-        done: Boolean(
-          form.tenantName.trim() &&
-            form.tenantSex.trim() &&
-            form.tenantProfession.trim() &&
-            form.tenantNationality.trim()
-        ),
-      },
-      {
-        label: "Logement",
-        done: Boolean(form.propertyTitle.trim() && form.propertyAddress.trim()),
-      },
-      {
-        label: "Finances",
-        done: Boolean(form.monthlyRent.trim() && form.securityDeposit.trim()),
-      },
-      {
-        label: "Contrat",
-        done: Boolean(form.contractDate && form.startDate && form.durationMonths.trim()),
-      },
-    ],
-    [form]
-  );
-
   const updateField = <K extends keyof ContractFormState>(key: K, value: ContractFormState[K]) => {
     setForm((current) => ({ ...current, [key]: value }));
   };
@@ -597,7 +570,7 @@ export default function ContratsPage() {
 
     return (
       <div className={`space-y-5 ${stepTransitionClass}`}>
-        <div className="rounded-3xl border border-[#e8b86d]/35 bg-[#fffaf2] p-4">
+        <div className="rounded-3xl border border-gray-200 bg-[#f8fafc] p-4">
           <p className="inline-flex items-center gap-2 text-sm font-semibold text-[#1a3a5c]">
             <BadgeCheck className="h-4 w-4" />
             Derniere etape avant export
@@ -648,7 +621,7 @@ export default function ContratsPage() {
             </p>
           </div>
           <div className="rounded-2xl bg-[#f8fafc] px-4 py-3">
-            <p className="text-xs uppercase tracking-[0.18em] text-gray-400">Prise d'effet</p>
+            <p className="text-xs uppercase tracking-[0.18em] text-gray-400">Prise d&apos;effet</p>
             <p className="mt-1 font-semibold text-[#0f1724]">{form.startDate || "Non renseigne"}</p>
           </div>
         </div>
@@ -658,7 +631,7 @@ export default function ContratsPage() {
 
   return (
     <div className="max-w-[1400px] mx-auto space-y-6 p-4 pb-8 sm:p-6 sm:pb-10 lg:p-8 min-h-full">
-      <section className="relative overflow-hidden rounded-[28px] border border-[#1a3a5c]/10 bg-[radial-gradient(circle_at_top_left,_rgba(232,184,109,0.18),_transparent_32%),linear-gradient(180deg,#ffffff_0%,#f7f9fc_100%)] p-5 shadow-sm sm:p-6 lg:p-7">
+      <section className="rounded-[28px] border border-gray-100 bg-white p-5 shadow-sm sm:p-6 lg:p-7">
         <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-3xl">
             <h1 className="text-2xl font-extrabold tracking-tight text-[#0f1724] sm:text-3xl">
@@ -666,7 +639,7 @@ export default function ContratsPage() {
             </h1>
           </div>
 
-          <div className="rounded-3xl border border-[#1a3a5c]/10 bg-white/80 px-5 py-4 shadow-sm backdrop-blur">
+          <div className="rounded-3xl border border-[#1a3a5c]/10 bg-white px-5 py-4 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">Etape actuelle</p>
             <p className="mt-2 text-3xl font-extrabold tracking-tight text-[#0f1724]">
               {step}/{TOTAL_STEPS}
@@ -691,7 +664,7 @@ export default function ContratsPage() {
 
           <div className="h-2 overflow-hidden rounded-full bg-gray-100">
             <div
-              className="h-full rounded-full bg-gradient-to-r from-[#1a3a5c] to-[#e8b86d] transition-all duration-300"
+              className="h-full rounded-full bg-[#1a3a5c] transition-all duration-300"
               style={{ width: `${progressPercent}%` }}
             />
           </div>
@@ -804,7 +777,7 @@ export default function ContratsPage() {
                 </p>
               </div>
               <div className="rounded-2xl bg-[#f8fafc] px-4 py-3">
-                <p className="text-xs uppercase tracking-[0.18em] text-gray-400">Prise d'effet</p>
+                <p className="text-xs uppercase tracking-[0.18em] text-gray-400">Prise d&apos;effet</p>
                 <p className="mt-1 font-semibold text-[#0f1724]">{form.startDate || "Non renseigne"}</p>
               </div>
             </div>

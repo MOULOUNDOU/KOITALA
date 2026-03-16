@@ -173,7 +173,7 @@ export default function ProfilPage() {
     <div className="p-4 sm:p-6 lg:p-8 space-y-6">
       <section className="rounded-3xl border border-[#1a3a5c]/30 bg-[#1a3a5c] shadow-sm">
         <div className="p-6 sm:p-8 lg:p-10 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
-          <div className="w-16 h-16 rounded-2xl bg-[#e8b86d] text-[#1a3a5c] text-2xl font-bold flex items-center justify-center shrink-0">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white text-2xl font-bold text-[#1a3a5c]">
             {userName.charAt(0).toUpperCase()}
           </div>
           <div className="min-w-0">

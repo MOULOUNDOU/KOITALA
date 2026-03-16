@@ -107,13 +107,13 @@ export default function PropertyCard({
                   "px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wide shadow",
                   property.listing_type === "vente"
                     ? "bg-[#1a3a5c] text-white"
-                    : "bg-[#e8b86d] text-[#1a3a5c]"
+                    : "bg-[#6b4226] text-white"
                 )}
               >
                 {property.listing_type === "vente" ? "Vente" : "Location"}
               </span>
               {property.is_featured && (
-                <span className="px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wide bg-green-500 text-white shadow">
+                <span className="px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wide bg-[#1a3a5c] text-white shadow">
                   Coup de cœur
                 </span>
               )}
@@ -158,7 +158,7 @@ export default function PropertyCard({
                 {getPropertyTypeLabel(property.property_type)}
               </span>
               {rentalCategoryLabel && (
-                <span className="px-2 py-0.5 rounded-md bg-[#e8b86d]/20 text-[11px] font-semibold text-[#1a3a5c]">
+                <span className="px-2 py-0.5 rounded-md bg-[#6b4226]/15 text-[11px] font-semibold text-[#6b4226]">
                   {rentalCategoryLabel}
                 </span>
               )}
