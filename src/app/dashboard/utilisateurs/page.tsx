@@ -12,14 +12,15 @@ export default function UtilisateursPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase
-      .from("profiles")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .then(({ data }) => {
-        setUsers((data as Profile[]) ?? []);
-        setLoading(false);
-      });
+    void (async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      setUsers((data as Profile[]) ?? []);
+      setLoading(false);
+    })();
   }, [supabase]);
 
   const toggleRole = async (userId: string, currentRole: string) => {

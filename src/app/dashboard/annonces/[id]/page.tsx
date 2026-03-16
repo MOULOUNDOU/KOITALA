@@ -153,24 +153,25 @@ export default function EditAnnoncePage() {
   );
 
   useEffect(() => {
-    supabase
-      .from("properties")
-      .select("*")
-      .eq("id", params.id)
-      .single()
-      .then(({ data }) => {
-        if (data) {
-          reset({
-            ...data,
-            rental_category: data.rental_category ?? undefined,
-            rent_payment_period: data.rent_payment_period ?? undefined,
-          });
-          setVideoFile(null);
-          setVideoPreview(null);
-          setVideoFallbackUrl(null);
-        }
-        setLoading(false);
-      });
+    void (async () => {
+      const { data } = await supabase
+        .from("properties")
+        .select("*")
+        .eq("id", params.id)
+        .single();
+
+      if (data) {
+        reset({
+          ...data,
+          rental_category: data.rental_category ?? undefined,
+          rent_payment_period: data.rent_payment_period ?? undefined,
+        });
+        setVideoFile(null);
+        setVideoPreview(null);
+        setVideoFallbackUrl(null);
+      }
+      setLoading(false);
+    })();
   }, [params.id, supabase, reset]);
 
   useEffect(() => {
