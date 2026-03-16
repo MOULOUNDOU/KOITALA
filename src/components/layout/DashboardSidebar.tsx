@@ -92,8 +92,8 @@ export default function DashboardSidebar() {
       setAdminAvatarUrl(profile?.avatar_url?.trim() || metadataAvatar || null);
     };
 
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      void syncProfile(user);
+    supabase.auth.getUser().then((result) => {
+      void syncProfile(result.data.user);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(

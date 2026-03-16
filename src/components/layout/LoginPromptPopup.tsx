@@ -58,7 +58,8 @@ export default function LoginPromptPopup() {
     if (sessionStorage.getItem(SESSION_KEY)) return;
 
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => {
+    supabase.auth.getUser().then((result) => {
+      const { data } = result;
       if (data.user) return;
 
       const timer = setTimeout(() => {

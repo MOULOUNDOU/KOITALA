@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Heart } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -16,7 +17,8 @@ export default function FavorisPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
+    supabase.auth.getUser().then(async (result) => {
+      const user = result.data.user;
       if (!user) { router.push("/auth/login?redirectTo=/favoris"); return; }
       const { data } = await supabase
         .from("favorites")
@@ -63,12 +65,12 @@ export default function FavorisPage() {
               <p className="text-sm text-gray-400 mb-6">
                 Enregistrez des biens en cliquant sur le c�ur depuis les annonces.
               </p>
-              <a
+              <Link
                 href="/biens"
                 className="px-5 py-2.5 bg-[#1a3a5c] text-white text-sm font-semibold rounded-xl hover:bg-[#0f2540] transition-colors"
               >
                 Parcourir les annonces
-              </a>
+              </Link>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
@@ -88,4 +90,3 @@ export default function FavorisPage() {
     </>
   );
 }
-

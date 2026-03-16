@@ -181,8 +181,8 @@ export default function Navbar() {
       });
     };
 
-    supabase.auth.getUser().then(({ data: { user: authUser } }) => {
-      void syncUser(authUser);
+    supabase.auth.getUser().then((result) => {
+      void syncUser(result.data.user);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(

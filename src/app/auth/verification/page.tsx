@@ -130,7 +130,8 @@ function VerificationForm() {
 
       toast.success("Email vérifié avec succès !", { duration: 3000 });
       setTimeout(() => {
-        void supabase.auth.getUser().then(async ({ data: { user } }) => {
+        void supabase.auth.getUser().then(async (result) => {
+          const user = result.data.user;
           const isAdmin = user ? await resolveIsAdmin(user.id, user.email) : false;
           window.location.href = resolvePostAuthPath("/", isAdmin);
         });
