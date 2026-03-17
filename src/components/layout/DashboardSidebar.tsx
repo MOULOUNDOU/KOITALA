@@ -21,7 +21,6 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
-import { AI_CHAT_OPEN_EVENT } from "@/lib/ai/widget";
 import DashboardAvatar from "@/components/layout/DashboardAvatar";
 import SignOutConfirmDialog from "@/components/ui/SignOutConfirmDialog";
 
@@ -37,6 +36,7 @@ const navItems = [
 const bottomItems = [
   { label: "Paramètres", href: "/dashboard/parametres", icon: Settings },
 ];
+const adminAssistantHref = "/dashboard/assistant-ia";
 
 interface ProfileUpdatedEventDetail {
   full_name?: string;
@@ -145,11 +145,6 @@ export default function DashboardSidebar() {
 
   const isActive = (href: string, exact?: boolean) =>
     exact ? pathname === href : pathname.startsWith(href);
-
-  const openAdminAssistant = () => {
-    window.dispatchEvent(new Event(AI_CHAT_OPEN_EVENT));
-    setMobileOpen(false);
-  };
 
   const DesktopNavItem = ({ item }: { item: (typeof navItems)[number] | (typeof bottomItems)[number] }) => {
     const active = isActive(item.href, "exact" in item ? item.exact : undefined);
@@ -281,21 +276,32 @@ export default function DashboardSidebar() {
           {bottomItems.map((item) => (
             <DesktopNavItem key={item.href} item={item} />
           ))}
-          <button
-            type="button"
-            onClick={openAdminAssistant}
+          <Link
+            href={adminAssistantHref}
+            onClick={() => setMobileOpen(false)}
             className={cn(
-              "group flex items-center rounded-xl text-white/80 transition-all duration-300 hover:bg-white/10 hover:text-white",
-              desktopExpanded ? "h-11 w-full justify-start gap-2.5 px-2.5" : "h-11 w-11 justify-center"
+              "group flex items-center rounded-xl transition-all duration-300",
+              desktopExpanded ? "h-11 w-full justify-start gap-2.5 px-2.5" : "h-11 w-11 justify-center",
+              isActive(adminAssistantHref)
+                ? "bg-white/12 text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.16)]"
+                : "text-white/80 hover:bg-white/10 hover:text-white"
             )}
-            aria-label="Ouvrir l assistant IA admin"
+            aria-label="Ouvrir la page assistant IA admin"
           >
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/10 text-white/90 transition-all duration-300 group-hover:bg-white/20 group-hover:text-white">
+            <span
+              className={cn(
+                "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-all duration-300",
+                isActive(adminAssistantHref)
+                  ? "bg-white text-[#1a3a5c] shadow-sm"
+                  : "bg-white/10 text-white/90 group-hover:bg-white/20 group-hover:text-white"
+              )}
+            >
               <Bot className="h-[18px] w-[18px]" />
             </span>
             <span
               className={cn(
                 "whitespace-nowrap text-sm font-semibold transition-all duration-200",
+                isActive(adminAssistantHref) ? "text-white" : "text-white/80 group-hover:text-white",
                 desktopExpanded
                   ? "max-w-[186px] translate-x-0 opacity-100"
                   : "pointer-events-none max-w-0 -translate-x-2 overflow-hidden opacity-0"
@@ -303,7 +309,7 @@ export default function DashboardSidebar() {
             >
               Assistant IA
             </span>
-          </button>
+          </Link>
           <Link
             href="/"
             target="_blank"
@@ -448,13 +454,18 @@ export default function DashboardSidebar() {
               </Link>
             );
           })}
-          <button
-            type="button"
-            onClick={openAdminAssistant}
-            className="mb-1 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium text-white/80 transition-all hover:bg-white/5 hover:text-white"
+          <Link
+            href={adminAssistantHref}
+            onClick={() => setMobileOpen(false)}
+            className={cn(
+              "mb-1 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium transition-all",
+              isActive(adminAssistantHref)
+                ? "bg-white/10 text-white"
+                : "text-white/80 hover:bg-white/5 hover:text-white"
+            )}
           >
             <Bot className="h-5 w-5 shrink-0" /> Assistant IA
-          </button>
+          </Link>
           <Link
             href="/"
             target="_blank"

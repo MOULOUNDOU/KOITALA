@@ -7,10 +7,30 @@ import {
 } from "@/lib/ai/prompt";
 import type {
   AIAssistantMode,
+  AIChatAttachment,
   AIChatMessage,
   AILeadDraft,
   AIWidgetScope,
 } from "@/lib/ai/types";
+
+const OPENROUTER_VISION_FALLBACK_MODEL = "openrouter/auto";
+
+interface OpenRouterMessageTextPart {
+  type: "text";
+  text: string;
+}
+
+interface OpenRouterMessageImagePart {
+  type: "image_url";
+  image_url: { url: string };
+}
+
+type OpenRouterMessagePart = OpenRouterMessageTextPart | OpenRouterMessageImagePart;
+
+interface OpenRouterMessage {
+  role: "system" | "user" | "assistant";
+  content: string | OpenRouterMessagePart[];
+}
 
 interface OpenRouterResponse {
   choices?: Array<{
@@ -42,6 +62,11 @@ function getApiKey(): string {
 function getModel(inputModel?: string): string {
   const envModel = process.env.OPENROUTER_MODEL?.trim();
   return inputModel?.trim() || envModel || OPENROUTER_DEFAULT_MODEL;
+}
+
+function getVisionModel(): string | undefined {
+  const envVisionModel = process.env.OPENROUTER_VISION_MODEL?.trim();
+  return envVisionModel || undefined;
 }
 
 function getReferer(): string {
@@ -88,6 +113,63 @@ function buildSystemPrompt(params: {
   });
 }
 
+function buildAttachmentText(attachment: AIChatAttachment): string | null {
+  if (attachment.type !== "text") return null;
+  const text = attachment.textContent?.trim();
+  if (!text) return null;
+  return `Contenu du fichier "${attachment.name}":\n${text}`;
+}
+
+function toOpenRouterMessage(message: AIChatMessage): OpenRouterMessage {
+  const attachmentList = message.attachments ?? [];
+  const contentText = message.content.trim();
+
+  if (attachmentList.length === 0) {
+    return {
+      role: message.role,
+      content: contentText,
+    };
+  }
+
+  const parts: OpenRouterMessagePart[] = [];
+  if (contentText) {
+    parts.push({ type: "text", text: contentText });
+  }
+
+  for (const attachment of attachmentList) {
+    if (attachment.type === "text") {
+      const attachmentText = buildAttachmentText(attachment);
+      if (attachmentText) {
+        parts.push({ type: "text", text: attachmentText });
+      }
+      continue;
+    }
+
+    if (attachment.type === "image" && attachment.dataUrl?.startsWith("data:image/")) {
+      parts.push({
+        type: "text",
+        text: `Image jointe: ${attachment.name}`,
+      });
+      parts.push({
+        type: "image_url",
+        image_url: { url: attachment.dataUrl },
+      });
+    }
+  }
+
+  if (parts.length === 0) {
+    return {
+      role: message.role,
+      content: contentText || "Piece jointe fournie.",
+    };
+  }
+
+  return {
+    role: message.role,
+    content: parts,
+  };
+}
+
 async function requestOpenRouter(params: {
   apiKey: string;
   model: string;
@@ -99,6 +181,18 @@ async function requestOpenRouter(params: {
 }): Promise<AICompletionOutput> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), params.timeoutMs);
+
+  const openRouterMessages: OpenRouterMessage[] = [
+    {
+      role: "system",
+      content: buildSystemPrompt({
+        scope: params.scope,
+        assistant: params.assistant,
+        leadDraft: params.leadDraft ?? null,
+      }),
+    },
+    ...params.messages.map(toOpenRouterMessage),
+  ];
 
   try {
     const response = await fetch(`${OPENROUTER_BASE_URL}/chat/completions`, {
@@ -113,20 +207,7 @@ async function requestOpenRouter(params: {
         model: params.model,
         temperature: 0.35,
         max_tokens: 500,
-        messages: [
-          {
-            role: "system",
-            content: buildSystemPrompt({
-              scope: params.scope,
-              assistant: params.assistant,
-              leadDraft: params.leadDraft ?? null,
-            }),
-          },
-          ...params.messages.map((message) => ({
-            role: message.role,
-            content: message.content,
-          })),
-        ],
+        messages: openRouterMessages,
       }),
       signal: controller.signal,
     });
@@ -165,7 +246,13 @@ export async function requestAICompletion(input: AICompletionInput): Promise<AIC
     throw new Error("missing-openrouter-api-key");
   }
 
-  const primaryModel = getModel(input.model);
+  const hasImageAttachments = input.messages.some((message) =>
+    (message.attachments ?? []).some((attachment) => attachment.type === "image")
+  );
+  const visionModel = hasImageAttachments
+    ? getVisionModel() ?? OPENROUTER_VISION_FALLBACK_MODEL
+    : undefined;
+  const primaryModel = getModel(visionModel || input.model);
   const timeoutMs = input.timeoutMs ?? 15_000;
   const assistant = input.assistant ?? "user";
 

@@ -3,11 +3,21 @@ export type AIChatRole = "user" | "assistant";
 export type AIWidgetScope = "public" | "dashboard";
 export type AIAssistantMode = "user" | "admin";
 export type AIAdminActionType = "update_property" | "delete_property";
+export type AIChatAttachmentType = "text" | "image";
+
+export interface AIChatAttachment {
+  type: AIChatAttachmentType;
+  name: string;
+  mimeType: string;
+  textContent?: string;
+  dataUrl?: string;
+}
 
 export interface AIChatMessage {
   role: AIChatRole;
   content: string;
   createdAt?: string;
+  attachments?: AIChatAttachment[];
 }
 
 export interface AILeadDraft {

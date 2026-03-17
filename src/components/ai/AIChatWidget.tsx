@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
@@ -9,6 +9,8 @@ import {
   Compass,
   LayoutGrid,
   MessageCircle,
+  Mic,
+  MicOff,
   PencilLine,
   Plus,
   RotateCcw,
@@ -16,12 +18,15 @@ import {
   SendHorizontal,
   Sparkles,
   User,
+  Volume2,
+  VolumeX,
   X,
 } from "lucide-react";
 import { extractLeadDraftFromMessages, mergeLeadDraft } from "@/lib/ai/lead";
 import type {
   AIAdminActionProposal,
   AIAssistantMode,
+  AIChatAttachment,
   AIChatMessage,
   AIChatResponseBody,
   AILeadDraft,
@@ -96,6 +101,250 @@ interface AIChatWidgetProps {
 }
 
 type PageSidebarTool = "search" | "topics" | "guidance";
+type SpeechRecognitionCtor = new () => SpeechRecognitionLike;
+
+interface SpeechRecognitionResultLike {
+  0?: {
+    transcript?: string;
+  };
+}
+
+interface SpeechRecognitionEventLike {
+  results: ArrayLike<SpeechRecognitionResultLike>;
+}
+
+interface SpeechRecognitionLike {
+  lang: string;
+  interimResults: boolean;
+  maxAlternatives: number;
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+  onerror: ((event: { error?: string }) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+}
+
+function getSpeechRecognitionCtor(win: Window): SpeechRecognitionCtor | null {
+  const speechWindow = win as Window & {
+    SpeechRecognition?: SpeechRecognitionCtor;
+    webkitSpeechRecognition?: SpeechRecognitionCtor;
+  };
+
+  return speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition ?? null;
+}
+
+const MALE_VOICE_HINTS = [
+  "male",
+  "homme",
+  "man",
+  "thomas",
+  "henri",
+  "paul",
+  "antoine",
+  "gabriel",
+  "nicolas",
+  "julien",
+  "mathieu",
+  "david",
+  "francois",
+  "xavier",
+  "michel",
+  "jean",
+  "daniel",
+] as const;
+
+const PROFESSIONAL_VOICE_HINTS = [
+  "neural",
+  "premium",
+  "enhanced",
+  "natural",
+  "wavenet",
+  "studio",
+  "pro",
+  "high quality",
+] as const;
+
+function normalizeVoiceText(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function scoreVoiceForKoitala(voice: SpeechSynthesisVoice): number {
+  const normalizedName = normalizeVoiceText(voice.name);
+  const normalizedLang = normalizeVoiceText(voice.lang);
+  const searchableText = `${normalizedName} ${normalizedLang}`;
+
+  let score = 0;
+
+  if (normalizedLang.startsWith("fr")) {
+    score += 70;
+  } else if (normalizedLang.includes("fr")) {
+    score += 30;
+  }
+
+  if (MALE_VOICE_HINTS.some((hint) => searchableText.includes(hint))) {
+    score += 45;
+  }
+
+  if (PROFESSIONAL_VOICE_HINTS.some((hint) => searchableText.includes(hint))) {
+    score += 25;
+  }
+
+  if (voice.localService) {
+    score += 5;
+  }
+
+  return score;
+}
+
+function pickPreferredKoitalaVoice(synthesis: SpeechSynthesis): SpeechSynthesisVoice | null {
+  const voices = synthesis.getVoices();
+  if (voices.length === 0) return null;
+
+  const scoredVoices = voices
+    .map((voice) => ({
+      voice,
+      score: scoreVoiceForKoitala(voice),
+    }))
+    .sort((a, b) => b.score - a.score);
+
+  return scoredVoices[0]?.voice ?? null;
+}
+
+const MAX_PENDING_ATTACHMENTS = 4;
+const MAX_IMAGE_FILE_BYTES = 5 * 1024 * 1024;
+const MAX_TEXT_FILE_BYTES = 2 * 1024 * 1024;
+const MAX_TEXT_ATTACHMENT_CHARS = 8_000;
+const FILE_INPUT_ACCEPT =
+  "image/*,.txt,.md,.csv,.json,.xml,.html,.htm,.log,.yaml,.yml,.ini,.conf";
+const TEXT_MIME_TYPES = [
+  "application/json",
+  "application/xml",
+  "application/xhtml+xml",
+  "application/x-yaml",
+] as const;
+const TEXT_FILE_EXTENSIONS = [
+  ".txt",
+  ".md",
+  ".csv",
+  ".json",
+  ".xml",
+  ".html",
+  ".htm",
+  ".log",
+  ".yaml",
+  ".yml",
+  ".ini",
+  ".conf",
+] as const;
+
+function readFileAsText(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
+    reader.onerror = () => reject(new Error("file-read-error"));
+    reader.readAsText(file);
+  });
+}
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
+    reader.onerror = () => reject(new Error("file-read-error"));
+    reader.readAsDataURL(file);
+  });
+}
+
+function isTextFileLike(file: File): boolean {
+  const type = file.type.toLowerCase();
+  if (type.startsWith("text/")) return true;
+  if (TEXT_MIME_TYPES.includes(type as (typeof TEXT_MIME_TYPES)[number])) return true;
+  const fileName = file.name.toLowerCase();
+  return TEXT_FILE_EXTENSIONS.some((extension) => fileName.endsWith(extension));
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
+  if (bytes >= 1024) return `${Math.round(bytes / 1024)} Ko`;
+  return `${bytes} o`;
+}
+
+async function buildAttachmentFromFile(
+  file: File
+): Promise<{ attachment: AIChatAttachment | null; error: string | null }> {
+  const name = file.name.trim() || "fichier";
+  const mimeType = (file.type || "application/octet-stream").trim();
+
+  if (file.type.startsWith("image/")) {
+    if (file.size > MAX_IMAGE_FILE_BYTES) {
+      return {
+        attachment: null,
+        error: `${name}: image trop lourde (max ${formatFileSize(MAX_IMAGE_FILE_BYTES)}).`,
+      };
+    }
+
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      if (!dataUrl.startsWith("data:image/")) {
+        return { attachment: null, error: `${name}: format image non supporte.` };
+      }
+
+      return {
+        attachment: {
+          type: "image",
+          name,
+          mimeType,
+          dataUrl,
+        },
+        error: null,
+      };
+    } catch {
+      return { attachment: null, error: `${name}: lecture de l image impossible.` };
+    }
+  }
+
+  if (!isTextFileLike(file)) {
+    return {
+      attachment: null,
+      error: `${name}: type de fichier non supporte. Utilisez texte/JSON/CSV/MD/XML ou image.`,
+    };
+  }
+
+  if (file.size > MAX_TEXT_FILE_BYTES) {
+    return {
+      attachment: null,
+      error: `${name}: fichier texte trop lourd (max ${formatFileSize(MAX_TEXT_FILE_BYTES)}).`,
+    };
+  }
+
+  try {
+    const rawText = await readFileAsText(file);
+    const normalizedText = rawText
+      .replace(/\r\n/g, "\n")
+      .replace(/[\u0000-\u0008\u000B-\u001F\u007F]/g, " ")
+      .trim();
+    const textContent = normalizedText.slice(0, MAX_TEXT_ATTACHMENT_CHARS);
+
+    if (!textContent) {
+      return { attachment: null, error: `${name}: fichier vide ou non lisible.` };
+    }
+
+    return {
+      attachment: {
+        type: "text",
+        name,
+        mimeType,
+        textContent,
+      },
+      error: null,
+    };
+  } catch {
+    return { attachment: null, error: `${name}: lecture du fichier impossible.` };
+  }
+}
 
 const USER_PAGE_TOPICS_PROMPTS = [
   "Je cherche un studio a louer a Dakar avec un budget mensuel de 250000 FCFA.",
@@ -181,6 +430,29 @@ function getDefaultMessages(welcomeMessage: string): UIMessage[] {
   ];
 }
 
+function isAIChatAttachmentArray(value: unknown): value is AIChatAttachment[] {
+  if (!Array.isArray(value)) return false;
+
+  return value.every((item) => {
+    if (!item || typeof item !== "object") return false;
+
+    const type = Reflect.get(item, "type");
+    const name = Reflect.get(item, "name");
+    const mimeType = Reflect.get(item, "mimeType");
+    const textContent = Reflect.get(item, "textContent");
+    const dataUrl = Reflect.get(item, "dataUrl");
+
+    if ((type !== "text" && type !== "image") || typeof name !== "string" || typeof mimeType !== "string") {
+      return false;
+    }
+
+    if (textContent !== undefined && typeof textContent !== "string") return false;
+    if (dataUrl !== undefined && typeof dataUrl !== "string") return false;
+
+    return true;
+  });
+}
+
 function isUIMessageArray(value: unknown): value is UIMessage[] {
   if (!Array.isArray(value)) return false;
   return value.every((item) => {
@@ -188,7 +460,13 @@ function isUIMessageArray(value: unknown): value is UIMessage[] {
     const role = Reflect.get(item, "role");
     const content = Reflect.get(item, "content");
     const id = Reflect.get(item, "id");
-    return (role === "user" || role === "assistant") && typeof content === "string" && typeof id === "string";
+    const attachments = Reflect.get(item, "attachments");
+    return (
+      (role === "user" || role === "assistant") &&
+      typeof content === "string" &&
+      typeof id === "string" &&
+      (attachments === undefined || isAIChatAttachmentArray(attachments))
+    );
   });
 }
 
@@ -247,10 +525,15 @@ function persistConversationToSession(
 }
 
 function toApiMessages(messages: UIMessage[]): AIChatMessage[] {
-  return messages.map(({ role, content, createdAt }) => ({
+  const latestUserMessageWithAttachmentsId =
+    [...messages].reverse().find((message) => message.role === "user" && (message.attachments?.length ?? 0) > 0)?.id ??
+    null;
+
+  return messages.map(({ id, role, content, createdAt, attachments }) => ({
     role,
     content,
     createdAt,
+    attachments: id === latestUserMessageWithAttachmentsId ? attachments : undefined,
   }));
 }
 
@@ -296,6 +579,7 @@ export default function AIChatWidget({
   const assistantConfig = ASSISTANT_CONFIG[assistant];
   const [isOpen, setIsOpen] = useState(isPageMode);
   const [inputValue, setInputValue] = useState("");
+  const [pendingAttachments, setPendingAttachments] = useState<AIChatAttachment[]>([]);
   const [messages, setMessages] = useState<UIMessage[]>(() =>
     getDefaultMessages(assistantConfig.welcomeMessage)
   );
@@ -306,10 +590,18 @@ export default function AIChatWidget({
   const [error, setError] = useState<string | null>(null);
   const [activeSidebarTool, setActiveSidebarTool] = useState<PageSidebarTool | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [voiceInputSupported, setVoiceInputSupported] = useState(false);
+  const [voiceOutputSupported, setVoiceOutputSupported] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
+  const [isVoicePlaybackEnabled, setIsVoicePlaybackEnabled] = useState(false);
 
   const messageViewportRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const config = SCOPE_CONFIG[assistant][scope];
 
   useEffect(() => {
@@ -318,6 +610,7 @@ export default function AIChatWidget({
       setMessages(getDefaultMessages(assistantConfig.welcomeMessage));
       setLeadDraft(null);
       setPendingAdminAction(null);
+      setPendingAttachments([]);
       return;
     }
 
@@ -328,6 +621,7 @@ export default function AIChatWidget({
     );
     setLeadDraft(assistantConfig.showLeadBadges ? stored.leadDraft : null);
     setPendingAdminAction(assistant === "admin" ? stored.pendingAdminAction ?? null : null);
+    setPendingAttachments([]);
   }, [scope, assistant, assistantConfig.welcomeMessage, assistantConfig.showLeadBadges]);
 
   useEffect(() => {
@@ -354,6 +648,62 @@ export default function AIChatWidget({
     };
   }, [isPageMode]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const synthesis = window.speechSynthesis;
+    setVoiceInputSupported(getSpeechRecognitionCtor(window) !== null);
+    setVoiceOutputSupported(typeof synthesis !== "undefined");
+
+    if (!synthesis) {
+      return;
+    }
+
+    const syncVoices = () => {
+      synthesis.getVoices();
+      setVoiceOutputSupported(true);
+    };
+
+    syncVoices();
+    synthesis.addEventListener("voiceschanged", syncVoices);
+
+    return () => {
+      synthesis.removeEventListener("voiceschanged", syncVoices);
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.onresult = null;
+        recognitionRef.current.onerror = null;
+        recognitionRef.current.onend = null;
+        recognitionRef.current.stop();
+        recognitionRef.current = null;
+      }
+
+      if (typeof window !== "undefined") {
+        window.speechSynthesis?.cancel();
+      }
+      setIsSpeaking(false);
+      setSpeakingMessageId(null);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isPageMode || isOpen || !recognitionRef.current) return;
+    recognitionRef.current.stop();
+  }, [isOpen, isPageMode]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !voiceOutputSupported) return;
+    if (!isVoicePlaybackEnabled) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+      setSpeakingMessageId(null);
+    }
+  }, [isVoicePlaybackEnabled, voiceOutputSupported]);
+
   if (!isPageMode && pathname === "/assistant-ia") {
     return null;
   }
@@ -377,24 +727,244 @@ export default function AIChatWidget({
     focusComposer();
   };
 
+  const handleOpenFilePicker = () => {
+    if (loading) return;
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelection = async (event: ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = Array.from(event.target.files ?? []);
+    event.currentTarget.value = "";
+
+    if (selectedFiles.length === 0) return;
+
+    const remainingSlots = MAX_PENDING_ATTACHMENTS - pendingAttachments.length;
+    if (remainingSlots <= 0) {
+      setError(`Vous pouvez joindre jusqu a ${MAX_PENDING_ATTACHMENTS} fichiers par message.`);
+      return;
+    }
+
+    const filesToProcess = selectedFiles.slice(0, remainingSlots);
+    const results = await Promise.all(filesToProcess.map((file) => buildAttachmentFromFile(file)));
+
+    const nextAttachments = results
+      .map((item) => item.attachment)
+      .filter((item): item is AIChatAttachment => item !== null);
+    const errors = results
+      .map((item) => item.error)
+      .filter((item): item is string => Boolean(item));
+
+    if (nextAttachments.length > 0) {
+      setPendingAttachments((current) => [...current, ...nextAttachments].slice(0, MAX_PENDING_ATTACHMENTS));
+    }
+
+    if (selectedFiles.length > filesToProcess.length) {
+      errors.unshift(`Maximum ${MAX_PENDING_ATTACHMENTS} fichiers par message.`);
+    }
+
+    if (errors.length > 0) {
+      setError(errors[0]);
+      return;
+    }
+
+    setError(null);
+  };
+
+  const handleRemovePendingAttachment = (indexToRemove: number) => {
+    setPendingAttachments((current) => current.filter((_, index) => index !== indexToRemove));
+  };
+
   const handleResetConversation = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+    }
+    if (typeof window !== "undefined" && voiceOutputSupported) {
+      window.speechSynthesis.cancel();
+    }
+
+    setIsListening(false);
+    setIsSpeaking(false);
+    setSpeakingMessageId(null);
     setMessages(getDefaultMessages(assistantConfig.welcomeMessage));
     setLeadDraft(null);
     setPendingAdminAction(null);
+    setPendingAttachments([]);
     setError(null);
     setSearchQuery("");
     setActiveSidebarTool(null);
   };
 
+  const handleToggleVoicePlayback = () => {
+    if (!voiceOutputSupported) {
+      setError("Lecture vocale non supportee sur ce navigateur.");
+      return;
+    }
+
+    setError(null);
+    const shouldEnablePlayback = !isVoicePlaybackEnabled;
+    setIsVoicePlaybackEnabled(shouldEnablePlayback);
+
+    if (!shouldEnablePlayback) {
+      if (typeof window !== "undefined") {
+        window.speechSynthesis.cancel();
+      }
+      setIsSpeaking(false);
+      setSpeakingMessageId(null);
+    }
+  };
+
+  const handleSpeakAssistantMessage = (message: UIMessage) => {
+    if (message.role !== "assistant") return;
+
+    if (!voiceOutputSupported) {
+      setError("Lecture vocale non supportee sur ce navigateur.");
+      return;
+    }
+
+    if (!isVoicePlaybackEnabled) {
+      setError("Activez d abord le bouton voix pour lire les reponses.");
+      return;
+    }
+
+    if (typeof window === "undefined") return;
+    const utteranceText = message.content.trim();
+    if (!utteranceText) return;
+
+    const synthesis = window.speechSynthesis;
+    if (isSpeaking && speakingMessageId === message.id) {
+      synthesis.cancel();
+      setIsSpeaking(false);
+      setSpeakingMessageId(null);
+      return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(utteranceText);
+    utterance.lang = "fr-FR";
+    const preferredVoice = pickPreferredKoitalaVoice(synthesis);
+    if (preferredVoice) {
+      utterance.voice = preferredVoice;
+    }
+    utterance.rate = 0.96;
+    utterance.pitch = 0.86;
+    utterance.onstart = () => {
+      setIsSpeaking(true);
+      setSpeakingMessageId(message.id);
+    };
+    utterance.onend = () => {
+      setIsSpeaking(false);
+      setSpeakingMessageId((current) => (current === message.id ? null : current));
+    };
+    utterance.onerror = (event: SpeechSynthesisErrorEvent) => {
+      setIsSpeaking(false);
+      setSpeakingMessageId((current) => (current === message.id ? null : current));
+
+      const errorCode = (event.error || "").toLowerCase();
+      if (errorCode === "canceled" || errorCode === "interrupted") {
+        setError(null);
+        return;
+      }
+
+      setError("Lecture vocale indisponible pour cette reponse.");
+    };
+
+    try {
+      synthesis.cancel();
+      setIsSpeaking(false);
+      setSpeakingMessageId(null);
+      setError(null);
+      synthesis.speak(utterance);
+    } catch {
+      setIsSpeaking(false);
+      setSpeakingMessageId(null);
+      setError("Lecture vocale indisponible pour cette reponse.");
+    }
+  };
+
+  const handleToggleVoiceInput = () => {
+    if (loading) return;
+
+    if (!voiceInputSupported) {
+      setError("Dictee vocale non supportee sur ce navigateur.");
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current?.stop();
+      return;
+    }
+
+    if (typeof window === "undefined") return;
+    const RecognitionCtor = getSpeechRecognitionCtor(window);
+    if (!RecognitionCtor) {
+      setVoiceInputSupported(false);
+      setError("Dictee vocale non supportee sur ce navigateur.");
+      return;
+    }
+
+    const recognition = new RecognitionCtor();
+    recognition.lang = "fr-FR";
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    recognition.onresult = (event: SpeechRecognitionEventLike) => {
+      const transcript = Array.from(event.results)
+        .map((result) => result[0]?.transcript?.trim() ?? "")
+        .filter((chunk): chunk is string => chunk.length > 0)
+        .join(" ")
+        .trim();
+
+      if (!transcript) return;
+
+      setInputValue(transcript);
+      setError(null);
+      void handleSendMessage(transcript);
+    };
+    recognition.onerror = (event: { error?: string }) => {
+      if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+        setError("Acces micro refuse. Autorisez le micro puis reessayez.");
+        return;
+      }
+      if (event.error === "no-speech") {
+        setError("Aucune voix detectee. Reessayez.");
+        return;
+      }
+      setError("La dictee vocale a echoue. Reessayez.");
+    };
+    recognition.onend = () => {
+      setIsListening(false);
+      recognitionRef.current = null;
+    };
+
+    recognitionRef.current = recognition;
+    setError(null);
+    setIsListening(true);
+
+    try {
+      recognition.start();
+    } catch {
+      setIsListening(false);
+      recognitionRef.current = null;
+      setError("Impossible de demarrer la dictee vocale.");
+    }
+  };
+
   const handleSendMessage = async (presetText?: string) => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+    }
+
     const textToSend = (presetText ?? inputValue).trim();
-    if (!textToSend || loading) return;
+    const attachmentsToSend = pendingAttachments;
+    if ((!textToSend && attachmentsToSend.length === 0) || loading) return;
+
+    const finalUserContent =
+      textToSend || "Merci d analyser les fichiers joints et de repondre de maniere claire.";
 
     const userMessage: UIMessage = {
       id: createMessageId(),
       role: "user",
-      content: textToSend,
+      content: finalUserContent,
       createdAt: new Date().toISOString(),
+      attachments: attachmentsToSend.length > 0 ? attachmentsToSend : undefined,
     };
 
     const nextMessages = [...messages, userMessage];
@@ -408,6 +978,7 @@ export default function AIChatWidget({
     setMessages(nextMessages);
     setLeadDraft(mergedLead);
     setInputValue("");
+    setPendingAttachments([]);
     setError(null);
     if (assistant === "admin") {
       setPendingAdminAction(null);
@@ -518,11 +1089,21 @@ export default function AIChatWidget({
   const showFloatingLauncher = !(assistant === "admin" && scope === "dashboard");
   const panelBottomClass = "bottom-2 sm:bottom-6";
   const leadBadges = assistantConfig.showLeadBadges ? buildLeadBadges(leadDraft) : [];
+  const voiceInputButtonLabel = isListening
+    ? "Arreter l ecoute micro"
+    : "Parler au micro (envoi auto)";
+  const voicePlaybackButtonLabel = isVoicePlaybackEnabled
+    ? "Desactiver la lecture vocale (bouton Lire)"
+    : "Activer la lecture vocale (bouton Lire)";
   const normalizedSearchQuery = searchQuery.trim().toLowerCase();
   const matchingMessagesCount =
     normalizedSearchQuery.length === 0
       ? 0
       : messages.filter((message) => message.content.toLowerCase().includes(normalizedSearchQuery)).length;
+  const pendingAttachmentCountLabel =
+    pendingAttachments.length === 1
+      ? "1 piece jointe"
+      : `${pendingAttachments.length} pieces jointes`;
 
   if (isPageMode) {
     return (
@@ -679,6 +1260,8 @@ export default function AIChatWidget({
                   const isMatch =
                     normalizedSearchQuery.length > 0 &&
                     message.content.toLowerCase().includes(normalizedSearchQuery);
+                  const isAssistantMessage = message.role === "assistant";
+                  const isCurrentMessageSpeaking = isSpeaking && speakingMessageId === message.id;
 
                   return (
                     <div
@@ -695,6 +1278,41 @@ export default function AIChatWidget({
                         )}
                       >
                         <p className="whitespace-pre-wrap">{message.content}</p>
+                        {message.attachments && message.attachments.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            {message.attachments.map((attachment, index) => (
+                              <span
+                                key={`${message.id}-attachment-${index}`}
+                                className="rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-[10px] font-semibold text-gray-200"
+                              >
+                                {attachment.type === "image" ? "Image" : "Fichier"}: {attachment.name}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {isAssistantMessage && isVoicePlaybackEnabled && voiceOutputSupported && (
+                          <div className="mt-2 flex justify-end">
+                            <button
+                              type="button"
+                              onClick={() => handleSpeakAssistantMessage(message)}
+                              className={cn(
+                                "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors",
+                                isCurrentMessageSpeaking
+                                  ? "border-[#e8b86d]/70 bg-[#e8b86d]/20 text-[#f3cb87]"
+                                  : "border-white/20 bg-white/10 text-gray-200 hover:bg-white/15"
+                              )}
+                              aria-label={isCurrentMessageSpeaking ? "Arreter la lecture" : "Lire la reponse"}
+                              title={isCurrentMessageSpeaking ? "Arreter la lecture" : "Lire la reponse"}
+                            >
+                              {isCurrentMessageSpeaking ? (
+                                <VolumeX className="h-3.5 w-3.5" />
+                              ) : (
+                                <Volume2 className="h-3.5 w-3.5" />
+                              )}
+                              {isCurrentMessageSpeaking ? "Arreter" : "Lire"}
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -765,18 +1383,54 @@ export default function AIChatWidget({
 
             <footer className="border-t border-white/10 bg-[#1f2127] px-4 py-4 sm:px-6">
               <div className="mx-auto w-full max-w-3xl">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept={FILE_INPUT_ACCEPT}
+                  multiple
+                  onChange={handleFileSelection}
+                  className="hidden"
+                />
+
                 {error && (
                   <p className="mb-2 rounded-lg border border-red-500/35 bg-red-500/15 px-3 py-2 text-xs text-red-200">
                     {error}
                   </p>
                 )}
 
+                {pendingAttachments.length > 0 && (
+                  <div className="mb-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
+                    <p className="text-[11px] uppercase tracking-[0.14em] text-gray-500">
+                      {pendingAttachmentCountLabel}
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {pendingAttachments.map((attachment, index) => (
+                        <span
+                          key={`pending-${attachment.name}-${index}`}
+                          className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/8 px-2 py-1 text-[11px] text-gray-200"
+                        >
+                          {attachment.type === "image" ? "Image" : "Fichier"}: {attachment.name}
+                          <button
+                            type="button"
+                            onClick={() => handleRemovePendingAttachment(index)}
+                            className="inline-flex h-4 w-4 items-center justify-center rounded-full text-gray-300 transition-colors hover:bg-white/15 hover:text-white"
+                            aria-label={`Retirer ${attachment.name}`}
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex items-center gap-2 rounded-full border border-white/10 bg-[#2a2d34] px-3 py-2.5">
                   <button
                     type="button"
-                    onClick={() => activateSidebarTool("topics")}
+                    onClick={handleOpenFilePicker}
                     className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-white/10 hover:text-white"
-                    aria-label="Ajouter un contexte"
+                    aria-label="Joindre un fichier ou une image"
+                    title="Joindre un fichier ou une image"
                   >
                     <Plus className="h-4 w-4" />
                   </button>
@@ -799,8 +1453,41 @@ export default function AIChatWidget({
 
                   <button
                     type="button"
+                    onClick={handleToggleVoiceInput}
+                    disabled={loading}
+                    className={cn(
+                      "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-300 transition-colors hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40",
+                      isListening && "bg-[#e8b86d]/20 text-[#e8b86d]",
+                      !voiceInputSupported && "text-gray-500"
+                    )}
+                    aria-label={voiceInputButtonLabel}
+                    title={voiceInputButtonLabel}
+                  >
+                    {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleToggleVoicePlayback}
+                    className={cn(
+                      "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-gray-300 transition-colors hover:bg-white/10 hover:text-white",
+                      isVoicePlaybackEnabled && "bg-white/10 text-white",
+                      !voiceOutputSupported && "text-gray-500"
+                    )}
+                    aria-label={voicePlaybackButtonLabel}
+                    title={voicePlaybackButtonLabel}
+                  >
+                    {isVoicePlaybackEnabled ? (
+                      <Volume2 className="h-4 w-4" />
+                    ) : (
+                      <VolumeX className="h-4 w-4" />
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
                     onClick={() => void handleSendMessage()}
-                    disabled={loading || inputValue.trim().length === 0}
+                    disabled={loading || (inputValue.trim().length === 0 && pendingAttachments.length === 0)}
                     className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-[#17191f] transition-colors hover:bg-[#f3f4f6] disabled:cursor-not-allowed disabled:opacity-45"
                     aria-label="Envoyer le message"
                   >
@@ -817,7 +1504,11 @@ export default function AIChatWidget({
                     <RotateCcw className="h-3.5 w-3.5" />
                     Nouvelle conversation
                   </button>
-                  <p>Entree pour envoyer</p>
+                  <div className="flex items-center gap-3">
+                    {isListening && <p className="text-[#e8b86d]">Ecoute micro...</p>}
+                    {isSpeaking && isVoicePlaybackEnabled && <p className="text-[#e8b86d]">Lecture...</p>}
+                    <p>Entree pour envoyer</p>
+                  </div>
                 </div>
               </div>
             </footer>
@@ -898,36 +1589,76 @@ export default function AIChatWidget({
             role="log"
             aria-live="polite"
           >
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={cn(
-                  "flex items-end gap-2",
-                  message.role === "user" ? "justify-end" : "justify-start"
-                )}
-              >
-                {message.role === "assistant" && (
-                  <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#1a3a5c] text-white">
-                    <Bot className="h-3.5 w-3.5" />
-                  </span>
-                )}
+            {messages.map((message) => {
+              const isAssistantMessage = message.role === "assistant";
+              const isCurrentMessageSpeaking = isSpeaking && speakingMessageId === message.id;
+
+              return (
                 <div
+                  key={message.id}
                   className={cn(
-                    "max-w-[82%] rounded-2xl px-3 py-2.5 text-sm leading-relaxed shadow-sm",
-                    message.role === "user"
-                      ? "rounded-br-md bg-[#1a3a5c] text-white"
-                      : "rounded-bl-md border border-gray-200 bg-white text-[#0f1724]"
+                    "flex items-end gap-2",
+                    message.role === "user" ? "justify-end" : "justify-start"
                   )}
                 >
-                  <p className="whitespace-pre-wrap">{message.content}</p>
+                  {isAssistantMessage && (
+                    <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#1a3a5c] text-white">
+                      <Bot className="h-3.5 w-3.5" />
+                    </span>
+                  )}
+                  <div
+                    className={cn(
+                      "max-w-[82%] rounded-2xl px-3 py-2.5 text-sm leading-relaxed shadow-sm",
+                      message.role === "user"
+                        ? "rounded-br-md bg-[#1a3a5c] text-white"
+                        : "rounded-bl-md border border-gray-200 bg-white text-[#0f1724]"
+                    )}
+                  >
+                    <p className="whitespace-pre-wrap">{message.content}</p>
+                    {message.attachments && message.attachments.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {message.attachments.map((attachment, index) => (
+                          <span
+                            key={`${message.id}-attachment-${index}`}
+                            className="rounded-full border border-gray-300 bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-[#1a3a5c]"
+                          >
+                            {attachment.type === "image" ? "Image" : "Fichier"}: {attachment.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {isAssistantMessage && isVoicePlaybackEnabled && voiceOutputSupported && (
+                      <div className="mt-2 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => handleSpeakAssistantMessage(message)}
+                          className={cn(
+                            "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors",
+                            isCurrentMessageSpeaking
+                              ? "border-[#c89644]/50 bg-[#fff2dd] text-[#8a6423]"
+                              : "border-gray-300 bg-gray-100 text-[#1a3a5c] hover:bg-gray-200"
+                          )}
+                          aria-label={isCurrentMessageSpeaking ? "Arreter la lecture" : "Lire la reponse"}
+                          title={isCurrentMessageSpeaking ? "Arreter la lecture" : "Lire la reponse"}
+                        >
+                          {isCurrentMessageSpeaking ? (
+                            <VolumeX className="h-3.5 w-3.5" />
+                          ) : (
+                            <Volume2 className="h-3.5 w-3.5" />
+                          )}
+                          {isCurrentMessageSpeaking ? "Arreter" : "Lire"}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  {message.role === "user" && (
+                    <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#dce3ec] text-[#1a3a5c]">
+                      <User className="h-3.5 w-3.5" />
+                    </span>
+                  )}
                 </div>
-                {message.role === "user" && (
-                  <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#dce3ec] text-[#1a3a5c]">
-                    <User className="h-3.5 w-3.5" />
-                  </span>
-                )}
-              </div>
-            ))}
+              );
+            })}
 
             {loading && (
               <div className="flex items-end justify-start gap-2">
@@ -995,13 +1726,59 @@ export default function AIChatWidget({
           )}
 
           <div className="border-t border-gray-100 bg-white px-4 py-3">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={FILE_INPUT_ACCEPT}
+              multiple
+              onChange={handleFileSelection}
+              className="hidden"
+            />
+
             {error && (
               <p className="mb-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
                 {error}
               </p>
             )}
 
+            {pendingAttachments.length > 0 && (
+              <div className="mb-2 rounded-xl border border-gray-200 bg-[#f8fafc] px-3 py-2">
+                <p className="text-[11px] uppercase tracking-[0.14em] text-gray-500">
+                  {pendingAttachmentCountLabel}
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {pendingAttachments.map((attachment, index) => (
+                    <span
+                      key={`pending-mobile-${attachment.name}-${index}`}
+                      className="inline-flex items-center gap-1 rounded-full border border-gray-300 bg-white px-2 py-1 text-[11px] text-[#1a3a5c]"
+                    >
+                      {attachment.type === "image" ? "Image" : "Fichier"}: {attachment.name}
+                      <button
+                        type="button"
+                        onClick={() => handleRemovePendingAttachment(index)}
+                        className="inline-flex h-4 w-4 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-200 hover:text-gray-700"
+                        aria-label={`Retirer ${attachment.name}`}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleOpenFilePicker}
+                disabled={loading}
+                className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-gray-200 bg-[#f8fafc] text-[#1a3a5c] transition-colors hover:bg-[#eef3fa] disabled:cursor-not-allowed disabled:opacity-50"
+                aria-label="Joindre un fichier ou une image"
+                title="Joindre un fichier ou une image"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
+
               <div className="relative flex-1">
                 <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-300" />
                 <input
@@ -1020,10 +1797,44 @@ export default function AIChatWidget({
                   disabled={loading}
                 />
               </div>
+
+              <button
+                type="button"
+                onClick={handleToggleVoiceInput}
+                disabled={loading}
+                className={cn(
+                  "inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-gray-200 bg-[#f8fafc] text-[#1a3a5c] transition-colors hover:bg-[#eef3fa] disabled:cursor-not-allowed disabled:opacity-50",
+                  isListening && "border-[#e8b86d] bg-[#fff6e6] text-[#8a6423]",
+                  !voiceInputSupported && "text-gray-400"
+                )}
+                aria-label={voiceInputButtonLabel}
+                title={voiceInputButtonLabel}
+              >
+                {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleToggleVoicePlayback}
+                className={cn(
+                  "inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-gray-200 bg-[#f8fafc] text-[#1a3a5c] transition-colors hover:bg-[#eef3fa]",
+                  isVoicePlaybackEnabled && "border-[#1a3a5c]/25 bg-[#edf2f8]",
+                  !voiceOutputSupported && "text-gray-400"
+                )}
+                aria-label={voicePlaybackButtonLabel}
+                title={voicePlaybackButtonLabel}
+              >
+                {isVoicePlaybackEnabled ? (
+                  <Volume2 className="h-4 w-4" />
+                ) : (
+                  <VolumeX className="h-4 w-4" />
+                )}
+              </button>
+
               <button
                 type="button"
                 onClick={() => void handleSendMessage()}
-                disabled={loading || inputValue.trim().length === 0}
+                disabled={loading || (inputValue.trim().length === 0 && pendingAttachments.length === 0)}
                 className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#1a3a5c] text-white transition-colors hover:bg-[#0f2540] disabled:cursor-not-allowed disabled:opacity-60"
                 aria-label="Envoyer le message"
               >
@@ -1040,7 +1851,11 @@ export default function AIChatWidget({
                 <RotateCcw className="h-3.5 w-3.5" />
                 Nouvelle conversation
               </button>
-              <p className="text-[10px] text-gray-400">Entree pour envoyer</p>
+              <div className="flex items-center gap-2 text-[10px] text-gray-400">
+                {isListening && <p className="text-[#8a6423]">Ecoute...</p>}
+                {isSpeaking && isVoicePlaybackEnabled && <p className="text-[#8a6423]">Lecture...</p>}
+                <p>Entree pour envoyer</p>
+              </div>
             </div>
           </div>
         </section>

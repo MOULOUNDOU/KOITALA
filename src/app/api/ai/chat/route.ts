@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import type {
   AIAssistantMode,
   AIAdminActionProposal,
+  AIChatAttachment,
   AIChatMessage,
   AIChatRequestBody,
   AILeadDraft,
@@ -16,6 +17,12 @@ export const runtime = "nodejs";
 const MAX_HISTORY_MESSAGES = 18;
 const MAX_MESSAGE_LENGTH = 1_600;
 const MAX_TOTAL_CHARS = 12_000;
+const MAX_ATTACHMENTS_PER_MESSAGE = 4;
+const MAX_ATTACHMENT_NAME_LENGTH = 120;
+const MAX_ATTACHMENT_TEXT_LENGTH = 8_000;
+const MAX_TOTAL_ATTACHMENT_TEXT_CHARS = 24_000;
+const MAX_ATTACHMENT_IMAGE_DATA_URL_LENGTH = 7_000_000;
+const MAX_TOTAL_IMAGE_DATA_URL_CHARS = 12_000_000;
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX_REQUESTS = 24;
 
@@ -64,6 +71,82 @@ function cleanText(value: string): string {
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, MAX_MESSAGE_LENGTH);
+}
+
+function cleanAttachmentText(value: string): string {
+  return value
+    .replace(/\r\n/g, "\n")
+    .replace(/[\u0000-\u0008\u000B-\u001F\u007F]/g, " ")
+    .trim()
+    .slice(0, MAX_ATTACHMENT_TEXT_LENGTH);
+}
+
+function sanitizeAttachmentName(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const cleaned = value
+    .replace(/[\u0000-\u001F\u007F]/g, " ")
+    .trim()
+    .slice(0, MAX_ATTACHMENT_NAME_LENGTH);
+
+  return cleaned || null;
+}
+
+function sanitizeAttachmentMimeType(value: unknown): string {
+  if (typeof value !== "string") return "application/octet-stream";
+  const cleaned = value
+    .replace(/[\u0000-\u001F\u007F]/g, "")
+    .trim()
+    .slice(0, 120);
+
+  return cleaned || "application/octet-stream";
+}
+
+function normalizeAttachments(rawAttachments: unknown): AIChatAttachment[] {
+  if (!Array.isArray(rawAttachments)) return [];
+
+  const normalized: AIChatAttachment[] = [];
+  for (const raw of rawAttachments.slice(0, MAX_ATTACHMENTS_PER_MESSAGE)) {
+    if (!raw || typeof raw !== "object") continue;
+
+    const rawType = Reflect.get(raw, "type");
+    const type = rawType === "text" || rawType === "image" ? rawType : null;
+    if (!type) continue;
+
+    const name = sanitizeAttachmentName(Reflect.get(raw, "name"));
+    if (!name) continue;
+
+    const mimeType = sanitizeAttachmentMimeType(Reflect.get(raw, "mimeType"));
+    if (type === "text") {
+      const rawText = Reflect.get(raw, "textContent");
+      if (typeof rawText !== "string") continue;
+
+      const textContent = cleanAttachmentText(rawText);
+      if (!textContent) continue;
+
+      normalized.push({
+        type,
+        name,
+        mimeType,
+        textContent,
+      });
+      continue;
+    }
+
+    const rawDataUrl = Reflect.get(raw, "dataUrl");
+    if (typeof rawDataUrl !== "string") continue;
+    const dataUrl = rawDataUrl.trim();
+    if (!dataUrl.startsWith("data:image/")) continue;
+    if (dataUrl.length > MAX_ATTACHMENT_IMAGE_DATA_URL_LENGTH) continue;
+
+    normalized.push({
+      type,
+      name,
+      mimeType,
+      dataUrl,
+    });
+  }
+
+  return normalized;
 }
 
 function normalizeScope(value: unknown): AIWidgetScope {
@@ -175,9 +258,12 @@ function normalizeMessages(rawMessages: unknown): AIChatMessage[] {
     const cleanedContent = cleanText(content);
     if (!cleanedContent) continue;
 
+    const attachments = normalizeAttachments(Reflect.get(item, "attachments"));
+
     normalized.push({
       role,
       content: cleanedContent,
+      attachments: attachments.length > 0 ? attachments : undefined,
       createdAt: typeof Reflect.get(item, "createdAt") === "string" ? String(Reflect.get(item, "createdAt")) : undefined,
     });
   }
@@ -313,6 +399,42 @@ export async function POST(request: NextRequest) {
     if (totalChars > MAX_TOTAL_CHARS) {
       return NextResponse.json(
         { error: "Conversation trop longue. Merci de raccourcir votre demande." },
+        { status: 413 }
+      );
+    }
+
+    const totalAttachmentTextChars = parsedBody.messages.reduce(
+      (sum, item) =>
+        sum +
+        (item.attachments?.reduce(
+          (attachmentSum, attachment) =>
+            attachmentSum + (attachment.type === "text" ? attachment.textContent?.length ?? 0 : 0),
+          0
+        ) ?? 0),
+      0
+    );
+
+    if (totalAttachmentTextChars > MAX_TOTAL_ATTACHMENT_TEXT_CHARS) {
+      return NextResponse.json(
+        { error: "Pieces jointes trop volumineuses. Reduisez la taille des fichiers texte." },
+        { status: 413 }
+      );
+    }
+
+    const totalImageDataChars = parsedBody.messages.reduce(
+      (sum, item) =>
+        sum +
+        (item.attachments?.reduce(
+          (attachmentSum, attachment) =>
+            attachmentSum + (attachment.type === "image" ? attachment.dataUrl?.length ?? 0 : 0),
+          0
+        ) ?? 0),
+      0
+    );
+
+    if (totalImageDataChars > MAX_TOTAL_IMAGE_DATA_URL_CHARS) {
+      return NextResponse.json(
+        { error: "Pieces jointes image trop lourdes. Merci de compresser vos images." },
         { status: 413 }
       );
     }

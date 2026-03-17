@@ -4,7 +4,6 @@ import DashboardSidebar from "@/components/layout/DashboardSidebar";
 import MobileDashboardViewportLock from "@/components/layout/MobileDashboardViewportLock";
 import AdminDashboardScrollContainer from "@/components/layout/AdminDashboardScrollContainer";
 import AdminAssistantHeaderButton from "@/components/ai/AdminAssistantHeaderButton";
-import AIChatWidget from "@/components/ai/AIChatWidget";
 
 export const metadata: Metadata = {
   robots: {
@@ -45,7 +44,6 @@ export default function DashboardLayout({
           {children}
         </AdminDashboardScrollContainer>
       </div>
-      <AIChatWidget scope="dashboard" assistant="admin" />
     </div>
   );
 }
