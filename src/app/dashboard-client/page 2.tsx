@@ -17,6 +17,10 @@ type FavoriteSummary = {
   listing_type: "vente" | "location";
 };
 
+type FavoriteRow = {
+  property: FavoriteSummary | FavoriteSummary[] | null;
+};
+
 export default function DashboardClientPage() {
   const supabase = createClient();
   const [profile, setProfile] = useState<Partial<Profile>>({});
@@ -27,7 +31,10 @@ export default function DashboardClientPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
+    const loadDashboard = async () => {
+      const res = await supabase.auth.getUser();
+      const user = res.data?.user ?? null;
+
       if (!user) {
         setLoading(false);
         return;
@@ -57,13 +64,15 @@ export default function DashboardClientPage() {
           .limit(6),
       ]);
 
-      const favoriteItems = (favs ?? [])
-        .map((f) => {
-          const property = (f as { property: FavoriteSummary | FavoriteSummary[] | null }).property;
+      const favoriteRows = (favs ?? []) as FavoriteRow[];
+
+      const favoriteItems = favoriteRows
+        .map((f: FavoriteRow) => {
+          const property = f.property;
           if (Array.isArray(property)) return property[0] ?? null;
           return property;
         })
-        .filter((property): property is FavoriteSummary => property !== null);
+        .filter((property: FavoriteSummary | null): property is FavoriteSummary => property !== null);
 
       const profileName = prof?.full_name?.trim() || metadataName || emailFallback || "Client";
 
@@ -84,7 +93,9 @@ export default function DashboardClientPage() {
           .update({ full_name: metadataName })
           .eq("id", user.id);
       }
-    });
+    };
+
+    void loadDashboard();
   }, [supabase]);
 
   if (loading) {
