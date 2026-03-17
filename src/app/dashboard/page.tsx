@@ -10,7 +10,6 @@ import {
   Eye,
   FileClock,
   Heart,
-  MessageSquare,
   Pencil,
   Plus,
   TrendingDown,
@@ -26,7 +25,7 @@ import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Tableau de bord" };
 
-const LISTING_PAGE_SIZE = 6;
+const LISTING_PAGE_SIZE = 4;
 
 interface DashboardStats {
   totalProps: number;
@@ -37,8 +36,6 @@ interface DashboardStats {
   archivedProps: number;
   totalVisits: number;
   pendingVisits: number;
-  totalMessages: number;
-  newMessages: number;
   totalFavs: number;
 }
 
@@ -46,14 +43,6 @@ interface RecentVisitRow {
   id: string;
   full_name: string;
   email: string;
-  status: string;
-  created_at: string;
-}
-
-interface RecentMessageRow {
-  id: string;
-  full_name: string;
-  subject: string | null;
   status: string;
   created_at: string;
 }
@@ -114,8 +103,6 @@ async function getStats(): Promise<DashboardStats> {
     { count: archivedProps },
     { count: totalVisits },
     { count: pendingVisits },
-    { count: totalMessages },
-    { count: newMessages },
     { count: totalFavs },
   ] = await Promise.all([
     supabase.from("properties").select("*", { count: "exact", head: true }),
@@ -144,11 +131,6 @@ async function getStats(): Promise<DashboardStats> {
       .from("visit_requests")
       .select("*", { count: "exact", head: true })
       .eq("status", "en_attente"),
-    supabase.from("contacts").select("*", { count: "exact", head: true }),
-    supabase
-      .from("contacts")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "nouveau"),
     supabase.from("favorites").select("*", { count: "exact", head: true }),
   ]);
 
@@ -161,8 +143,6 @@ async function getStats(): Promise<DashboardStats> {
     archivedProps: archivedProps ?? 0,
     totalVisits: totalVisits ?? 0,
     pendingVisits: pendingVisits ?? 0,
-    totalMessages: totalMessages ?? 0,
-    newMessages: newMessages ?? 0,
     totalFavs: totalFavs ?? 0,
   };
 }
@@ -182,25 +162,6 @@ async function getRecentVisits(search = ""): Promise<RecentVisitRow[]> {
   const { data } = await query.limit(6);
 
   return (data as RecentVisitRow[] | null) ?? [];
-}
-
-async function getRecentMessages(search = ""): Promise<RecentMessageRow[]> {
-  const supabase = await createClient();
-  const searchPattern = toSearchPattern(search);
-  let query = supabase
-    .from("contacts")
-    .select("id, full_name, subject, status, created_at")
-    .order("created_at", { ascending: false });
-
-  if (searchPattern) {
-    query = query.or(
-      `full_name.ilike.${searchPattern},email.ilike.${searchPattern},subject.ilike.${searchPattern},message.ilike.${searchPattern}`
-    );
-  }
-
-  const { data } = await query.limit(5);
-
-  return (data as RecentMessageRow[] | null) ?? [];
 }
 
 async function getWeeklyVisits(): Promise<WeeklyVisitPoint[]> {
@@ -234,12 +195,11 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       ? Math.floor(parsedListingPage)
       : 1;
 
-  const [stats, listingQuery, recentVisits, recentMessages, weeklyVisits] =
+  const [stats, listingQuery, recentVisits, weeklyVisits] =
     await Promise.all([
       getStats(),
       getHomepageListingsPage(currentListingPage, LISTING_PAGE_SIZE, searchQuery),
       getRecentVisits(searchQuery),
-      getRecentMessages(searchQuery),
       getWeeklyVisits(),
     ]);
 
@@ -310,15 +270,14 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     ? [
         { icon: Building2, value: totalListingProperties, label: "annonces" },
         { icon: CalendarCheck, value: recentVisits.length, label: "demandes" },
-        { icon: MessageSquare, value: recentMessages.length, label: "messages" },
       ]
     : [
         { icon: Bell, value: stats.pendingVisits, label: "En attente" },
-        { icon: MessageSquare, value: stats.newMessages, label: "Nouveaux msg" },
+        { icon: CalendarCheck, value: stats.totalVisits, label: "Total demandes" },
       ];
 
   return (
-    <div className="mx-auto max-w-[1450px] space-y-6 p-4 pb-8 sm:p-6 sm:pb-10 lg:p-8">
+    <div className="w-full space-y-6 p-4 pb-8 sm:p-6 sm:pb-10 lg:p-8">
       <section className="rounded-[30px] border border-gray-100 bg-white p-5 shadow-sm sm:p-7">
         <div>
           <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
@@ -330,7 +289,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                 Vue d&apos;ensemble
               </h1>
               <p className="mt-1.5 text-sm text-gray-600">
-                Pilotage des annonces, demandes et messages depuis un seul écran.
+                Pilotage des annonces et demandes depuis un seul écran.
               </p>
             </div>
 
@@ -394,10 +353,10 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
               bgColor: "#047857",
             },
             {
-              icon: MessageSquare,
-              label: "Messages",
-              value: stats.totalMessages,
-              helper: `${stats.newMessages} nouveaux`,
+              icon: FileClock,
+              label: "Brouillons",
+              value: stats.draftProps,
+              helper: "Annonces à finaliser",
               bgColor: "#6b4226",
             },
             {
@@ -436,8 +395,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           isSearchMode ? "" : "xl:grid-cols-[minmax(0,1.5fr)_360px]"
         }`}
       >
-        <div className="space-y-6">
-          {!isSearchMode && (
+        {!isSearchMode && (
+          <div className="space-y-6">
             <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
               <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
                 <div className="mb-4 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -502,14 +461,65 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                 </div>
               </div>
             </section>
-          )}
+          </div>
+        )}
 
-          <section
-            id="listing-board"
-            className={`rounded-3xl border border-gray-100 bg-white shadow-sm ${
-              isSearchMode ? "anim-fade-up" : ""
-            }`}
-          >
+        {!isSearchMode && (
+          <aside className="space-y-6 xl:order-2">
+            <section className="rounded-3xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
+              <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-gray-400">
+                Actions rapides
+              </h2>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                {[
+                  {
+                    href: "/dashboard/annonces/nouvelle",
+                    icon: Plus,
+                    label: "Ajouter annonce",
+                    className: "bg-[#1a3a5c] text-white hover:bg-[#0f2540]",
+                  },
+                  {
+                    href: "/dashboard/demandes",
+                    icon: FileClock,
+                    label: "Suivre demandes",
+                    className:
+                      "border border-[#1a3a5c]/20 bg-white text-[#1a3a5c] hover:bg-[#f8fafc]",
+                  },
+                ].map((action) => (
+                  <Link
+                    key={action.href}
+                    href={action.href}
+                    className={`inline-flex items-center justify-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-semibold transition-colors ${action.className}`}
+                  >
+                    <action.icon className="h-4 w-4" />
+                    {action.label}
+                  </Link>
+                ))}
+              </div>
+
+              {stats.pendingVisits > 0 && (
+                <div className="mt-3 flex items-center gap-2 rounded-xl bg-[#f4f6f9] px-3 py-2 text-xs text-[#0f1724]">
+                  <Bell className="h-3.5 w-3.5 text-[#1a3a5c]" />
+                  {stats.pendingVisits} demande(s) en attente de traitement
+                </div>
+              )}
+
+              <Link
+                href="/dashboard/annonces"
+                className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-[#1a3a5c] hover:underline"
+              >
+                Ouvrir la gestion complète <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </section>
+          </aside>
+        )}
+
+        <section
+          id="listing-board"
+          className={`rounded-3xl border border-gray-100 bg-white shadow-sm ${
+            isSearchMode ? "anim-fade-up w-full" : "w-full xl:order-3 xl:col-span-2"
+          }`}
+        >
             <div className="flex flex-col gap-4 border-b border-gray-100 px-4 py-4 sm:px-5 lg:flex-row lg:items-end lg:justify-between">
               <div>
                 <h2 className="text-lg font-bold text-[#0f1724] sm:text-xl">
@@ -548,7 +558,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
               </div>
             ) : (
               <>
-                <div className="hidden gap-6 p-4 sm:grid sm:grid-cols-2 sm:p-5 xl:grid-cols-3">
+                <div className="hidden gap-6 p-4 sm:grid sm:grid-cols-2 sm:p-5 xl:grid-cols-4">
                   {listingProperties.map((property) => (
                     <div key={property.id} className="space-y-3">
                       <PropertyCard
@@ -616,58 +626,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                 )}
               </>
             )}
-          </section>
-        </div>
-
-        {!isSearchMode && (
-          <aside className="space-y-6">
-            <section className="rounded-3xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
-              <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-gray-400">
-                Actions rapides
-              </h2>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                {[
-                  {
-                    href: "/dashboard/annonces/nouvelle",
-                    icon: Plus,
-                    label: "Ajouter annonce",
-                    className: "bg-[#1a3a5c] text-white hover:bg-[#0f2540]",
-                  },
-                  {
-                    href: "/dashboard/demandes",
-                    icon: FileClock,
-                    label: "Suivre demandes",
-                    className:
-                      "border border-[#1a3a5c]/20 bg-white text-[#1a3a5c] hover:bg-[#f8fafc]",
-                  },
-                ].map((action) => (
-                  <Link
-                    key={action.href}
-                    href={action.href}
-                    className={`inline-flex items-center justify-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-semibold transition-colors ${action.className}`}
-                  >
-                    <action.icon className="h-4 w-4" />
-                    {action.label}
-                  </Link>
-                ))}
-              </div>
-
-              {stats.pendingVisits > 0 && (
-                <div className="mt-3 flex items-center gap-2 rounded-xl bg-[#f4f6f9] px-3 py-2 text-xs text-[#0f1724]">
-                  <Bell className="h-3.5 w-3.5 text-[#1a3a5c]" />
-                  {stats.pendingVisits} demande(s) en attente de traitement
-                </div>
-              )}
-
-              <Link
-                href="/dashboard/annonces"
-                className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-[#1a3a5c] hover:underline"
-              >
-                Ouvrir la gestion complète <ArrowRight className="h-3.5 w-3.5" />
-              </Link>
-            </section>
-          </aside>
-        )}
+        </section>
       </section>
     </div>
   );

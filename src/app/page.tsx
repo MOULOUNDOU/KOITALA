@@ -21,6 +21,7 @@ import SitePagination from "@/components/ui/SitePagination";
 import HowItWorksMobileCarousel from "@/components/layout/HowItWorksMobileCarousel";
 import { HOW_IT_WORKS_STEPS } from "@/components/layout/howItWorksData";
 import TestimonialsMobileCarousel from "@/components/layout/TestimonialsMobileCarousel";
+import AIChatWidget from "@/components/ai/AIChatWidget";
 import { getFeaturedProperties, getRecentProperties } from "@/lib/properties";
 import { SITE_DESCRIPTION, absoluteUrl } from "@/lib/seo";
 
@@ -542,6 +543,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           </section>
         </AnimatedSection>
       </main>
+      <AIChatWidget scope="public" />
       <Footer />
     </div>
   );

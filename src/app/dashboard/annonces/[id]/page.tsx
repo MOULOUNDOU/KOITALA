@@ -16,6 +16,7 @@ import {
   BadgeCheck,
   Home,
   CalendarClock,
+  Sparkles,
 } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -79,6 +80,7 @@ const HERO_FORM_SELECT_LABEL_CLASS = "text-sm font-medium text-gray-700 normal-c
 const HERO_FORM_SELECT_TRIGGER_CLASS = "py-3.5";
 const HERO_FORM_SELECT_DROPDOWN_CLASS = "rounded-2xl border border-gray-100 shadow-2xl";
 const MAX_VIDEO_SIZE_BYTES = 100 * 1024 * 1024;
+type EditAITask = "title" | "description" | "rewrite" | null;
 
 function createUploadToken(): string {
   return typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -95,6 +97,8 @@ export default function EditAnnoncePage() {
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [videoPreview, setVideoPreview] = useState<string | null>(null);
   const [videoFallbackUrl, setVideoFallbackUrl] = useState<string | null>(null);
+  const [aiSourceText, setAiSourceText] = useState("");
+  const [aiTask, setAiTask] = useState<EditAITask>(null);
 
   const {
     register,
@@ -225,6 +229,156 @@ export default function EditAnnoncePage() {
     setValue("video_url", fallbackVideoUrl);
   };
 
+  const buildListingContext = () => {
+    const values = getValues();
+    return JSON.stringify(
+      {
+        title: values.title ?? "",
+        description: values.description ?? "",
+        property_type: values.property_type ?? "",
+        listing_type: values.listing_type ?? "",
+        rental_category: values.rental_category ?? "",
+        rent_payment_period: values.rent_payment_period ?? "",
+        price: values.price ?? null,
+        area: values.area ?? null,
+        bedrooms: values.bedrooms ?? null,
+        bathrooms: values.bathrooms ?? null,
+        city: values.city ?? "",
+        neighborhood: values.neighborhood ?? "",
+        address: values.address ?? "",
+      },
+      null,
+      2
+    );
+  };
+
+  const askAdminAI = async (instruction: string) => {
+    const response = await fetch("/api/ai/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        assistant: "admin",
+        scope: "dashboard",
+        messages: [{ role: "user", content: instruction }],
+      }),
+    });
+
+    const payload = (await response.json().catch(() => null)) as
+      | { reply?: string; error?: string }
+      | null;
+
+    if (!response.ok || !payload?.reply) {
+      throw new Error(payload?.error || "Assistant IA indisponible.");
+    }
+
+    return payload.reply.trim();
+  };
+
+  const getPrimarySourceText = () => {
+    const freeText = aiSourceText.trim();
+    if (freeText) return freeText;
+    const description = getValues("description")?.trim();
+    if (description) return description;
+    return getValues("title")?.trim() ?? "";
+  };
+
+  const handleAIGenerateTitle = async () => {
+    const sourceText = getPrimarySourceText();
+    if (!sourceText) {
+      toast.error("Ajoutez un texte libre ou une description pour générer un titre.");
+      return;
+    }
+
+    setAiTask("title");
+    try {
+      const prompt = `Génère un titre d'annonce immobilière professionnel.
+- Réponds uniquement avec le titre final.
+- 12 mots maximum.
+- N invente pas de données critiques absentes.
+
+Texte source:
+${sourceText}
+
+Contexte formulaire:
+${buildListingContext()}`;
+      const reply = await askAdminAI(prompt);
+      const titleFromAI = reply.split("\n")[0]?.trim().replace(/^["']|["']$/g, "");
+      if (!titleFromAI) throw new Error("Le titre généré est vide.");
+      setValue("title", titleFromAI, { shouldDirty: true, shouldValidate: true });
+      toast.success("Titre généré avec l'IA.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Erreur IA.";
+      toast.error(message);
+    } finally {
+      setAiTask(null);
+    }
+  };
+
+  const handleAIGenerateDescription = async () => {
+    const sourceText = getPrimarySourceText();
+    if (!sourceText) {
+      toast.error("Ajoutez un texte libre ou un titre pour générer une description.");
+      return;
+    }
+
+    setAiTask("description");
+    try {
+      const prompt = `Rédige une description commerciale claire et attractive pour l'annonce.
+- Français professionnel.
+- 90 à 150 mots.
+- N invente pas de données critiques absentes.
+- Réponds uniquement avec la description.
+
+Texte source:
+${sourceText}
+
+Contexte formulaire:
+${buildListingContext()}`;
+      const reply = await askAdminAI(prompt);
+      const descriptionFromAI = reply.trim();
+      if (!descriptionFromAI) throw new Error("La description générée est vide.");
+      setValue("description", descriptionFromAI, { shouldDirty: true, shouldValidate: true });
+      toast.success("Description générée avec l'IA.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Erreur IA.";
+      toast.error(message);
+    } finally {
+      setAiTask(null);
+    }
+  };
+
+  const handleAIRewriteDescription = async () => {
+    const description = getValues("description")?.trim();
+    if (!description) {
+      toast.error("Ajoutez d'abord une description à améliorer.");
+      return;
+    }
+
+    setAiTask("rewrite");
+    try {
+      const prompt = `Améliore et corrige la description suivante.
+- Ton professionnel immobilier.
+- 90 à 150 mots.
+- Réponds uniquement avec la version réécrite.
+
+Description:
+${description}
+
+Contexte formulaire:
+${buildListingContext()}`;
+      const reply = await askAdminAI(prompt);
+      const improvedDescription = reply.trim();
+      if (!improvedDescription) throw new Error("La description réécrite est vide.");
+      setValue("description", improvedDescription, { shouldDirty: true, shouldValidate: true });
+      toast.success("Description améliorée avec l'IA.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Erreur IA.";
+      toast.error(message);
+    } finally {
+      setAiTask(null);
+    }
+  };
+
   const onSubmit = async (data: PropertyInput) => {
     const currentListingType = data.listing_type ?? getValues("listing_type");
     const currentRentalCategory = data.rental_category ?? getValues("rental_category");
@@ -350,6 +504,48 @@ export default function EditAnnoncePage() {
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 pb-24 md:pb-6">
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
           <h2 className="font-semibold text-[#0f1724]">Informations générales</h2>
+          <div className="rounded-xl border border-[#1a3a5c]/15 bg-[#f7f9fc] p-4">
+            <div className="flex items-center gap-2 text-[#1a3a5c] mb-3">
+              <Sparkles className="w-4 h-4" />
+              <p className="text-sm font-semibold">Assistant IA annonce</p>
+            </div>
+            <Textarea
+              label="Texte libre pour l'IA (brief annonce)"
+              placeholder="Collez ici un brief brut ou des notes client..."
+              rows={4}
+              value={aiSourceText}
+              onChange={(event) => setAiSourceText(event.target.value)}
+            />
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => void handleAIGenerateTitle()}
+                loading={aiTask === "title"}
+              >
+                Générer le titre
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => void handleAIGenerateDescription()}
+                loading={aiTask === "description"}
+              >
+                Générer la description
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => void handleAIRewriteDescription()}
+                loading={aiTask === "rewrite"}
+              >
+                Réécrire la description
+              </Button>
+            </div>
+          </div>
           <Input label="Titre *" error={errors.title?.message} {...register("title")} />
           <Textarea label="Description" rows={5} {...register("description")} />
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

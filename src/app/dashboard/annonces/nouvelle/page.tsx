@@ -16,6 +16,7 @@ import {
   BadgeCheck,
   Home,
   CalendarClock,
+  Sparkles,
 } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -88,6 +89,51 @@ const HERO_FORM_SELECT_LABEL_CLASS = "text-sm font-medium text-gray-700 normal-c
 const HERO_FORM_SELECT_TRIGGER_CLASS = "py-3.5";
 const HERO_FORM_SELECT_DROPDOWN_CLASS = "rounded-2xl border border-gray-100 shadow-2xl";
 const MAX_VIDEO_SIZE_BYTES = 100 * 1024 * 1024;
+type AITask = "prefill" | "title" | "description" | "rewrite" | "features" | null;
+
+function extractFirstJsonObject(raw: string): Record<string, unknown> | null {
+  const fencedMatch =
+    raw.match(/```json\s*([\s\S]*?)```/i) ??
+    raw.match(/```\s*([\s\S]*?)```/i);
+  const source = fencedMatch?.[1] ?? raw;
+  const start = source.indexOf("{");
+  const end = source.lastIndexOf("}");
+
+  if (start < 0 || end <= start) return null;
+
+  try {
+    const parsed = JSON.parse(source.slice(start, end + 1));
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+    return parsed as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+function toOptionalString(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const normalized = value.trim();
+  return normalized.length > 0 ? normalized : undefined;
+}
+
+function toOptionalNumber(value: unknown): number | undefined {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value !== "string") return undefined;
+  const normalized = Number(value.replace(/[^\d.,-]/g, "").replace(",", "."));
+  return Number.isFinite(normalized) ? normalized : undefined;
+}
+
+function toStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => (typeof item === "string" ? item.trim() : ""))
+    .filter((item) => item.length > 0);
+}
+
+function normalizeFeatureLabel(value: string): string {
+  if (!value) return value;
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
 
 function createUploadToken(): string {
   return typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -106,6 +152,9 @@ export default function NouvelleAnnoncePage() {
   const [videoPreview, setVideoPreview] = useState<string | null>(null);
   const [features, setFeatures] = useState<string[]>([]);
   const [customFeature, setCustomFeature] = useState("");
+  const [aiSourceText, setAiSourceText] = useState("");
+  const [aiTask, setAiTask] = useState<AITask>(null);
+  const [aiMissingFields, setAiMissingFields] = useState<string[]>([]);
 
   const MAX_IMAGES = 5;
 
@@ -309,6 +358,375 @@ export default function NouvelleAnnoncePage() {
     if (customFeature.trim() && !features.includes(customFeature.trim())) {
       setFeatures((prev) => [...prev, customFeature.trim()]);
       setCustomFeature("");
+    }
+  };
+
+  const pickEnum = <T extends string>(value: unknown, allowed: readonly T[]): T | undefined => {
+    if (typeof value !== "string") return undefined;
+    return allowed.find((item) => item === value.trim());
+  };
+
+  const mergeFeatures = (incoming: string[]) => {
+    if (incoming.length === 0) return;
+    const normalizedIncoming = incoming.map((item) => normalizeFeatureLabel(item.trim())).filter(Boolean);
+    if (normalizedIncoming.length === 0) return;
+
+    setFeatures((prev) => {
+      const seen = new Set(prev.map((item) => item.toLowerCase()));
+      const next = [...prev];
+      for (const item of normalizedIncoming) {
+        const key = item.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        next.push(item);
+      }
+      return next;
+    });
+  };
+
+  const buildListingContext = () => {
+    const values = getValues();
+    return JSON.stringify(
+      {
+        title: values.title ?? "",
+        description: values.description ?? "",
+        property_type: values.property_type ?? "",
+        listing_type: values.listing_type ?? "",
+        rental_category: values.rental_category ?? "",
+        rent_payment_period: values.rent_payment_period ?? "",
+        price: values.price ?? null,
+        area: values.area ?? null,
+        bedrooms: values.bedrooms ?? null,
+        bathrooms: values.bathrooms ?? null,
+        city: values.city ?? "",
+        neighborhood: values.neighborhood ?? "",
+        address: values.address ?? "",
+        country: values.country ?? "",
+        features,
+      },
+      null,
+      2
+    );
+  };
+
+  const askAdminAI = async (instruction: string) => {
+    const response = await fetch("/api/ai/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        assistant: "admin",
+        scope: "dashboard",
+        messages: [{ role: "user", content: instruction }],
+      }),
+    });
+
+    const payload = (await response.json().catch(() => null)) as
+      | { reply?: string; error?: string }
+      | null;
+
+    if (!response.ok || !payload?.reply) {
+      throw new Error(payload?.error || "Assistant IA indisponible.");
+    }
+
+    return payload.reply.trim();
+  };
+
+  const getPrimarySourceText = () => {
+    const freeText = aiSourceText.trim();
+    if (freeText) return freeText;
+    const currentDescription = getValues("description")?.trim();
+    if (currentDescription) return currentDescription;
+    const currentTitle = getValues("title")?.trim();
+    return currentTitle ?? "";
+  };
+
+  const handleAIPrefill = async () => {
+    const sourceText = getPrimarySourceText();
+    if (!sourceText) {
+      toast.error("Ajoutez un texte libre ou une description pour lancer l'analyse IA.");
+      return;
+    }
+
+    setAiTask("prefill");
+    setAiMissingFields([]);
+
+    try {
+      const prompt = `Analyse le texte d'annonce ci-dessous et retourne STRICTEMENT un JSON valide (sans markdown).
+
+Contraintes:
+- N invente pas les donnees manquantes: mets null.
+- Les enums doivent respecter strictement:
+  property_type: ${PROPERTY_TYPES.map((item) => item.value).join(" | ")}
+  listing_type: ${LISTING_TYPES.map((item) => item.value).join(" | ")}
+  rental_category: ${RENTAL_CATEGORY_OPTIONS.map((item) => item.value).join(" | ")}
+  rent_payment_period: jour | mois
+- price, area, bedrooms, bathrooms doivent etre des nombres ou null.
+- features et missing_fields sont des tableaux de chaines.
+
+Format attendu:
+{
+  "title": string | null,
+  "description": string | null,
+  "property_type": string | null,
+  "listing_type": string | null,
+  "rental_category": string | null,
+  "rent_payment_period": string | null,
+  "city": string | null,
+  "neighborhood": string | null,
+  "address": string | null,
+  "price": number | null,
+  "area": number | null,
+  "bedrooms": number | null,
+  "bathrooms": number | null,
+  "features": string[],
+  "missing_fields": string[]
+}
+
+Texte source:
+${sourceText}
+
+Contexte formulaire actuel:
+${buildListingContext()}`;
+
+      const reply = await askAdminAI(prompt);
+      const parsed = extractFirstJsonObject(reply);
+      if (!parsed) {
+        throw new Error("Réponse IA non structurée. Réessayez.");
+      }
+
+      const propertyType = pickEnum(
+        parsed.property_type,
+        PROPERTY_TYPES.map((item) => item.value) as Array<PropertyInput["property_type"]>
+      );
+      const listingTypeFromAI = pickEnum(
+        parsed.listing_type,
+        LISTING_TYPES.map((item) => item.value) as Array<PropertyInput["listing_type"]>
+      );
+      const rentalCategoryFromAI = pickEnum(
+        parsed.rental_category,
+        RENTAL_CATEGORY_OPTIONS.map((item) => item.value) as string[]
+      );
+      const rentPaymentPeriodFromAI = pickEnum(parsed.rent_payment_period, ["jour", "mois"] as const);
+
+      const titleFromAI = toOptionalString(parsed.title);
+      const descriptionFromAI = toOptionalString(parsed.description);
+      const cityFromAI = toOptionalString(parsed.city);
+      const neighborhoodFromAI = toOptionalString(parsed.neighborhood);
+      const addressFromAI = toOptionalString(parsed.address);
+      const priceFromAI = toOptionalNumber(parsed.price);
+      const areaFromAI = toOptionalNumber(parsed.area);
+      const bedroomsFromAI = toOptionalNumber(parsed.bedrooms);
+      const bathroomsFromAI = toOptionalNumber(parsed.bathrooms);
+      const featuresFromAI = toStringArray(parsed.features);
+      const missingFieldsFromAI = toStringArray(parsed.missing_fields);
+
+      if (titleFromAI) {
+        setValue("title", titleFromAI, { shouldDirty: true, shouldValidate: true });
+      }
+      if (descriptionFromAI) {
+        setValue("description", descriptionFromAI, { shouldDirty: true, shouldValidate: true });
+      }
+      if (propertyType) {
+        setValue("property_type", propertyType, { shouldDirty: true, shouldValidate: true });
+      }
+      if (listingTypeFromAI) {
+        setValue("listing_type", listingTypeFromAI, { shouldDirty: true, shouldValidate: true });
+      }
+      if (listingTypeFromAI === "location") {
+        if (rentalCategoryFromAI) {
+          setValue("rental_category", rentalCategoryFromAI as PropertyInput["rental_category"], {
+            shouldDirty: true,
+            shouldValidate: true,
+          });
+        }
+        if (rentPaymentPeriodFromAI) {
+          setValue("rent_payment_period", rentPaymentPeriodFromAI, {
+            shouldDirty: true,
+            shouldValidate: true,
+          });
+        }
+      }
+      if (cityFromAI) {
+        setValue("city", cityFromAI, { shouldDirty: true, shouldValidate: true });
+      }
+      if (neighborhoodFromAI) {
+        setValue("neighborhood", neighborhoodFromAI, { shouldDirty: true, shouldValidate: true });
+      }
+      if (addressFromAI) {
+        setValue("address", addressFromAI, { shouldDirty: true, shouldValidate: true });
+      }
+      if (priceFromAI !== undefined) {
+        setValue("price", priceFromAI, { shouldDirty: true, shouldValidate: true });
+      }
+      if (areaFromAI !== undefined) {
+        setValue("area", areaFromAI, { shouldDirty: true, shouldValidate: true });
+      }
+      if (bedroomsFromAI !== undefined) {
+        setValue("bedrooms", bedroomsFromAI, { shouldDirty: true, shouldValidate: true });
+      }
+      if (bathroomsFromAI !== undefined) {
+        setValue("bathrooms", bathroomsFromAI, { shouldDirty: true, shouldValidate: true });
+      }
+
+      mergeFeatures(featuresFromAI);
+      setAiMissingFields(missingFieldsFromAI);
+
+      if (missingFieldsFromAI.length > 0) {
+        toast("Pré-remplissage IA effectué. Champs manquants suggérés plus bas.", { icon: "ℹ️" });
+      } else {
+        toast.success("Formulaire pré-rempli avec l'IA.");
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Erreur IA.";
+      toast.error(message);
+    } finally {
+      setAiTask(null);
+    }
+  };
+
+  const handleAIGenerateTitle = async () => {
+    const sourceText = getPrimarySourceText();
+    if (!sourceText) {
+      toast.error("Ajoutez un texte libre ou une description pour générer un titre.");
+      return;
+    }
+
+    setAiTask("title");
+    try {
+      const prompt = `Génère un titre d'annonce immobilière professionnel à partir des informations suivantes.
+- Réponds uniquement avec le titre final, sans guillemets.
+- 12 mots maximum.
+- Ne fabrique pas de donnée critique absente.
+
+Texte source:
+${sourceText}
+
+Contexte formulaire:
+${buildListingContext()}`;
+
+      const reply = await askAdminAI(prompt);
+      const titleFromAI = reply.split("\n")[0]?.trim().replace(/^["']|["']$/g, "");
+      if (!titleFromAI) {
+        throw new Error("Le titre généré est vide.");
+      }
+      setValue("title", titleFromAI, { shouldDirty: true, shouldValidate: true });
+      toast.success("Titre généré avec l'IA.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Erreur IA.";
+      toast.error(message);
+    } finally {
+      setAiTask(null);
+    }
+  };
+
+  const handleAIGenerateDescription = async () => {
+    const sourceText = getPrimarySourceText();
+    if (!sourceText) {
+      toast.error("Ajoutez un texte libre ou un titre pour générer la description.");
+      return;
+    }
+
+    setAiTask("description");
+    try {
+      const prompt = `Rédige une description commerciale claire et attractive pour une annonce immobilière.
+- Français professionnel, concis.
+- 90 à 150 mots.
+- Mets en avant bénéfices, localisation, usage.
+- Ne fabrique pas de donnée critique absente.
+- Réponds uniquement avec la description finale.
+
+Texte source:
+${sourceText}
+
+Contexte formulaire:
+${buildListingContext()}`;
+
+      const reply = await askAdminAI(prompt);
+      const descriptionFromAI = reply.trim();
+      if (!descriptionFromAI) {
+        throw new Error("La description générée est vide.");
+      }
+      setValue("description", descriptionFromAI, { shouldDirty: true, shouldValidate: true });
+      toast.success("Description générée avec l'IA.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Erreur IA.";
+      toast.error(message);
+    } finally {
+      setAiTask(null);
+    }
+  };
+
+  const handleAIRewriteDescription = async () => {
+    const description = getValues("description")?.trim();
+    if (!description) {
+      toast.error("Ajoutez d'abord une description à améliorer.");
+      return;
+    }
+
+    setAiTask("rewrite");
+    try {
+      const prompt = `Améliore et corrige la description suivante d'une annonce immobilière.
+- Corrige orthographe et style.
+- Garde le sens métier.
+- Ton professionnel et orienté vente/location.
+- 90 à 150 mots.
+- Réponds uniquement avec la version réécrite.
+
+Description:
+${description}
+
+Contexte formulaire:
+${buildListingContext()}`;
+
+      const reply = await askAdminAI(prompt);
+      const improvedDescription = reply.trim();
+      if (!improvedDescription) {
+        throw new Error("La description réécrite est vide.");
+      }
+      setValue("description", improvedDescription, { shouldDirty: true, shouldValidate: true });
+      toast.success("Description améliorée avec l'IA.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Erreur IA.";
+      toast.error(message);
+    } finally {
+      setAiTask(null);
+    }
+  };
+
+  const handleAISuggestFeatures = async () => {
+    const sourceText = getPrimarySourceText();
+    if (!sourceText) {
+      toast.error("Ajoutez un texte libre ou une description pour suggérer des caractéristiques.");
+      return;
+    }
+
+    setAiTask("features");
+    try {
+      const prompt = `À partir du texte ci-dessous, propose des caractéristiques pertinentes du bien.
+- Réponds STRICTEMENT en JSON valide: {"features": ["..."]}.
+- 8 éléments maximum.
+- Pas d'invention de données critiques.
+
+Texte source:
+${sourceText}
+
+Contexte formulaire:
+${buildListingContext()}`;
+
+      const reply = await askAdminAI(prompt);
+      const parsed = extractFirstJsonObject(reply);
+      if (!parsed) throw new Error("Réponse IA non structurée.");
+      const suggested = toStringArray(parsed.features);
+      if (suggested.length === 0) {
+        throw new Error("Aucune caractéristique suggérée.");
+      }
+      mergeFeatures(suggested);
+      toast.success("Caractéristiques suggérées ajoutées.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Erreur IA.";
+      toast.error(message);
+    } finally {
+      setAiTask(null);
     }
   };
 
@@ -516,6 +934,66 @@ export default function NouvelleAnnoncePage() {
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
               <h2 className="font-semibold text-[#0f1724] mb-5">Informations générales</h2>
               <div className="space-y-5">
+                <div className="rounded-xl border border-[#1a3a5c]/15 bg-[#f7f9fc] p-4">
+                  <div className="flex items-center gap-2 text-[#1a3a5c] mb-3">
+                    <Sparkles className="w-4 h-4" />
+                    <p className="text-sm font-semibold">Assistant IA annonce</p>
+                  </div>
+                  <Textarea
+                    label="Texte libre pour l'IA (brief annonce)"
+                    placeholder="Collez ici un message WhatsApp, une note vocale transcrite ou un brief brut..."
+                    rows={4}
+                    value={aiSourceText}
+                    onChange={(event) => setAiSourceText(event.target.value)}
+                  />
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => void handleAIPrefill()}
+                      loading={aiTask === "prefill"}
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      Pré-remplir avec IA
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => void handleAIGenerateTitle()}
+                      loading={aiTask === "title"}
+                    >
+                      Générer le titre
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => void handleAIGenerateDescription()}
+                      loading={aiTask === "description"}
+                    >
+                      Générer la description
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => void handleAIRewriteDescription()}
+                      loading={aiTask === "rewrite"}
+                    >
+                      Réécrire la description
+                    </Button>
+                  </div>
+                  {aiMissingFields.length > 0 && (
+                    <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                      Champs potentiellement manquants: {aiMissingFields.join(", ")}.
+                    </div>
+                  )}
+                  <p className="mt-2 text-xs text-gray-500">
+                    Vérifiez toujours les données avant validation. Toute nouvelle annonce reste en brouillon par défaut.
+                  </p>
+                </div>
+
                 <Input
                   label="Titre de l'annonce *"
                   placeholder="Ex: Appartement 3 pièces vue mer à Dakar"
@@ -901,7 +1379,19 @@ export default function NouvelleAnnoncePage() {
 
               {/* Features */}
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-                <h2 className="font-semibold text-[#0f1724] mb-5">Caractéristiques</h2>
+                <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+                  <h2 className="font-semibold text-[#0f1724]">Caractéristiques</h2>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void handleAISuggestFeatures()}
+                    loading={aiTask === "features"}
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    Suggérer avec IA
+                  </Button>
+                </div>
                 <div className="flex flex-wrap gap-2 mb-4">
                   {DEFAULT_FEATURES.map((feat) => (
                     <button

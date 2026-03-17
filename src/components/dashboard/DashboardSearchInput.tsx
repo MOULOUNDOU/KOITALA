@@ -43,7 +43,7 @@ export default function DashboardSearchInput({ initialQuery }: DashboardSearchIn
       <input
         value={query}
         onChange={(event) => setQuery(event.target.value)}
-        placeholder="Rechercher une annonce, un client ou un message"
+        placeholder="Rechercher une annonce ou un client"
         aria-label="Recherche dashboard"
         className="w-full bg-transparent text-sm text-[#0f1724] placeholder:text-gray-400 focus:outline-none"
       />

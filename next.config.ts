@@ -54,6 +54,14 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "www.gaitsimmo.sn",
       },
+      {
+        protocol: "https",
+        hostname: "immotaissir.com",
+      },
+      {
+        protocol: "https",
+        hostname: "www.immotaissir.com",
+      },
     ],
   },
   experimental: {

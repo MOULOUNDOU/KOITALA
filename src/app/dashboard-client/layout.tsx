@@ -6,6 +6,7 @@ import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import ClientSidebar from "@/components/layout/ClientSidebar";
 import MobileDashboardViewportLock from "@/components/layout/MobileDashboardViewportLock";
+import AIChatWidget from "@/components/ai/AIChatWidget";
 
 interface ProfileUpdatedEventDetail {
   full_name?: string;
@@ -112,6 +113,7 @@ export default function DashboardClientLayout({ children }: { children: React.Re
       >
         {children}
       </div>
+      <AIChatWidget scope="dashboard" assistant="user" />
     </div>
   );
 }

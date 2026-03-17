@@ -15,6 +15,11 @@ export default function MobileDashboardViewportLock({
     const mediaQuery = window.matchMedia("(max-width: 767px)");
     if (!mediaQuery.matches) return;
 
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+    const previousBodyOverflow = document.body.style.overflow;
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+
     const keepViewportStable = () => {
       const container = document.getElementById(containerId);
       const currentContainerScroll = container?.scrollTop ?? 0;
@@ -36,12 +41,15 @@ export default function MobileDashboardViewportLock({
       keepViewportStable();
     };
 
+    keepViewportStable();
     window.addEventListener("focusin", handleFocusIn);
     window.addEventListener("orientationchange", keepViewportStable);
 
     return () => {
       window.removeEventListener("focusin", handleFocusIn);
       window.removeEventListener("orientationchange", keepViewportStable);
+      document.documentElement.style.overflow = previousHtmlOverflow;
+      document.body.style.overflow = previousBodyOverflow;
     };
   }, [containerId]);
 

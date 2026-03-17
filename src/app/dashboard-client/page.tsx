@@ -12,7 +12,6 @@ import {
   Home,
   LineChart,
   MapPin,
-  MessageSquare,
   Phone,
   ShieldCheck,
   TrendingDown,
@@ -56,15 +55,6 @@ interface DashboardVisit {
     | Pick<DashboardProperty, "slug" | "title" | "main_image_url">
     | Pick<DashboardProperty, "slug" | "title" | "main_image_url">[]
     | null;
-}
-
-interface DashboardMessage {
-  id: string;
-  subject: string | null;
-  message: string;
-  status: string;
-  created_at: string;
-  property: { slug: string; title: string } | { slug: string; title: string }[] | null;
 }
 
 interface FavoriteRow {
@@ -158,7 +148,6 @@ export default function DashboardClientPage() {
   const supabase = useMemo(() => createClient(), []);
   const [profile, setProfile] = useState<Partial<Profile>>({});
   const [visits, setVisits] = useState<DashboardVisit[]>([]);
-  const [messages, setMessages] = useState<DashboardMessage[]>([]);
   const [favorites, setFavorites] = useState<DashboardFavorite[]>([]);
   const [availableProperties, setAvailableProperties] = useState<DashboardProperty[]>([]);
   const [loading, setLoading] = useState(true);
@@ -189,7 +178,6 @@ export default function DashboardClientPage() {
       const [
         { data: prof },
         { data: vis },
-        { data: msgs },
         { data: favs },
         { data: featuredProperties },
         { data: recentProperties },
@@ -201,11 +189,6 @@ export default function DashboardClientPage() {
             "id, status, preferred_date, created_at, message, property:properties(slug, title, main_image_url)"
           )
           .eq("user_id", user.id)
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("contacts")
-          .select("id, subject, message, status, created_at, property:properties(slug, title)")
-          .eq("email", user.email ?? "")
           .order("created_at", { ascending: false }),
         supabase
           .from("favorites")
@@ -260,7 +243,6 @@ export default function DashboardClientPage() {
         avatar_url: prof?.avatar_url?.trim() || metadataAvatar || "",
       });
       setVisits((vis as DashboardVisit[] | null) ?? []);
-      setMessages((msgs as DashboardMessage[] | null) ?? []);
       setFavorites(favoriteItems);
       setAvailableProperties(homepageItems);
       setLoading(false);
@@ -283,10 +265,6 @@ export default function DashboardClientPage() {
   const confirmedVisits = visits.filter((visit) => visit.status === "confirme").length;
   const completedVisits = visits.filter((visit) => visit.status === "realise").length;
   const cancelledVisits = visits.filter((visit) => visit.status === "annule").length;
-  const unreadMessages = messages.filter((message) => message.status === "nouveau").length;
-  const answeredMessages = messages.filter(
-    (message) => message.status === "lu" || message.status === "traite"
-  ).length;
   const completedProfileFields = [profile.full_name, profile.email, profile.phone].filter(
     (value) => typeof value === "string" && value.trim().length > 0
   ).length;
@@ -342,7 +320,7 @@ export default function DashboardClientPage() {
 
   const headerChips = [
     { icon: Bell, value: pendingVisits, label: "en attente" },
-    { icon: MessageSquare, value: unreadMessages, label: "nouveaux messages" },
+    { icon: CalendarCheck, value: confirmedVisits, label: "confirmées" },
     { icon: ShieldCheck, value: `${profileCompletion}%`, label: "profil complété" },
   ];
 
@@ -358,17 +336,7 @@ export default function DashboardClientPage() {
         href: "/dashboard-client/visites",
         cta: "Voir mes visites",
         icon: CalendarCheck,
-      }
-    : unreadMessages > 0
-      ? {
-          eyebrow: "Messages à suivre",
-          title: `${unreadMessages} message(s) réclament votre attention`,
-          description: "Consultez les derniers échanges envoyés à l'agence depuis votre espace client.",
-          href: "/dashboard-client/messages",
-          cta: "Ouvrir mes messages",
-          icon: MessageSquare,
-        }
-      : profileCompletion < 100
+      } : profileCompletion < 100
         ? {
             eyebrow: "Profil à finaliser",
             title: `Votre profil est complété à ${profileCompletion}%`,
@@ -412,7 +380,7 @@ export default function DashboardClientPage() {
                 Bonjour, {userName}
               </h1>
               <p className="mt-1.5 text-sm text-gray-600">
-                Suivez vos visites, favoris et messages depuis un tableau de bord unifié.
+                Suivez vos visites et favoris depuis un tableau de bord unifié.
               </p>
             </div>
           </div>
@@ -488,10 +456,10 @@ export default function DashboardClientPage() {
             bgColor: "#047857",
           },
           {
-            icon: MessageSquare,
-            label: "Messages",
-            value: messages.length,
-            helper: `${unreadMessages} nouveaux`,
+            icon: ShieldCheck,
+            label: "Confirmées",
+            value: confirmedVisits,
+            helper: `${completedVisits} réalisées`,
             bgColor: "#6b4226",
           },
           {
@@ -680,9 +648,9 @@ export default function DashboardClientPage() {
                   className: "bg-[#1a3a5c] text-white hover:bg-[#0f2540]",
                 },
                 {
-                  href: "/contact",
-                  icon: MessageSquare,
-                  label: "Contacter KOITALA",
+                  href: "/dashboard-client/favoris",
+                  icon: Heart,
+                  label: "Mes favoris",
                   className:
                     "border border-[#1a3a5c]/20 bg-white text-[#1a3a5c] hover:bg-[#f8fafc]",
                 },
@@ -711,7 +679,7 @@ export default function DashboardClientPage() {
               </div>
               <div className="flex items-center gap-2">
                 <ShieldCheck className="h-3.5 w-3.5 text-[#1a3a5c]" />
-                <span>{answeredMessages} message(s) déjà consulté(s) ou traités</span>
+                <span>{completedVisits} visite(s) déjà réalisées</span>
               </div>
             </div>
 

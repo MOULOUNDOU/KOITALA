@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
-import { Heart, User, LogOut, ChevronDown, Building2, ArrowRight } from "lucide-react";
+import { Heart, User, LogOut, ChevronDown, Building2, ArrowRight, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import type { Profile } from "@/types";
@@ -89,6 +89,8 @@ const SERVICES_LINKS = [
   { label: "Estimation",       href: "/contact?sujet=estimation" },
   { label: "Conseil juridique",href: "/contact?sujet=juridique" },
 ];
+
+const ASSISTANT_MENU_HREF = "/assistant-ia";
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -216,6 +218,13 @@ export default function Navbar() {
     setDropdownOpen(false);
     setIsOpen(false);
     setShowSignOutDialog(true);
+  };
+
+  const handleAssistantMenuClick = () => {
+    setDropdownOpen(false);
+    setIsOpen(false);
+    setBiensMobileOpen(false);
+    setServicesMobileOpen(false);
   };
 
   const isHome = pathname === "/";
@@ -357,6 +366,20 @@ export default function Navbar() {
                                       : (scrolled || !isHome ? "text-gray-600 hover:text-[#1a3a5c] hover:bg-gray-100" : "text-white/90 hover:text-white hover:bg-white/10")
               )}>{link.label}</Link>
             ))}
+
+            <Link
+              href={ASSISTANT_MENU_HREF}
+              onClick={handleAssistantMenuClick}
+              className={cn(
+                "inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
+                scrolled || !isHome
+                  ? "text-gray-600 hover:text-[#1a3a5c] hover:bg-gray-100"
+                  : "text-white/90 hover:text-white hover:bg-white/10"
+              )}
+            >
+              <MessageCircle className="h-4 w-4" />
+              Assistant IA
+            </Link>
           </div>
 
           {/* Right section */}
@@ -570,6 +593,15 @@ export default function Navbar() {
                   {link.label}
                 </Link>
               ))}
+
+              <Link
+                href={ASSISTANT_MENU_HREF}
+                onClick={handleAssistantMenuClick}
+                className="flex items-center gap-2 px-4 py-3.5 text-sm font-medium rounded-xl transition-all duration-200 text-gray-700 hover:bg-[#1a3a5c]/8 hover:text-[#1a3a5c]"
+              >
+                <MessageCircle className="h-4 w-4" />
+                Assistant IA
+              </Link>
             </div>
 
             <hr className="my-3 border-gray-100 mx-4" />

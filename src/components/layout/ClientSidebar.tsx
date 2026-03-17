@@ -8,7 +8,6 @@ import {
   LayoutDashboard,
   Heart,
   CalendarCheck,
-  MessageSquare,
   User,
   Compass,
   LogOut,
@@ -25,7 +24,6 @@ const navItems = [
   { label: "Tableau de bord", href: "/dashboard-client",         icon: LayoutDashboard, exact: true },
   { label: "Paramètres",    href: "/dashboard-client/parametres", icon: User },
   { label: "Mes visites",   href: "/dashboard-client/visites",   icon: CalendarCheck },
-  { label: "Mes messages",  href: "/dashboard-client/messages",  icon: MessageSquare },
   { label: "Mes favoris",   href: "/dashboard-client/favoris",   icon: Heart },
 ];
 

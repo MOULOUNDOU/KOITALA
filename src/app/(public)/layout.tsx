@@ -1,5 +1,6 @@
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
+import AIChatWidget from "@/components/ai/AIChatWidget";
 import {
   buildOrganizationJsonLd,
   buildWebsiteJsonLd,
@@ -29,6 +30,7 @@ export default function PublicLayout({
         <main className="min-h-screen overflow-x-hidden">
           {children}
         </main>
+        <AIChatWidget scope="public" />
         <Footer />
       </div>
     </>

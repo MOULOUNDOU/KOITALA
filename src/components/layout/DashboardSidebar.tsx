@@ -6,10 +6,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 import {
+  Bot,
   LayoutDashboard,
   Building2,
   CalendarCheck,
-  MessageSquare,
   FileText,
   Users,
   BookOpen,
@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
+import { AI_CHAT_OPEN_EVENT } from "@/lib/ai/widget";
 import DashboardAvatar from "@/components/layout/DashboardAvatar";
 import SignOutConfirmDialog from "@/components/ui/SignOutConfirmDialog";
 
@@ -28,7 +29,6 @@ const navItems = [
   { label: "Tableau de bord",    href: "/dashboard",              icon: LayoutDashboard, exact: true },
   { label: "Annonces",           href: "/dashboard/annonces",     icon: Building2 },
   { label: "Demandes",           href: "/dashboard/demandes",     icon: CalendarCheck },
-  { label: "Messages",           href: "/dashboard/messages",     icon: MessageSquare },
   { label: "Contrats",           href: "/dashboard/contrats",     icon: FileText },
   { label: "Utilisateurs",       href: "/dashboard/utilisateurs", icon: Users },
   { label: "Blog",               href: "/dashboard/blog",         icon: BookOpen },
@@ -146,6 +146,11 @@ export default function DashboardSidebar() {
   const isActive = (href: string, exact?: boolean) =>
     exact ? pathname === href : pathname.startsWith(href);
 
+  const openAdminAssistant = () => {
+    window.dispatchEvent(new Event(AI_CHAT_OPEN_EVENT));
+    setMobileOpen(false);
+  };
+
   const DesktopNavItem = ({ item }: { item: (typeof navItems)[number] | (typeof bottomItems)[number] }) => {
     const active = isActive(item.href, "exact" in item ? item.exact : undefined);
 
@@ -175,7 +180,7 @@ export default function DashboardSidebar() {
           className={cn(
             "whitespace-nowrap text-sm font-semibold transition-all duration-200",
             desktopExpanded
-              ? "max-w-[220px] translate-x-0 opacity-100"
+              ? "max-w-[186px] translate-x-0 opacity-100"
               : "pointer-events-none max-w-0 -translate-x-2 overflow-hidden opacity-0"
           )}
         >
@@ -190,8 +195,8 @@ export default function DashboardSidebar() {
       {/* ═══ DESKTOP: icon-only sidebar ═══ */}
       <aside
         className={cn(
-          "hidden md:flex min-h-screen shrink-0 flex-col bg-[#1a3a5c] py-4 transition-[width,padding] duration-300 ease-out",
-          desktopExpanded ? "w-[252px] px-3" : "w-[72px] px-2"
+          "hidden md:flex h-full min-h-0 shrink-0 flex-col overflow-y-auto bg-[#1a3a5c] py-4 transition-[width,padding] duration-300 ease-out",
+          desktopExpanded ? "w-[224px] px-2.5" : "w-[64px] px-1.5"
         )}
         onMouseEnter={() => setDesktopExpanded(true)}
         onMouseLeave={() => setDesktopExpanded(false)}
@@ -220,7 +225,7 @@ export default function DashboardSidebar() {
             className={cn(
               "whitespace-nowrap text-base font-bold tracking-tight text-white transition-all duration-200",
               desktopExpanded
-                ? "max-w-[160px] translate-x-0 opacity-100"
+                ? "max-w-[136px] translate-x-0 opacity-100"
                 : "pointer-events-none max-w-0 -translate-x-2 overflow-hidden opacity-0"
             )}
           >
@@ -245,7 +250,7 @@ export default function DashboardSidebar() {
             className={cn(
               "min-w-0 transition-all duration-200",
               desktopExpanded
-                ? "max-w-[150px] translate-x-0 opacity-100"
+                ? "max-w-[122px] translate-x-0 opacity-100"
                 : "pointer-events-none max-w-0 -translate-x-2 overflow-hidden opacity-0"
             )}
           >
@@ -255,7 +260,12 @@ export default function DashboardSidebar() {
         </div>
 
         {/* Main nav */}
-        <nav className={cn("flex flex-1 flex-col gap-1.5", desktopExpanded ? "items-stretch" : "items-center")}>
+        <nav
+          className={cn(
+            "flex flex-col gap-1.5",
+            desktopExpanded ? "items-stretch" : "items-center"
+          )}
+        >
           {navItems.map((item) => (
             <DesktopNavItem key={item.href} item={item} />
           ))}
@@ -271,6 +281,29 @@ export default function DashboardSidebar() {
           {bottomItems.map((item) => (
             <DesktopNavItem key={item.href} item={item} />
           ))}
+          <button
+            type="button"
+            onClick={openAdminAssistant}
+            className={cn(
+              "group flex items-center rounded-xl text-white/80 transition-all duration-300 hover:bg-white/10 hover:text-white",
+              desktopExpanded ? "h-11 w-full justify-start gap-2.5 px-2.5" : "h-11 w-11 justify-center"
+            )}
+            aria-label="Ouvrir l assistant IA admin"
+          >
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/10 text-white/90 transition-all duration-300 group-hover:bg-white/20 group-hover:text-white">
+              <Bot className="h-[18px] w-[18px]" />
+            </span>
+            <span
+              className={cn(
+                "whitespace-nowrap text-sm font-semibold transition-all duration-200",
+                desktopExpanded
+                  ? "max-w-[186px] translate-x-0 opacity-100"
+                  : "pointer-events-none max-w-0 -translate-x-2 overflow-hidden opacity-0"
+              )}
+            >
+              Assistant IA
+            </span>
+          </button>
           <Link
             href="/"
             target="_blank"
@@ -288,13 +321,21 @@ export default function DashboardSidebar() {
               className={cn(
                 "whitespace-nowrap text-sm font-semibold transition-all duration-200",
                 desktopExpanded
-                  ? "max-w-[220px] translate-x-0 opacity-100"
+                  ? "max-w-[186px] translate-x-0 opacity-100"
                   : "pointer-events-none max-w-0 -translate-x-2 overflow-hidden opacity-0"
               )}
             >
               Voir le site
             </span>
           </Link>
+        </div>
+
+        <div
+          className={cn(
+            "mt-auto flex flex-col border-t border-white/10 pt-4",
+            desktopExpanded ? "items-stretch" : "items-center"
+          )}
+        >
           <button
             onClick={() => setShowSignOutDialog(true)}
             disabled={isSigningOut}
@@ -310,7 +351,7 @@ export default function DashboardSidebar() {
               className={cn(
                 "whitespace-nowrap text-sm font-semibold transition-all duration-200",
                 desktopExpanded
-                  ? "max-w-[220px] translate-x-0 opacity-100"
+                  ? "max-w-[186px] translate-x-0 opacity-100"
                   : "pointer-events-none max-w-0 -translate-x-2 overflow-hidden opacity-0"
               )}
             >
@@ -349,7 +390,7 @@ export default function DashboardSidebar() {
       />
       <div
         className={cn(
-          "md:hidden fixed top-14 left-0 bottom-0 w-64 bg-[#1a3a5c] z-40 overflow-y-auto transition-transform duration-300 ease-out",
+          "md:hidden fixed top-14 left-0 bottom-0 z-40 flex w-56 flex-col overflow-y-auto bg-[#1a3a5c] transition-transform duration-300 ease-out",
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         )}
         aria-hidden={!mobileOpen}
@@ -369,8 +410,8 @@ export default function DashboardSidebar() {
         </div>
         <nav className="px-3 py-4">
           <ul className="space-y-1">
-            {[...navItems, ...bottomItems].map((item) => {
-              const active = isActive(item.href, (item as { exact?: boolean }).exact);
+            {navItems.map((item) => {
+              const active = isActive(item.href, item.exact);
               return (
                 <li key={item.href}>
                   <Link
@@ -389,7 +430,31 @@ export default function DashboardSidebar() {
             })}
           </ul>
         </nav>
-        <div className="px-3 py-4 border-t border-white/10">
+        <div className="border-t border-white/10 px-3 py-4">
+          {bottomItems.map((item) => {
+            const active = isActive(item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setMobileOpen(false)}
+                className={cn(
+                  "mb-1 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium transition-all",
+                  active ? "bg-white/10 text-white" : "text-white/80 hover:bg-white/5 hover:text-white"
+                )}
+              >
+                <item.icon className="h-5 w-5 shrink-0" />
+                {item.label}
+              </Link>
+            );
+          })}
+          <button
+            type="button"
+            onClick={openAdminAssistant}
+            className="mb-1 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium text-white/80 transition-all hover:bg-white/5 hover:text-white"
+          >
+            <Bot className="h-5 w-5 shrink-0" /> Assistant IA
+          </button>
           <Link
             href="/"
             target="_blank"

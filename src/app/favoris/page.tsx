@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import PropertyCard from "@/components/properties/PropertyCard";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
+import AIChatWidget from "@/components/ai/AIChatWidget";
 import type { Property } from "@/types";
 
 export default function FavorisPage() {
@@ -87,6 +88,7 @@ export default function FavorisPage() {
           )}
         </div>
       </section>
+      <AIChatWidget scope="public" />
       <Footer />
     </>
   );

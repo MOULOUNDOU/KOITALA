@@ -93,6 +93,9 @@ RESEND_REPLY_TO_EMAIL=amzakoita@gmail.com
 CONTACT_NOTIFICATION_EMAIL=amzakoita@gmail.com
 NEXT_PUBLIC_MAPTILER_API_KEY=votre_cle_maptiler
 NEXT_PUBLIC_MAPTILER_MAP_STYLE=streets-v4
+OPENROUTER_API_KEY=sk-or-votre_cle_openrouter
+# Optionnel: override du modele (sinon valeur par defaut)
+# OPENROUTER_MODEL=mistralai/mistral-small-24b-instruct-2501
 ```
 
 ### 4. Executer le schema SQL
@@ -191,6 +194,36 @@ npm start
 - Les formulaires de contact et de demande de visite peuvent envoyer des emails via **Resend** quand `RESEND_API_KEY` et `RESEND_FROM_EMAIL` sont configures.
 - Les cartes publiques utilisent **MapTiler** via `NEXT_PUBLIC_MAPTILER_API_KEY`. Pour `NEXT_PUBLIC_MAPTILER_MAP_STYLE`, utilisez un identifiant comme `streets-v4` plutot qu'une URL complete `style.json`.
 - Le blog supporte le HTML basique dans le champ content.
+
+## Assistant IA (OpenRouter)
+
+- Route backend securisee: `POST /api/ai/chat`
+- Widget IA:
+  - page d accueil: `src/app/page.tsx`
+  - dashboards admin/client: `src/app/dashboard/layout.tsx` et `src/app/dashboard-client/layout.tsx`
+- Composant UI reutilisable: `src/components/ai/AIChatWidget.tsx`
+- Prompt systeme editable: `src/lib/ai/prompt.ts`
+- Client OpenRouter serveur: `src/lib/ai/openrouter.ts`
+
+### Variables d environnement IA
+
+```env
+OPENROUTER_API_KEY=sk-or-votre_cle_openrouter
+# Optionnel
+OPENROUTER_MODEL=mistralai/mistral-small-24b-instruct-2501
+```
+
+### Commandes utiles
+
+```bash
+npm run dev
+npm run build
+```
+
+Notes:
+- La cle OpenRouter reste uniquement cote serveur.
+- Le modele par defaut est `mistralai/mistral-small-24b-instruct-2501`.
+- Un fallback `openrouter/free` est utilise uniquement en dev en cas d echec du modele principal.
 
 ## Personnalisation
 

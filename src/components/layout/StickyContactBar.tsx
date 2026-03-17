@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { Phone, MessageCircle } from "lucide-react";
+import { Phone } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function StickyContactBar() {
@@ -29,13 +28,6 @@ export default function StickyContactBar() {
           <Phone className="w-5 h-5" />
           Appeler
         </a>
-        <Link
-          href="/contact"
-          className="flex-1 flex items-center justify-center gap-2 py-4 bg-[#e8b86d] text-[#1a3a5c] font-semibold text-sm active:bg-[#d9a45a] transition-colors"
-        >
-          <MessageCircle className="w-5 h-5" />
-          Nous écrire
-        </Link>
       </div>
     </div>
   );
