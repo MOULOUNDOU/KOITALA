@@ -52,17 +52,17 @@ const TEAM = [
   {
     name: "Kouamé Koitala",
     role: "Directeur & Fondateur",
-    image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&q=80",
+    image: "https://images.unsplash.com/photo-1552374196-c4e7ffc6e126?w=400&q=80",
   },
   {
     name: "Aya Bamba",
     role: "Responsable Ventes",
-    image: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=400&q=80",
+    image: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&q=80",
   },
   {
     name: "Yves Kone",
     role: "Expert Locatif",
-    image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&q=80",
+    image: "https://images.unsplash.com/photo-1546961329-78bef0414d7c?w=400&q=80",
   },
 ];
 

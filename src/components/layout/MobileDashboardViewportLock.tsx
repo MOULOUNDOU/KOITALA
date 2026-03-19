@@ -2,56 +2,27 @@
 
 import { useEffect } from "react";
 
-interface MobileDashboardViewportLockProps {
-  containerId: string;
-}
-
-export default function MobileDashboardViewportLock({
-  containerId,
-}: MobileDashboardViewportLockProps) {
+export default function MobileDashboardViewportLock() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const mediaQuery = window.matchMedia("(max-width: 767px)");
-    if (!mediaQuery.matches) return;
-
     const previousHtmlOverflow = document.documentElement.style.overflow;
+    const previousHtmlOverscroll = document.documentElement.style.overscrollBehaviorY;
     const previousBodyOverflow = document.body.style.overflow;
+    const previousBodyOverscroll = document.body.style.overscrollBehaviorY;
+
     document.documentElement.style.overflow = "hidden";
+    document.documentElement.style.overscrollBehaviorY = "none";
     document.body.style.overflow = "hidden";
-
-    const keepViewportStable = () => {
-      const container = document.getElementById(containerId);
-      const currentContainerScroll = container?.scrollTop ?? 0;
-
-      requestAnimationFrame(() => {
-        if (window.scrollY !== 0) {
-          window.scrollTo(0, 0);
-        }
-        if (container) {
-          container.scrollTop = currentContainerScroll;
-        }
-      });
-    };
-
-    const handleFocusIn = (event: FocusEvent) => {
-      const target = event.target as HTMLElement | null;
-      if (!target) return;
-      if (!target.matches("input, textarea, select, [contenteditable='true']")) return;
-      keepViewportStable();
-    };
-
-    keepViewportStable();
-    window.addEventListener("focusin", handleFocusIn);
-    window.addEventListener("orientationchange", keepViewportStable);
+    document.body.style.overscrollBehaviorY = "none";
 
     return () => {
-      window.removeEventListener("focusin", handleFocusIn);
-      window.removeEventListener("orientationchange", keepViewportStable);
       document.documentElement.style.overflow = previousHtmlOverflow;
+      document.documentElement.style.overscrollBehaviorY = previousHtmlOverscroll;
       document.body.style.overflow = previousBodyOverflow;
+      document.body.style.overscrollBehaviorY = previousBodyOverscroll;
     };
-  }, [containerId]);
+  }, []);
 
   return null;
 }

@@ -65,7 +65,7 @@ export default function DashboardBlogPage() {
     <div className="p-6 lg:p-8 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-7">
         <div>
-          <h1 className="text-2xl font-bold text-[#0f1724]">Blog</h1>
+          <h1 className="text-[1.35rem] font-bold text-[#0f1724] sm:text-[1.5rem] lg:text-2xl">Blog</h1>
           <p className="text-sm text-gray-500 mt-0.5">{posts.length} article{posts.length !== 1 ? "s" : ""}</p>
         </div>
         <button

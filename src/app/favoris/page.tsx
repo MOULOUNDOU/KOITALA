@@ -64,9 +64,11 @@ export default function FavorisPage() {
               <h3 className="text-lg font-semibold text-gray-700 mb-1">
                 Aucun favori pour le moment
               </h3>
-              <p className="text-sm text-gray-400 mb-6">
-                Enregistrez des biens en cliquant sur le c�ur depuis les annonces.
-              </p>
+              <div className="mb-6 flex items-center gap-2 text-sm text-gray-400">
+                <span>Enregistrez des biens en cliquant sur l&apos;icône</span>
+                <Heart className="h-4 w-4 text-[#e8b86d]" />
+                <span>depuis les annonces.</span>
+              </div>
               <Link
                 href="/biens"
                 className="px-5 py-2.5 bg-[#1a3a5c] text-white text-sm font-semibold rounded-xl hover:bg-[#0f2540] transition-colors"

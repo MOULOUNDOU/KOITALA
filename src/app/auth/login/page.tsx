@@ -41,6 +41,7 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get("redirectTo") ?? "/";
+  const authError = searchParams.get("error");
   const supabase = createClient();
   const [showPassword, setShowPassword] = useState(false);
   const [passwordValue, setPasswordValue] = useState("");
@@ -210,6 +211,18 @@ function LoginForm() {
           </div>
 
           <div className="bg-white rounded-2xl shadow-[0_2px_16px_rgba(0,0,0,0.06)] border border-gray-100/80 p-6 sm:p-8 anim-scale-in anim-delay-3">
+            {authError === "gmail_only" ? (
+              <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                Seules les adresses Gmail sont autorisées pour créer un compte.
+              </div>
+            ) : null}
+
+            {authError === "oauth" ? (
+              <div className="mb-4 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">
+                Connexion sociale impossible. Veuillez réessayer.
+              </div>
+            ) : null}
+
             {/* Form */}
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               {/* Email */}

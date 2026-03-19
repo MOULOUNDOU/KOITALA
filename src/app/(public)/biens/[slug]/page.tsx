@@ -276,11 +276,11 @@ export default async function PropertyDetailPage({ params }: Props) {
           </div>
 
           {mobileStatCards.length > 0 && (
-            <div className="mt-4 grid grid-cols-1 min-[390px]:grid-cols-3 gap-2">
+            <div className="mt-4 flex gap-2 overflow-x-auto pb-1 sm:grid sm:grid-cols-3 sm:gap-2 sm:overflow-visible sm:pb-0">
               {mobileStatCards.map((item) => (
                 <div
                   key={item.key}
-                  className="flex items-center gap-2 rounded-xl border border-gray-100 bg-[#f4f6f9] px-3 py-2"
+                  className="flex min-w-[120px] flex-none items-center gap-2 rounded-xl border border-gray-100 bg-[#f4f6f9] px-3 py-2 sm:min-w-0"
                 >
                   <item.icon className="w-4 h-4 text-[#1a3a5c] shrink-0" />
                   <div className="min-w-0">
@@ -386,11 +386,11 @@ export default async function PropertyDetailPage({ params }: Props) {
                   <h2 className="!text-lg sm:!text-xl font-semibold text-[#0f1724] mb-4">
                     Caractéristiques
                   </h2>
-                  <div className="grid grid-cols-1 min-[420px]:grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div className="flex gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-3 sm:gap-3 sm:overflow-visible sm:pb-0">
                     {property.property_features.map((feat) => (
                       <div
                         key={feat.id}
-                        className="flex items-center gap-2.5 p-3 bg-[#f4f6f9] rounded-xl"
+                        className="flex min-w-[220px] flex-none items-center gap-2.5 rounded-xl bg-[#f4f6f9] p-3 sm:min-w-0"
                       >
                         <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
                         <span className="text-sm text-gray-700">

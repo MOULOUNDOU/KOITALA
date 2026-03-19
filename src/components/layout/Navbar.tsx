@@ -5,7 +5,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
-import { Heart, User, LogOut, ChevronDown, Building2, ArrowRight, MessageCircle } from "lucide-react";
+import { Heart, User, UserPlus, LogOut, ChevronDown, Building2, ArrowRight, MessageCircle } from "lucide-react";
+import { PUBLIC_ASSISTANT_PAGE_HREF } from "@/lib/ai/widget";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import type { Profile } from "@/types";
@@ -89,8 +90,6 @@ const SERVICES_LINKS = [
   { label: "Estimation",       href: "/contact?sujet=estimation" },
   { label: "Conseil juridique",href: "/contact?sujet=juridique" },
 ];
-
-const ASSISTANT_MENU_HREF = "/assistant-ia";
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -368,7 +367,7 @@ export default function Navbar() {
             ))}
 
             <Link
-              href={ASSISTANT_MENU_HREF}
+              href={PUBLIC_ASSISTANT_PAGE_HREF}
               onClick={handleAssistantMenuClick}
               className={cn(
                 "inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
@@ -458,18 +457,20 @@ export default function Navbar() {
                 <Link
                   href="/auth/login"
                   className={cn(
-                    "px-4 py-2 text-sm font-medium rounded-xl transition-colors",
+                    "inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl transition-colors",
                     scrolled || !isHome
                       ? "text-gray-700 hover:bg-gray-100"
                       : "text-white hover:bg-white/10"
                   )}
                 >
+                  <User className="h-4 w-4" />
                   Connexion
                 </Link>
                 <Link
                   href="/auth/register"
-                  className="px-4 py-2 bg-[#e8b86d] text-[#1a3a5c] text-sm font-semibold rounded-xl hover:bg-[#d9a45a] transition-colors shadow-sm"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-[#e8b86d] text-[#1a3a5c] text-sm font-semibold rounded-xl hover:bg-[#d9a45a] transition-colors shadow-sm"
                 >
+                  <UserPlus className="h-4 w-4" />
                   S&apos;inscrire
                 </Link>
               </>
@@ -595,7 +596,7 @@ export default function Navbar() {
               ))}
 
               <Link
-                href={ASSISTANT_MENU_HREF}
+                href={PUBLIC_ASSISTANT_PAGE_HREF}
                 onClick={handleAssistantMenuClick}
                 className="flex items-center gap-2 px-4 py-3.5 text-sm font-medium rounded-xl transition-all duration-200 text-gray-700 hover:bg-[#1a3a5c]/8 hover:text-[#1a3a5c]"
               >
@@ -639,11 +640,13 @@ export default function Navbar() {
             ) : (
               <div className="flex gap-3 px-4 pt-1">
                 <Link href="/auth/login" onClick={() => setIsOpen(false)}
-                  className="flex-1 text-center px-4 py-3 text-sm font-semibold border-2 border-[#1a3a5c] text-[#1a3a5c] rounded-xl hover:bg-[#1a3a5c] hover:text-white transition-all duration-200">
+                  className="inline-flex flex-1 items-center justify-center gap-2 px-4 py-3 text-sm font-semibold border-2 border-[#1a3a5c] text-[#1a3a5c] rounded-xl hover:bg-[#1a3a5c] hover:text-white transition-all duration-200">
+                  <User className="h-4 w-4" />
                   Connexion
                 </Link>
                 <Link href="/auth/register" onClick={() => setIsOpen(false)}
-                  className="flex-1 text-center px-4 py-3 text-sm font-semibold bg-[#e8b86d] text-[#1a3a5c] rounded-xl hover:bg-[#d9a45a] transition-colors shadow-sm">
+                  className="inline-flex flex-1 items-center justify-center gap-2 px-4 py-3 text-sm font-semibold bg-[#e8b86d] text-[#1a3a5c] rounded-xl hover:bg-[#d9a45a] transition-colors shadow-sm">
+                  <UserPlus className="h-4 w-4" />
                   S&apos;inscrire
                 </Link>
               </div>

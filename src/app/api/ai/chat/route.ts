@@ -477,7 +477,10 @@ export async function POST(request: NextRequest) {
 
     if (normalizedError.includes("missing-openrouter-api-key")) {
       return NextResponse.json(
-        { error: "Assistant IA non configure cote serveur." },
+        {
+          error:
+            "Assistant IA non configure cote serveur. Ajoutez OPENROUTER_API_KEY dans les variables d environnement de votre hebergeur (Netlify), puis redeployez.",
+        },
         { status: 503 }
       );
     }

@@ -105,7 +105,7 @@ export default function ProfilePhotoField({
     <div className="space-y-4">
       <div className="rounded-2xl border border-dashed border-gray-200 bg-[#f8fafc] p-4">
         <div className="flex flex-col items-center gap-3 text-center sm:flex-row sm:text-left">
-          <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl bg-[#1a3a5c]/10 text-2xl font-bold text-[#1a3a5c]">
+          <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl bg-[#1a3a5c]/10 text-xl font-bold text-[#1a3a5c] sm:h-[4.5rem] sm:w-[4.5rem] sm:text-[1.35rem] lg:h-20 lg:w-20 lg:text-2xl">
             {hasAvatarPreview ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img

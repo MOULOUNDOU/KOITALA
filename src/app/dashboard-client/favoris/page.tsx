@@ -198,7 +198,7 @@ export default function FavorisClientPage() {
             style={{ backgroundColor: item.bgColor }}
           >
             <div
-              className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-2xl text-white"
+              className="mb-3 inline-flex h-9 w-9 items-center justify-center rounded-2xl text-white sm:h-10 sm:w-10"
               style={{ backgroundColor: "rgba(255,255,255,0.2)" }}
             >
               <item.icon className="h-4 w-4" />
@@ -206,7 +206,7 @@ export default function FavorisClientPage() {
             <p className="font-display text-[11px] font-semibold uppercase tracking-[0.22em] text-white/75">
               {item.label}
             </p>
-            <p className="font-display mt-2 text-2xl font-extrabold text-white sm:text-3xl">
+            <p className="font-display mt-2 text-[1.65rem] font-extrabold text-white sm:text-[1.9rem] lg:text-3xl">
               {item.value}
             </p>
             <p className="mt-1 text-xs font-semibold text-white/90">{item.helper}</p>
@@ -216,8 +216,8 @@ export default function FavorisClientPage() {
 
       {favorites.length === 0 ? (
         <div className="rounded-3xl border border-gray-100 bg-white px-4 py-20 text-center shadow-sm">
-          <Heart className="mx-auto mb-4 h-14 w-14 text-gray-200" />
-          <h3 className="text-lg font-semibold text-gray-700">Aucun favori pour le moment</h3>
+          <Heart className="mx-auto mb-4 h-12 w-12 text-gray-200 sm:h-14 sm:w-14" />
+          <h3 className="text-base font-semibold text-gray-700 sm:text-lg">Aucun favori pour le moment</h3>
           <p className="mx-auto mt-2 max-w-md text-sm text-gray-400">
             Ajoutez des biens à vos favoris depuis les annonces pour les retrouver rapidement ici.
           </p>
@@ -251,7 +251,7 @@ export default function FavorisClientPage() {
                     <div className="min-w-0">
                       <Link
                         href={`/biens/${item.property.slug}`}
-                        className="line-clamp-1 text-base font-semibold text-[#0f1724] transition-colors hover:text-[#1a3a5c] sm:text-lg"
+                        className="line-clamp-1 text-[15px] font-semibold text-[#0f1724] transition-colors hover:text-[#1a3a5c] sm:text-base lg:text-lg"
                       >
                         {item.property.title}
                       </Link>
@@ -271,7 +271,7 @@ export default function FavorisClientPage() {
                   </div>
 
                   <div className="mt-4 flex flex-wrap items-center justify-between gap-2.5">
-                    <p className="text-lg font-bold text-[#1a3a5c]">{formatPrice(item.property.price)}</p>
+                    <p className="text-base font-bold text-[#1a3a5c] sm:text-lg">{formatPrice(item.property.price)}</p>
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="rounded-full bg-[#1a3a5c]/10 px-2.5 py-1 text-xs font-medium text-[#1a3a5c]">
                         {getListingTypeLabel(item.property.listing_type)}

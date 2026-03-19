@@ -25,10 +25,10 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex h-[100svh] md:h-screen overflow-hidden overscroll-none bg-[#f4f6f9]">
-      <MobileDashboardViewportLock containerId="dashboard-admin-scroll-root" />
+    <div className="flex h-[100dvh] min-h-0 overflow-hidden overscroll-none bg-[#f4f6f9] md:h-screen">
+      <MobileDashboardViewportLock />
       <DashboardSidebar />
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-w-0 min-h-0 flex-1 flex-col">
         <header className="z-30 hidden shrink-0 border-b border-[#1a3a5c]/10 bg-[#f4f6f9]/95 px-6 py-3 backdrop-blur md:block">
           <div className="flex items-center justify-between gap-3">
             <div>

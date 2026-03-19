@@ -64,7 +64,7 @@ export default function WeeklyVisitsChart({ data }: WeeklyVisitsChartProps) {
       ? `${linePath} L ${chartPoints[chartPoints.length - 1].x} ${baselineY} L ${chartPoints[0].x} ${baselineY} Z`
       : "";
 
-  const yTicks = [chartMaxValue, Math.round(chartMaxValue / 2), 0];
+  const yTicks = Array.from(new Set([chartMaxValue, Math.round(chartMaxValue / 2), 0]));
   const hoverZones = chartPoints.map((point, index) => {
     const prevPoint = chartPoints[index - 1];
     const nextPoint = chartPoints[index + 1];
@@ -120,11 +120,11 @@ export default function WeeklyVisitsChart({ data }: WeeklyVisitsChartProps) {
           );
         })}
 
-        {yTicks.map((tick) => {
+        {yTicks.map((tick, index) => {
           const y = baselineY - (tick / chartMaxValue) * innerHeight;
           return (
             <text
-              key={`tick-${tick}`}
+              key={`tick-${tick}-${index}`}
               x={chartPadding.left - 8}
               y={y + 4}
               textAnchor="end"

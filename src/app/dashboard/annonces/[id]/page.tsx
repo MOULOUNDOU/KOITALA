@@ -487,7 +487,7 @@ ${buildListingContext()}`;
             <ArrowLeft className="w-5 h-5" />
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-[#0f1724]">Modifier l&apos;annonce</h1>
+            <h1 className="text-[1.35rem] font-bold text-[#0f1724] sm:text-[1.5rem] lg:text-2xl">Modifier l&apos;annonce</h1>
             <p className="text-sm text-gray-500 mt-0.5">Mettez à jour les informations du bien</p>
           </div>
         </div>
@@ -516,34 +516,39 @@ ${buildListingContext()}`;
               value={aiSourceText}
               onChange={(event) => setAiSourceText(event.target.value)}
             />
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => void handleAIGenerateTitle()}
-                loading={aiTask === "title"}
-              >
-                Générer le titre
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => void handleAIGenerateDescription()}
-                loading={aiTask === "description"}
-              >
-                Générer la description
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                onClick={() => void handleAIRewriteDescription()}
-                loading={aiTask === "rewrite"}
-              >
-                Réécrire la description
-              </Button>
+            <div className="-mx-1 mt-3 overflow-x-auto px-1 pb-1 sm:mx-0 sm:overflow-visible sm:px-0 sm:pb-0">
+              <div className="flex min-w-max items-center gap-2 sm:min-w-0 sm:flex-wrap">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => void handleAIGenerateTitle()}
+                  loading={aiTask === "title"}
+                  className="shrink-0 whitespace-nowrap"
+                >
+                  Générer le titre
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => void handleAIGenerateDescription()}
+                  loading={aiTask === "description"}
+                  className="shrink-0 whitespace-nowrap"
+                >
+                  Générer la description
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => void handleAIRewriteDescription()}
+                  loading={aiTask === "rewrite"}
+                  className="shrink-0 whitespace-nowrap"
+                >
+                  Réécrire la description
+                </Button>
+              </div>
             </div>
           </div>
           <Input label="Titre *" error={errors.title?.message} {...register("title")} />

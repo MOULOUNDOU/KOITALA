@@ -29,7 +29,7 @@ function FacebookIcon() {
   );
 }
 
-export default function SocialAuthButtons({ redirectTo = "/" }: SocialAuthButtonsProps) {
+export default function SocialAuthButtons({ redirectTo = "/", mode = "login" }: SocialAuthButtonsProps) {
   const [loadingGoogle, setLoadingGoogle] = useState(false);
   const [loadingFacebook, setLoadingFacebook] = useState(false);
   const supabase = createClient();
@@ -88,28 +88,36 @@ export default function SocialAuthButtons({ redirectTo = "/" }: SocialAuthButton
   };
 
   return (
-    <div className="grid grid-cols-2 gap-3">
-      {/* Google */}
-      <button
-        type="button"
-        onClick={handleGoogle}
-        disabled={loadingGoogle || loadingFacebook}
-        className="flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 active:scale-[.98] transition-all duration-200 text-sm font-medium text-gray-700 shadow-sm disabled:opacity-60"
-      >
-        {loadingGoogle ? <Loader2 className="w-5 h-5 animate-spin text-gray-400" /> : <GoogleIcon />}
-        Google
-      </button>
+    <div className="space-y-3">
+      {mode === "register" ? (
+        <p className="text-center text-xs font-medium text-gray-500">
+          Comptes Gmail uniquement, y compris via l&apos;inscription sociale.
+        </p>
+      ) : null}
 
-      {/* Facebook */}
-      <button
-        type="button"
-        onClick={handleFacebook}
-        disabled={loadingGoogle || loadingFacebook}
-        className="flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 active:scale-[.98] transition-all duration-200 text-sm font-medium text-gray-700 shadow-sm disabled:opacity-60"
-      >
-        {loadingFacebook ? <Loader2 className="w-5 h-5 animate-spin text-gray-400" /> : <FacebookIcon />}
-        Facebook
-      </button>
+      <div className="grid grid-cols-2 gap-3">
+        {/* Google */}
+        <button
+          type="button"
+          onClick={handleGoogle}
+          disabled={loadingGoogle || loadingFacebook}
+          className="flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 active:scale-[.98] transition-all duration-200 text-sm font-medium text-gray-700 shadow-sm disabled:opacity-60"
+        >
+          {loadingGoogle ? <Loader2 className="w-5 h-5 animate-spin text-gray-400" /> : <GoogleIcon />}
+          Google
+        </button>
+
+        {/* Facebook */}
+        <button
+          type="button"
+          onClick={handleFacebook}
+          disabled={loadingGoogle || loadingFacebook}
+          className="flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 active:scale-[.98] transition-all duration-200 text-sm font-medium text-gray-700 shadow-sm disabled:opacity-60"
+        >
+          {loadingFacebook ? <Loader2 className="w-5 h-5 animate-spin text-gray-400" /> : <FacebookIcon />}
+          Facebook
+        </button>
+      </div>
     </div>
   );
 }

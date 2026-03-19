@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useDeferredValue, useEffect, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState, type SVGProps } from "react";
 import toast from "react-hot-toast";
 import {
   ArrowUpRight,
@@ -11,10 +11,10 @@ import {
   CheckCircle2,
   Clock3,
   Mail,
-  MessageCircle,
   Phone,
   RefreshCw,
   Search,
+  Trash2,
   XCircle,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -24,6 +24,7 @@ import { cn, formatDate, getStatusColor, getStatusLabel } from "@/lib/utils";
 import type { VisitRequest, VisitStatus } from "@/types";
 
 const STATUSES = ["en_attente", "confirme", "annule", "realise"] as const;
+const VISITS_PER_PAGE = 8;
 
 type VisitProperty = {
   title: string;
@@ -61,6 +62,14 @@ function formatListingType(value: "vente" | "location" | null) {
   if (value === "vente") return "Vente";
   if (value === "location") return "Location";
   return "Non renseigne";
+}
+
+function WhatsAppIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" {...props}>
+      <path d="M20.52 3.48A11.9 11.9 0 0 0 12.04 0C5.42 0 .04 5.38.04 12c0 2.1.55 4.16 1.58 5.97L0 24l6.2-1.63A11.95 11.95 0 0 0 12.04 24c6.62 0 12-5.38 12-12 0-3.2-1.25-6.2-3.52-8.52Zm-8.48 18.5c-1.8 0-3.56-.48-5.1-1.4l-.37-.22-3.68.97.98-3.59-.24-.37A9.9 9.9 0 0 1 2.04 12c0-5.51 4.49-10 10-10 2.67 0 5.18 1.04 7.07 2.93A9.93 9.93 0 0 1 22.04 12c0 5.51-4.49 9.98-10 9.98Zm5.48-7.37c-.3-.15-1.77-.87-2.04-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.23-.64.08-.3-.15-1.25-.46-2.39-1.47-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.08-.15-.67-1.62-.92-2.21-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.08-.8.37-.27.3-1.04 1.02-1.04 2.5s1.07 2.9 1.22 3.1c.15.2 2.1 3.2 5.09 4.49.71.31 1.27.49 1.71.63.72.23 1.37.2 1.88.12.58-.09 1.77-.72 2.02-1.42.25-.7.25-1.29.17-1.42-.08-.12-.27-.2-.57-.34Z" />
+    </svg>
+  );
 }
 
 function buildVisitWhatsAppMessage(visit: VisitCard, property: VisitProperty | null) {
@@ -124,8 +133,8 @@ function getSummaryCards(visits: VisitCard[]) {
       value: counts.en_attente,
       helper: "Demandes à traiter en priorité",
       icon: Clock3,
-      tone: "bg-white text-[#0f1724] border-gray-200",
-      iconTone: "bg-[#1a3a5c]/10 text-[#1a3a5c]",
+      tone: "bg-[#6b4226] text-white border-[#6b4226]",
+      iconTone: "bg-white/15 text-white",
     },
     {
       key: "confirme",
@@ -133,8 +142,8 @@ function getSummaryCards(visits: VisitCard[]) {
       value: counts.confirme,
       helper: "Visites validées",
       icon: CheckCircle2,
-      tone: "bg-white text-[#0f1724] border-[#1a3a5c]/15",
-      iconTone: "bg-[#1a3a5c]/10 text-[#1a3a5c]",
+      tone: "bg-[#0f5b3d] text-white border-[#0f5b3d]",
+      iconTone: "bg-white/15 text-white",
     },
     {
       key: "realise",
@@ -142,10 +151,20 @@ function getSummaryCards(visits: VisitCard[]) {
       value: counts.realise,
       helper: "Visites déjà effectuées",
       icon: Building2,
-      tone: "bg-white text-[#0f1724] border-[#1a3a5c]/15",
-      iconTone: "bg-[#1a3a5c]/10 text-[#1a3a5c]",
+      tone: "bg-[#8a1f1f] text-white border-[#8a1f1f]",
+      iconTone: "bg-white/15 text-white",
     },
   ];
+}
+
+function getVisiblePages(currentPage: number, totalPages: number): number[] {
+  const firstVisiblePage = Math.max(1, Math.min(currentPage - 2, totalPages - 4));
+  const lastVisiblePage = Math.min(totalPages, firstVisiblePage + 4);
+
+  return Array.from(
+    { length: lastVisiblePage - firstVisiblePage + 1 },
+    (_, index) => firstVisiblePage + index
+  );
 }
 
 export default function DemandesPage() {
@@ -154,9 +173,11 @@ export default function DemandesPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<VisitStatus | "">("");
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const loadVisits = async (showLoader = true) => {
     if (showLoader) {
@@ -239,6 +260,24 @@ export default function DemandesPage() {
     return haystack.includes(normalizedQuery);
   });
 
+  const totalPages = Math.max(1, Math.ceil(filteredVisits.length / VISITS_PER_PAGE));
+  const visiblePages = useMemo(() => getVisiblePages(currentPage, totalPages), [currentPage, totalPages]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter, normalizedQuery]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const paginatedVisits = useMemo(() => {
+    const startIndex = (currentPage - 1) * VISITS_PER_PAGE;
+    return filteredVisits.slice(startIndex, startIndex + VISITS_PER_PAGE);
+  }, [currentPage, filteredVisits]);
+
   const handleStatusChange = async (visitId: string, nextStatus: VisitStatus) => {
     const currentVisit = visits.find((visit) => visit.id === visitId);
     if (!currentVisit || currentVisit.status === nextStatus) return;
@@ -264,6 +303,38 @@ export default function DemandesPage() {
     setUpdatingId(null);
   };
 
+  const handleDeleteVisit = async (visit: VisitCard) => {
+    if (!confirm(`Supprimer définitivement la demande de ${visit.full_name} ?`)) return;
+
+    setDeletingId(visit.id);
+
+    try {
+      const response = await fetch("/api/admin/visit-requests/delete", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ visitId: visit.id }),
+      });
+
+      const payload = (await response.json().catch(() => null)) as
+        | { error?: string; message?: string }
+        | null;
+
+      if (!response.ok) {
+        toast.error(payload?.error || "Suppression impossible pour cette demande.");
+        return;
+      }
+
+      setVisits((current) => current.filter((entry) => entry.id !== visit.id));
+      toast.success("Demande supprimée.");
+    } catch {
+      toast.error("Erreur réseau pendant la suppression.");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   const handleSendToAgencyWhatsapp = (visit: VisitCard, property: VisitProperty | null) => {
     const agencyPhone = sanitizePhoneForWhatsApp(AGENCY_INFO.phone);
     if (!agencyPhone) {
@@ -286,7 +357,7 @@ export default function DemandesPage() {
       <section className="rounded-[28px] border border-gray-100 bg-white p-5 shadow-sm sm:p-6 lg:p-7">
         <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-2xl">
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0f1724]">
+            <h1 className="text-[1.45rem] font-extrabold tracking-tight text-[#0f1724] sm:text-[1.65rem] lg:text-3xl">
               Demandes de visite
             </h1>
             <p className="mt-2 max-w-xl text-sm leading-6 text-gray-600">
@@ -324,7 +395,7 @@ export default function DemandesPage() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] opacity-70">{card.label}</p>
-                <p className="mt-3 text-3xl font-extrabold tracking-tight">{card.value}</p>
+                <p className="mt-3 text-[1.8rem] font-extrabold tracking-tight sm:text-[2rem] lg:text-3xl">{card.value}</p>
                 <p className="mt-2 text-sm opacity-75">{card.helper}</p>
               </div>
               <div className={cn("flex h-12 w-12 items-center justify-center rounded-2xl", card.iconTone)}>
@@ -428,25 +499,26 @@ export default function DemandesPage() {
         </div>
       ) : totalVisits === 0 ? (
         <section className="rounded-3xl border border-gray-100 bg-white px-4 py-20 text-center shadow-sm">
-          <CalendarCheck className="mx-auto mb-4 h-14 w-14 text-gray-200" />
-          <h2 className="text-lg font-semibold text-[#0f1724]">Aucune demande de visite</h2>
+          <CalendarCheck className="mx-auto mb-4 h-12 w-12 text-gray-200 sm:h-14 sm:w-14" />
+          <h2 className="text-base font-semibold text-[#0f1724] sm:text-lg">Aucune demande de visite</h2>
           <p className="mt-2 text-sm text-gray-500">
             Les nouvelles demandes apparaîtront ici dès qu&apos;un visiteur planifie une visite.
           </p>
         </section>
       ) : filteredVisits.length === 0 ? (
         <section className="rounded-3xl border border-gray-100 bg-white px-4 py-20 text-center shadow-sm">
-          <Search className="mx-auto mb-4 h-14 w-14 text-gray-200" />
-          <h2 className="text-lg font-semibold text-[#0f1724]">Aucun résultat</h2>
+          <Search className="mx-auto mb-4 h-12 w-12 text-gray-200 sm:h-14 sm:w-14" />
+          <h2 className="text-base font-semibold text-[#0f1724] sm:text-lg">Aucun résultat</h2>
           <p className="mt-2 text-sm text-gray-500">
             Ajustez votre recherche ou retirez le filtre actif pour voir plus de demandes.
           </p>
         </section>
       ) : (
         <section className="space-y-4">
-          {filteredVisits.map((visit) => {
+          {paginatedVisits.map((visit) => {
             const property = pickProperty(visit.property);
             const isUpdating = updatingId === visit.id;
+            const isDeleting = deletingId === visit.id;
 
             return (
               <article
@@ -458,11 +530,11 @@ export default function DemandesPage() {
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                       <div className="min-w-0">
                         <div className="flex items-center gap-3">
-                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#1a3a5c]/10 text-base font-bold text-[#1a3a5c]">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#1a3a5c]/10 text-sm font-bold text-[#1a3a5c] sm:h-12 sm:w-12 sm:text-base">
                             {visit.full_name.charAt(0).toUpperCase()}
                           </div>
                           <div className="min-w-0">
-                            <p className="truncate text-base font-bold text-[#0f1724] sm:text-lg">
+                            <p className="truncate text-[15px] font-bold text-[#0f1724] sm:text-base lg:text-lg">
                               {visit.full_name}
                             </p>
                             <p className="mt-0.5 text-xs text-gray-400">
@@ -477,7 +549,7 @@ export default function DemandesPage() {
                               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#1a3a5c]">
                                 Bien concerné
                               </p>
-                              <p className="mt-1 truncate text-sm font-semibold text-[#0f1724] sm:text-base">
+                              <p className="mt-1 truncate text-[13px] font-semibold text-[#0f1724] sm:text-sm lg:text-base">
                                 {property?.title ?? "Bien supprimé"}
                               </p>
                               <p className="mt-1 text-sm text-gray-500">
@@ -507,6 +579,12 @@ export default function DemandesPage() {
                           <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-500">
                             <RefreshCw className="h-3.5 w-3.5 animate-spin" />
                             Mise à jour...
+                          </span>
+                        )}
+                        {isDeleting && (
+                          <span className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-medium text-red-600">
+                            <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                            Suppression...
                           </span>
                         )}
                       </div>
@@ -586,11 +664,11 @@ export default function DemandesPage() {
                         type="button"
                         onClick={() => handleSendToAgencyWhatsapp(visit, property)}
                         className={cn(
-                          "inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-[#25D366]/25 bg-[#25D366]/10 px-3 py-3 text-center text-[13px] font-semibold leading-tight text-[#128C7E] transition-all hover:border-[#25D366] hover:bg-[#25D366]/15 sm:px-4 sm:text-sm",
+                          "inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-[#25D366] px-3 py-3 text-center text-[13px] font-semibold leading-tight text-white shadow-[0_10px_22px_rgba(37,211,102,0.22)] transition-colors hover:bg-[#1ebe5d] sm:px-4 sm:text-sm",
                           visit.phone ? "col-span-2" : "col-span-1"
                         )}
                       >
-                        <MessageCircle className="h-4 w-4" />
+                        <WhatsAppIcon className="h-4 w-4" />
                         WhatsApp
                       </button>
                     </div>
@@ -606,19 +684,35 @@ export default function DemandesPage() {
                             key={status}
                             type="button"
                             onClick={() => void handleStatusChange(visit.id, status)}
-                            disabled={isUpdating || status === visit.status}
+                            disabled={isUpdating || isDeleting || status === visit.status}
                             className={cn(
                               "inline-flex min-h-11 items-center justify-center rounded-2xl border px-3 text-xs font-semibold transition-all",
                               status === visit.status
                                 ? "border-[#1a3a5c] bg-[#1a3a5c] text-white shadow-sm"
                                 : "border-gray-200 bg-white text-gray-600 hover:border-[#1a3a5c]/40 hover:text-[#1a3a5c]",
-                              isUpdating && "cursor-not-allowed opacity-60"
+                              (isUpdating || isDeleting) && "cursor-not-allowed opacity-60"
                             )}
                           >
                             {getStatusLabel(status)}
                           </button>
                         ))}
                       </div>
+                    </div>
+
+                    <div className="mt-5">
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">
+                        Gestion
+                      </p>
+
+                      <button
+                        type="button"
+                        onClick={() => void handleDeleteVisit(visit)}
+                        disabled={isUpdating || isDeleting}
+                        className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600 transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Supprimer la demande
+                      </button>
                     </div>
 
                     <div className="mt-5">
@@ -629,6 +723,66 @@ export default function DemandesPage() {
               </article>
             );
           })}
+
+          {totalPages > 1 && (
+            <div className="rounded-3xl border border-gray-100 bg-white px-4 py-5 shadow-sm sm:px-5">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm text-gray-500">
+                  Page {currentPage} sur {totalPages}
+                </p>
+                <div className="-mx-1 overflow-x-auto px-1 pb-1">
+                  <div className="flex min-w-max items-center justify-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                      disabled={currentPage <= 1}
+                      className={cn(
+                        "inline-flex h-10 items-center justify-center rounded-xl border px-3 text-xs font-semibold transition-all duration-300 sm:h-11 sm:px-4 sm:text-sm",
+                        currentPage <= 1
+                          ? "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-300 shadow-none"
+                          : "border-[#1a3a5c]/18 bg-white text-[#1a3a5c] hover:border-[#1a3a5c]/35 hover:bg-[#1a3a5c]/[0.06]"
+                      )}
+                    >
+                      Précédent
+                    </button>
+
+                    {visiblePages.map((page) => {
+                      const isActive = page === currentPage;
+                      return (
+                        <button
+                          key={`dashboard-demandes-${page}`}
+                          type="button"
+                          onClick={() => setCurrentPage(page)}
+                          className={cn(
+                            "inline-flex h-10 w-10 items-center justify-center rounded-xl border text-xs font-bold transition-all duration-300 sm:h-11 sm:w-11 sm:text-sm",
+                            isActive
+                              ? "border-[#e8b86d] bg-[#e8b86d] text-[#0f1724] shadow-[0_10px_20px_rgba(232,184,109,0.22)]"
+                              : "border-[#1a3a5c]/15 bg-white text-[#1a3a5c] hover:border-[#1a3a5c]/35 hover:-translate-y-0.5 hover:bg-[#1a3a5c]/[0.05]"
+                          )}
+                        >
+                          {page}
+                        </button>
+                      );
+                    })}
+
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                      disabled={currentPage >= totalPages}
+                      className={cn(
+                        "inline-flex h-10 items-center justify-center rounded-xl border px-3 text-xs font-semibold transition-all duration-300 sm:h-11 sm:px-4 sm:text-sm",
+                        currentPage >= totalPages
+                          ? "cursor-not-allowed border-gray-200 bg-gray-100 text-gray-300 shadow-none"
+                          : "border-[#1a3a5c] bg-[#1a3a5c] text-white hover:border-[#102a44] hover:bg-[#102a44]"
+                      )}
+                    >
+                      Suivant
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </section>
       )}
     </div>

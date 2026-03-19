@@ -366,24 +366,28 @@ export default function DashboardClientPage() {
     <div className="mx-auto max-w-[1450px] space-y-6 p-4 pb-8 sm:p-6 sm:pb-10 lg:p-8">
       <section className="rounded-[30px] border border-gray-100 bg-white p-5 shadow-sm sm:p-7">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-          <div className="flex flex-col items-start gap-3 min-[430px]:flex-row min-[430px]:items-center min-[430px]:gap-4">
+          <Link
+            href="/dashboard-client/parametres"
+            aria-label="Ouvrir mon profil client"
+            className="flex flex-col items-start gap-3 rounded-[24px] transition-colors hover:bg-[#f8fafc] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1a3a5c]/15 min-[430px]:flex-row min-[430px]:items-center min-[430px]:gap-4"
+          >
             <DashboardAvatar
               name={userName}
               avatarUrl={userAvatarUrl}
-              className="h-14 w-14 shrink-0 rounded-[18px] bg-[#1a3a5c]/10 text-base text-[#1a3a5c] ring-0 sm:h-16 sm:w-16 sm:rounded-[20px] sm:text-lg"
+              className="h-12 w-12 shrink-0 rounded-[16px] bg-[#1a3a5c]/10 text-sm text-[#1a3a5c] ring-0 sm:h-14 sm:w-14 sm:rounded-[18px] sm:text-base lg:h-16 lg:w-16 lg:rounded-[20px] lg:text-lg"
             />
             <div className="min-w-0">
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gray-400">
                 ESPACE CLIENT KOITALA
               </p>
-              <h1 className="mt-2 break-words text-[1.6rem] font-extrabold leading-[1.02] tracking-tight text-[#0f1724] min-[430px]:text-[1.95rem] sm:text-3xl">
+              <h1 className="mt-2 break-words text-[1.4rem] font-extrabold leading-[1.05] tracking-tight text-[#0f1724] min-[430px]:text-[1.55rem] sm:text-[1.75rem] lg:text-3xl">
                 Bonjour, {userName}
               </h1>
               <p className="mt-1.5 text-sm text-gray-600">
                 Suivez vos visites et favoris depuis un tableau de bord unifié.
               </p>
             </div>
-          </div>
+          </Link>
 
           <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
             <Link
@@ -412,7 +416,7 @@ export default function DashboardClientPage() {
                 <p className="text-xs font-semibold uppercase tracking-[0.22em] text-gray-400">
                   {spotlight.eyebrow}
                 </p>
-                <p className="mt-1 text-lg font-bold text-[#0f1724]">{spotlight.title}</p>
+                <p className="mt-1 text-base font-bold text-[#0f1724] sm:text-[1.05rem] lg:text-lg">{spotlight.title}</p>
                 <p className="mt-1.5 text-sm text-gray-600">{spotlight.description}</p>
                 <Link
                   href={spotlight.href}
@@ -476,7 +480,7 @@ export default function DashboardClientPage() {
             style={{ backgroundColor: item.bgColor }}
           >
             <div
-              className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-2xl text-white"
+              className="mb-3 inline-flex h-9 w-9 items-center justify-center rounded-2xl text-white sm:h-10 sm:w-10"
               style={{ backgroundColor: "rgba(255,255,255,0.2)" }}
             >
               <item.icon className="h-4 w-4" />
@@ -484,7 +488,7 @@ export default function DashboardClientPage() {
             <p className="font-display text-[11px] font-semibold uppercase tracking-[0.22em] text-white/75">
               {item.label}
             </p>
-            <p className="font-display mt-2 text-2xl font-extrabold text-white sm:text-3xl">
+            <p className="font-display mt-2 text-[1.65rem] font-extrabold text-white sm:text-[1.9rem] lg:text-3xl">
               {item.value}
             </p>
             <p className="mt-1 text-xs font-semibold text-white/90">{item.helper}</p>
@@ -497,7 +501,7 @@ export default function DashboardClientPage() {
           <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
               <div className="mb-4 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <h2 className="text-lg font-bold text-[#0f1724]">Pipeline des visites</h2>
+                <h2 className="text-base font-bold text-[#0f1724] sm:text-[1.05rem] lg:text-lg">Pipeline des visites</h2>
                 <span className="inline-flex max-w-full items-center rounded-full border border-[#1a3a5c]/20 bg-[#1a3a5c]/5 px-2.5 py-1 text-xs font-semibold text-[#1a3a5c]">
                   {visits.length} au total
                 </span>
@@ -525,7 +529,7 @@ export default function DashboardClientPage() {
 
             <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
               <div className="mb-4 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <h2 className="text-lg font-bold text-[#0f1724]">Demandes sur 7 jours</h2>
+                <h2 className="text-base font-bold text-[#0f1724] sm:text-[1.05rem] lg:text-lg">Demandes sur 7 jours</h2>
                 <span className="inline-flex max-w-full items-center rounded-full border border-[#1a3a5c]/20 bg-[#1a3a5c]/5 px-2.5 py-1 text-xs font-semibold text-[#1a3a5c]">
                   {weeklyTotalVisits} cette semaine
                 </span>
@@ -559,7 +563,7 @@ export default function DashboardClientPage() {
           <section className="rounded-3xl border border-gray-100 bg-white shadow-sm">
             <div className="flex flex-col gap-4 border-b border-gray-100 px-4 py-4 sm:px-5 lg:flex-row lg:items-end lg:justify-between">
               <div>
-                <h2 className="text-lg font-bold text-[#0f1724] sm:text-xl">Biens à découvrir</h2>
+                <h2 className="text-base font-bold text-[#0f1724] sm:text-[1.05rem] lg:text-xl">Biens à découvrir</h2>
                 <p className="mt-1 text-sm text-gray-500">
                   Une sélection proche de l&apos;accueil pour relancer votre recherche.
                 </p>

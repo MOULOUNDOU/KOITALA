@@ -29,7 +29,7 @@ function PropertySection({
   return (
     <section className="rounded-3xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5 lg:p-6">
       <div className="mb-5 flex items-center justify-between gap-3 border-b border-gray-100 pb-4">
-        <h2 className="text-lg font-semibold text-[#0f1724] sm:text-xl">{title}</h2>
+        <h2 className="text-base font-semibold text-[#0f1724] sm:text-[1.05rem] lg:text-xl">{title}</h2>
         <span className="inline-flex items-center rounded-full border border-[#1a3a5c]/10 bg-[#1a3a5c]/5 px-3 py-1 text-xs font-semibold text-[#1a3a5c]">
           {properties.length}
         </span>
@@ -177,7 +177,7 @@ export default async function AnnoncesPage({ searchParams }: AnnoncesPageProps) 
     <div className="mx-auto max-w-7xl p-4 pb-8 sm:p-6 sm:pb-10 lg:p-8">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[#0f1724] sm:text-3xl">Mes annonces</h1>
+          <h1 className="text-[1.4rem] font-bold text-[#0f1724] sm:text-[1.6rem] lg:text-3xl">Mes annonces</h1>
           <div className="mt-3 flex flex-wrap gap-2">
             <span className="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-semibold text-gray-600">
               {totalFeatured} recommandée{totalFeatured > 1 ? "s" : ""}

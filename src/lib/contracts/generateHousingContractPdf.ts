@@ -540,17 +540,77 @@ export async function generateHousingContractPdf(payload: HousingContractPdfPayl
     "Un etat des lieux d'entree et, le cas echeant, un inventaire des equipements doivent etre etablis. Lors de la restitution des lieux, l'etat du bien, les cles remises et les obligations restant dues serviront de base a la cloture du dossier." 
   );
 
+  const agencyPaymentLocation = [AGENCY_INFO.addressLine1, AGENCY_INFO.addressLine2].filter(Boolean).join(", ");
+  const rentPaymentClause =
+    payload.paymentFrequency === "mois"
+      ? `Le locataire doit s'acquitter du montant total du loyer au plus tard le 10 de chaque mois, selon les modalites arretees avec l'agence KOITALA au siege situe a ${agencyPaymentLocation}.`
+      : `Le locataire doit s'acquitter du montant total du loyer selon la periodicite journaliere convenue avec l'agence KOITALA, au siege situe a ${agencyPaymentLocation}, sauf modalite ecrite differente.`;
+  let nextSectionNumber = 4;
+
+  addSectionTitle(
+    `${nextSectionNumber}. Clauses a respecter`,
+    "Le locataire s'engage a respecter strictement les clauses ci-dessous, en complement des stipulations essentielles du present contrat."
+  );
+
+  [
+    {
+      title: "Remise du logement en bon etat",
+      text: "Le bailleur ou son mandataire est tenu de remettre au locataire un logement en bon etat d'usage, d'habitabilite et de fonctionnement a la date d'entree dans les lieux.",
+    },
+    {
+      title: "Etat des lieux, caution et reparations",
+      text: `Un etat des lieux sera etabli avant l'occupation puis lors de la restitution du logement. Si le depot de garantie de ${formatMoney(payload.securityDeposit)} ne couvre pas les reparations imputables au locataire, celui-ci devra completer la somme necessaire a la remise en etat des locaux.`,
+    },
+    {
+      title: "Activites interdites dans le logement",
+      text: "Il est interdit d'exercer dans le logement tout commerce de marchandises illicites, ainsi que toute activite d'elevage d'animaux sans autorisation ecrite prealable du bailleur ou de son mandataire.",
+    },
+    {
+      title: "Interdiction de sous-location sans accord",
+      text: "Le locataire ne peut sous-louer, ceder ou mettre a disposition tout ou partie de sa chambre ou de son appartement a une tierce personne sans le consentement ecrit prealable du proprietaire ou de son mandataire.",
+    },
+    {
+      title: "Reglement du loyer",
+      text: rentPaymentClause,
+    },
+    {
+      title: "Preavis du locataire",
+      text: "Le locataire qui souhaite resilier le contrat avant son terme doit en avertir le bailleur ou son mandataire au moins deux mois a l'avance, sauf accord ecrit contraire entre les parties.",
+    },
+    {
+      title: "Preavis du bailleur",
+      text: "En cas de besoin, de reprise du logement ou de resiliation a l'initiative du bailleur ou de son mandataire, un preavis de six mois doit etre notifie au locataire, sauf faute grave ou disposition legale contraire.",
+    },
+    {
+      title: "Charges locatives",
+      text: "Les charges courantes telles que l'eau, l'electricite et, le cas echeant, la vidange de la fosse restent a la charge du locataire, sauf mention ecrite contraire dans le dossier contractuel.",
+    },
+    {
+      title: "Respect du reglement de colocation",
+      text: "En cas de colocation, chaque locataire doit respecter le reglement interieur applicable au logement et repond des manquements qui lui sont personnellement imputables.",
+    },
+    {
+      title: "Prise d'effet, duree et litiges",
+      text: `Le present contrat prend effet a compter de sa date de signature pour une duree initiale de ${formatDuration(payload.durationMonths)}. Sauf notification prealable reguliere de l'une des parties, il pourra etre reconduit aux memes conditions selon l'accord des parties et les regles applicables. En cas de conflit, les autorites ou juridictions competentes pourront etre saisies.`,
+    },
+  ].forEach((clause, index) => {
+    addClause(index + 1, clause.title, clause.text);
+  });
+
+  nextSectionNumber += 1;
+
   if (payload.specialClauses?.trim()) {
-    addSectionTitle("4. Clauses particulieres");
+    addSectionTitle(`${nextSectionNumber}. Clauses particulieres`);
     addWrappedText(payload.specialClauses.trim(), {
       fontSize: 10,
       lineHeight: 4.8,
       color: COLORS.body,
       spacingAfter: 5,
     });
+    nextSectionNumber += 1;
   }
 
-  addSectionTitle("5. Validation et signatures");
+  addSectionTitle(`${nextSectionNumber}. Validation et signatures`);
   addWrappedText(
     "Le present document est etabli pour formalisation contractuelle. Les parties declarent avoir pris connaissance des informations renseignees et s'engagent a les confirmer avant execution du contrat.",
     { fontSize: 10, color: COLORS.body, spacingAfter: 5 }

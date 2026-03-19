@@ -23,7 +23,7 @@ export default function DashboardAvatar({
   return (
     <div
       className={cn(
-        "flex items-center justify-center overflow-hidden rounded-full bg-white/12 text-sm font-bold text-[#e8b86d] ring-1 ring-white/10",
+        "flex items-center justify-center overflow-hidden rounded-full bg-white/12 text-xs font-bold text-[#e8b86d] ring-1 ring-white/10 sm:text-sm",
         className
       )}
     >

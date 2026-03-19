@@ -54,6 +54,13 @@ export async function GET(request: Request) {
 
       return NextResponse.redirect(new URL(resolvePostAuthPath(next, isAdmin), request.url));
     }
+
+    const errorMessage = error.message.toLowerCase();
+    const target = errorMessage.includes("gmail")
+      ? "/auth/login?error=gmail_only"
+      : "/auth/login?error=oauth";
+
+    return NextResponse.redirect(new URL(target, request.url));
   }
 
   return NextResponse.redirect(new URL("/auth/login?error=oauth", request.url));

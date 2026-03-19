@@ -1,5 +1,12 @@
 import { z } from "zod";
 
+const gmailOnlyEmailSchema = z
+  .string()
+  .trim()
+  .min(1, "Email requis")
+  .email("Email invalide")
+  .refine((value) => value.toLowerCase().endsWith("@gmail.com"), "Seules les adresses Gmail sont autorisées");
+
 export const loginSchema = z.object({
   email: z.string().trim().min(1, "Email requis").email("Email invalide"),
   password: z.string().min(1, "Mot de passe requis").min(6, "Mot de passe trop court (6 caractères min.)"),
@@ -12,7 +19,7 @@ export const registerSchema = z.object({
     .min(2, "Nom trop court (2 caractères min.)")
     .regex(/^[a-zA-ZÀ-ÿ\s'-]+$/, "Le nom ne doit contenir que des lettres")
     .refine((v) => v.trim().length >= 2, "Le nom ne peut pas être que des espaces"),
-  email: z.string().trim().min(1, "Email requis").email("Email invalide"),
+  email: gmailOnlyEmailSchema,
   password: z.string()
     .min(1, "Mot de passe requis")
     .min(6, "Mot de passe trop court (6 caractères min.)")

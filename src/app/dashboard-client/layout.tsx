@@ -103,13 +103,13 @@ export default function DashboardClientLayout({ children }: { children: React.Re
   }
 
   return (
-    <div className="dashboard-client-scope flex h-[100svh] md:h-screen bg-[#f4f6f9] overflow-hidden">
-      <MobileDashboardViewportLock containerId="dashboard-client-scroll-root" />
+    <div className="dashboard-client-scope flex h-[100dvh] min-h-0 overflow-hidden overscroll-none bg-[#f4f6f9] md:h-screen">
+      <MobileDashboardViewportLock />
       <ClientSidebar userName={userName} userAvatarUrl={userAvatarUrl} />
       <div
         id="dashboard-client-scroll-root"
         data-dashboard-scroll-root
-        className="flex-1 min-w-0 min-h-0 h-full overflow-y-auto overflow-x-hidden pt-14 md:pt-0 [-webkit-overflow-scrolling:touch] [overscroll-behavior-y:contain] [touch-action:pan-y]"
+        className="scrollbar-hide flex-1 min-w-0 min-h-0 h-full overflow-y-auto overflow-x-hidden pt-14 pb-[calc(env(safe-area-inset-bottom)+8rem)] md:pt-0 md:pb-0 [-webkit-overflow-scrolling:touch] [overscroll-behavior-y:contain] [touch-action:pan-y]"
       >
         {children}
       </div>

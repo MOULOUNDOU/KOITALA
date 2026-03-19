@@ -36,6 +36,7 @@ const navItems = [
 const bottomItems = [
   { label: "Paramètres", href: "/dashboard/parametres", icon: Settings },
 ];
+const adminProfileHref = "/dashboard/parametres";
 const adminAssistantHref = "/dashboard/assistant-ia";
 
 interface ProfileUpdatedEventDetail {
@@ -48,6 +49,7 @@ export default function DashboardSidebar() {
   const supabase = useMemo(() => createClient(), []);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [desktopExpanded, setDesktopExpanded] = useState(false);
+  const [desktopAlwaysOpen, setDesktopAlwaysOpen] = useState(false);
   const [showSignOutDialog, setShowSignOutDialog] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [adminName, setAdminName] = useState("Administrateur");
@@ -127,7 +129,32 @@ export default function DashboardSidebar() {
     };
   }, [supabase]);
 
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(min-width: 1024px)");
+
+    const syncDesktopMode = (matches: boolean) => {
+      setDesktopAlwaysOpen(matches);
+
+      if (matches) {
+        setDesktopExpanded(false);
+      }
+    };
+
+    syncDesktopMode(mediaQuery.matches);
+
+    const handleChange = (event: MediaQueryListEvent) => {
+      syncDesktopMode(event.matches);
+    };
+
+    mediaQuery.addEventListener("change", handleChange);
+
+    return () => {
+      mediaQuery.removeEventListener("change", handleChange);
+    };
+  }, []);
+
   const displayName = adminName.trim() || "Administrateur";
+  const desktopOpen = desktopAlwaysOpen || desktopExpanded;
 
   const confirmSignOut = async () => {
     setShowSignOutDialog(false);
@@ -155,7 +182,7 @@ export default function DashboardSidebar() {
         onClick={() => setMobileOpen(false)}
         className={cn(
           "group relative flex items-center rounded-xl transition-all duration-300 ease-out",
-          desktopExpanded ? "h-11 w-full justify-start gap-2.5 px-2.5" : "h-11 w-11 justify-center",
+          desktopOpen ? "h-11 w-full justify-start gap-2.5 px-2.5" : "h-11 w-11 justify-center",
           active
             ? "bg-white/12 text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.16)]"
             : "text-white/80 hover:bg-white/10 hover:text-white"
@@ -174,7 +201,7 @@ export default function DashboardSidebar() {
         <span
           className={cn(
             "whitespace-nowrap text-sm font-semibold transition-all duration-200",
-            desktopExpanded
+            desktopOpen
               ? "max-w-[186px] translate-x-0 opacity-100"
               : "pointer-events-none max-w-0 -translate-x-2 overflow-hidden opacity-0"
           )}
@@ -190,14 +217,26 @@ export default function DashboardSidebar() {
       {/* ═══ DESKTOP: icon-only sidebar ═══ */}
       <aside
         className={cn(
-          "hidden md:flex h-full min-h-0 shrink-0 flex-col overflow-y-auto bg-[#1a3a5c] py-4 transition-[width,padding] duration-300 ease-out",
-          desktopExpanded ? "w-[224px] px-2.5" : "w-[64px] px-1.5"
+          "hidden md:flex h-full min-h-0 shrink-0 flex-col overflow-hidden bg-[#1a3a5c] py-4 transition-[width,padding] duration-300 ease-out",
+          desktopOpen ? "w-[224px] px-2.5" : "w-[64px] px-1.5"
         )}
-        onMouseEnter={() => setDesktopExpanded(true)}
-        onMouseLeave={() => setDesktopExpanded(false)}
-        onFocusCapture={() => setDesktopExpanded(true)}
+        onMouseEnter={() => {
+          if (!desktopAlwaysOpen) {
+            setDesktopExpanded(true);
+          }
+        }}
+        onMouseLeave={() => {
+          if (!desktopAlwaysOpen) {
+            setDesktopExpanded(false);
+          }
+        }}
+        onFocusCapture={() => {
+          if (!desktopAlwaysOpen) {
+            setDesktopExpanded(true);
+          }
+        }}
         onBlur={(event) => {
-          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+          if (!desktopAlwaysOpen && !event.currentTarget.contains(event.relatedTarget as Node | null)) {
             setDesktopExpanded(false);
           }
         }}
@@ -206,7 +245,7 @@ export default function DashboardSidebar() {
           href="/dashboard"
           className={cn(
             "mb-6 flex items-center rounded-xl transition-all duration-300",
-            desktopExpanded ? "w-full gap-3 px-2" : "justify-center"
+            desktopOpen ? "w-full gap-3 px-2" : "justify-center"
           )}
         >
           <Image
@@ -218,8 +257,8 @@ export default function DashboardSidebar() {
           />
           <span
             className={cn(
-              "whitespace-nowrap text-base font-bold tracking-tight text-white transition-all duration-200",
-              desktopExpanded
+              "whitespace-nowrap text-sm font-bold tracking-tight text-white transition-all duration-200 lg:text-[15px] xl:text-base",
+              desktopOpen
                 ? "max-w-[136px] translate-x-0 opacity-100"
                 : "pointer-events-none max-w-0 -translate-x-2 overflow-hidden opacity-0"
             )}
@@ -228,37 +267,42 @@ export default function DashboardSidebar() {
           </span>
         </Link>
 
-        <div
+        <Link
+          href={adminProfileHref}
+          aria-label="Ouvrir le profil administrateur"
           className={cn(
-            "mb-4 flex items-center transition-all duration-300",
-            desktopExpanded
-              ? "gap-3 rounded-2xl border border-white/10 bg-white/8 px-3 py-2.5"
-              : "justify-center"
+            "mb-4 flex items-center rounded-2xl transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30",
+            desktopOpen
+              ? "w-full gap-3 border border-white/10 bg-white/8 px-3 py-2.5 hover:border-white/20 hover:bg-white/12"
+              : "justify-center p-1 hover:bg-white/10"
           )}
         >
           <DashboardAvatar
             name={displayName}
             avatarUrl={adminAvatarUrl}
-            className={cn("shrink-0 transition-all duration-300", desktopExpanded ? "h-12 w-12" : "h-11 w-11")}
+            className={cn(
+              "shrink-0 transition-all duration-300",
+              desktopOpen ? "h-10 w-10 lg:h-11 lg:w-11 xl:h-12 xl:w-12" : "h-10 w-10 lg:h-11 lg:w-11"
+            )}
           />
           <div
             className={cn(
               "min-w-0 transition-all duration-200",
-              desktopExpanded
+              desktopOpen
                 ? "max-w-[122px] translate-x-0 opacity-100"
                 : "pointer-events-none max-w-0 -translate-x-2 overflow-hidden opacity-0"
             )}
           >
-            <p className="truncate text-sm font-semibold text-white">{displayName}</p>
+            <p className="truncate text-[13px] font-semibold text-white lg:text-sm">{displayName}</p>
             <p className="text-[11px] text-white/65">Administrateur</p>
           </div>
-        </div>
+        </Link>
 
         {/* Main nav */}
         <nav
           className={cn(
             "flex flex-col gap-1.5",
-            desktopExpanded ? "items-stretch" : "items-center"
+            desktopOpen ? "items-stretch" : "items-center"
           )}
         >
           {navItems.map((item) => (
@@ -270,7 +314,7 @@ export default function DashboardSidebar() {
         <div
           className={cn(
             "mt-2 flex flex-col gap-1.5 border-t border-white/10 pt-4",
-            desktopExpanded ? "items-stretch" : "items-center"
+            desktopOpen ? "items-stretch" : "items-center"
           )}
         >
           {bottomItems.map((item) => (
@@ -281,7 +325,7 @@ export default function DashboardSidebar() {
             onClick={() => setMobileOpen(false)}
             className={cn(
               "group flex items-center rounded-xl transition-all duration-300",
-              desktopExpanded ? "h-11 w-full justify-start gap-2.5 px-2.5" : "h-11 w-11 justify-center",
+              desktopOpen ? "h-11 w-full justify-start gap-2.5 px-2.5" : "h-11 w-11 justify-center",
               isActive(adminAssistantHref)
                 ? "bg-white/12 text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.16)]"
                 : "text-white/80 hover:bg-white/10 hover:text-white"
@@ -302,7 +346,7 @@ export default function DashboardSidebar() {
               className={cn(
                 "whitespace-nowrap text-sm font-semibold transition-all duration-200",
                 isActive(adminAssistantHref) ? "text-white" : "text-white/80 group-hover:text-white",
-                desktopExpanded
+                desktopOpen
                   ? "max-w-[186px] translate-x-0 opacity-100"
                   : "pointer-events-none max-w-0 -translate-x-2 overflow-hidden opacity-0"
               )}
@@ -317,7 +361,7 @@ export default function DashboardSidebar() {
             aria-label="Voir le site (nouvel onglet)"
             className={cn(
               "group flex items-center rounded-xl text-white/80 transition-all duration-300 hover:bg-white/10 hover:text-white",
-              desktopExpanded ? "h-11 w-full justify-start gap-2.5 px-2.5" : "h-11 w-11 justify-center"
+              desktopOpen ? "h-11 w-full justify-start gap-2.5 px-2.5" : "h-11 w-11 justify-center"
             )}
           >
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/10 text-white/90 transition-all duration-300 group-hover:bg-white/20 group-hover:text-white">
@@ -326,7 +370,7 @@ export default function DashboardSidebar() {
             <span
               className={cn(
                 "whitespace-nowrap text-sm font-semibold transition-all duration-200",
-                desktopExpanded
+                desktopOpen
                   ? "max-w-[186px] translate-x-0 opacity-100"
                   : "pointer-events-none max-w-0 -translate-x-2 overflow-hidden opacity-0"
               )}
@@ -339,7 +383,7 @@ export default function DashboardSidebar() {
         <div
           className={cn(
             "mt-auto flex flex-col border-t border-white/10 pt-4",
-            desktopExpanded ? "items-stretch" : "items-center"
+            desktopOpen ? "items-stretch" : "items-center"
           )}
         >
           <button
@@ -347,7 +391,7 @@ export default function DashboardSidebar() {
             disabled={isSigningOut}
             className={cn(
               "group flex items-center rounded-xl bg-[#6b4226] text-white transition-all duration-300 hover:bg-[#55331d] disabled:cursor-not-allowed disabled:opacity-70",
-              desktopExpanded ? "h-11 w-full justify-start gap-2.5 px-2.5" : "h-11 w-11 justify-center"
+              desktopOpen ? "h-11 w-full justify-start gap-2.5 px-2.5" : "h-11 w-11 justify-center"
             )}
           >
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/20 text-white">
@@ -356,7 +400,7 @@ export default function DashboardSidebar() {
             <span
               className={cn(
                 "whitespace-nowrap text-sm font-semibold transition-all duration-200",
-                desktopExpanded
+                desktopOpen
                   ? "max-w-[186px] translate-x-0 opacity-100"
                   : "pointer-events-none max-w-0 -translate-x-2 overflow-hidden opacity-0"
               )}
@@ -371,14 +415,21 @@ export default function DashboardSidebar() {
       <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-[#1a3a5c] flex items-center justify-between px-4 h-14">
         <Link href="/dashboard" className="flex items-center gap-2">
           <Image src="/logo-koitala.png" alt="KOITALA" width={32} height={32} className="w-8 h-8 rounded-lg object-cover" />
-          <span className="text-lg font-bold text-white">KOI<span className="text-[#e8b86d]">TALA</span></span>
+          <span className="text-base font-bold text-white">KOI<span className="text-[#e8b86d]">TALA</span></span>
         </Link>
         <div className="flex items-center gap-2">
-          <DashboardAvatar
-            name={displayName}
-            avatarUrl={adminAvatarUrl}
-            className="h-9 w-9 shrink-0 text-xs"
-          />
+          <Link
+            href={adminProfileHref}
+            onClick={() => setMobileOpen(false)}
+            aria-label="Ouvrir le profil administrateur"
+            className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
+          >
+            <DashboardAvatar
+              name={displayName}
+              avatarUrl={adminAvatarUrl}
+              className="h-8 w-8 shrink-0 text-[11px]"
+            />
+          </Link>
           <button onClick={() => setMobileOpen(!mobileOpen)} className="w-10 h-10 flex items-center justify-center text-white">
             {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
@@ -396,23 +447,28 @@ export default function DashboardSidebar() {
       />
       <div
         className={cn(
-          "md:hidden fixed top-14 left-0 bottom-0 z-40 flex w-56 flex-col overflow-y-auto bg-[#1a3a5c] transition-transform duration-300 ease-out",
+          "md:hidden fixed top-14 left-0 bottom-0 z-40 flex w-56 flex-col overflow-hidden overscroll-none bg-[#1a3a5c] transition-transform duration-300 ease-out",
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         )}
         aria-hidden={!mobileOpen}
       >
         <div className="px-4 py-4 border-b border-white/10">
-          <div className="flex items-center gap-3">
+          <Link
+            href={adminProfileHref}
+            onClick={() => setMobileOpen(false)}
+            aria-label="Ouvrir le profil administrateur"
+            className="flex items-center gap-3 rounded-2xl p-1 -m-1 transition-colors hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
+          >
             <DashboardAvatar
               name={displayName}
               avatarUrl={adminAvatarUrl}
-              className="h-10 w-10 shrink-0 text-sm"
+              className="h-9 w-9 shrink-0 text-xs"
             />
             <div>
-              <p className="text-sm font-semibold text-white">{displayName}</p>
+              <p className="text-[13px] font-semibold text-white">{displayName}</p>
               <p className="text-xs text-gray-400">Administrateur</p>
             </div>
-          </div>
+          </Link>
         </div>
         <nav className="px-3 py-4">
           <ul className="space-y-1">

@@ -414,7 +414,7 @@ export default function ProfilPage() {
             style={{ backgroundColor: item.bgColor }}
           >
             <div
-              className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-2xl text-white"
+              className="mb-3 inline-flex h-9 w-9 items-center justify-center rounded-2xl text-white sm:h-10 sm:w-10"
               style={{ backgroundColor: "rgba(255,255,255,0.2)" }}
             >
               <item.icon className="h-4 w-4" />
@@ -422,7 +422,7 @@ export default function ProfilPage() {
             <p className="font-display text-[11px] font-semibold uppercase tracking-[0.22em] text-white/75">
               {item.label}
             </p>
-            <p className="font-display mt-2 text-2xl font-extrabold text-white sm:text-3xl">
+            <p className="font-display mt-2 text-[1.65rem] font-extrabold text-white sm:text-[1.9rem] lg:text-3xl">
               {item.value}
             </p>
             <p className="mt-1 text-xs font-semibold text-white/90">{item.helper}</p>
@@ -433,7 +433,7 @@ export default function ProfilPage() {
       <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-2">
         <section className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
           <div className="mb-5 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#1a3a5c]/10">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#1a3a5c]/10 sm:h-10 sm:w-10">
               <User className="h-5 w-5 text-[#1a3a5c]" />
             </div>
             <div>
@@ -488,7 +488,7 @@ export default function ProfilPage() {
 
         <section className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
           <div className="mb-5 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#1a3a5c]/10">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#1a3a5c]/10 sm:h-10 sm:w-10">
               <Lock className="h-5 w-5 text-[#1a3a5c]" />
             </div>
             <div>
@@ -540,7 +540,7 @@ export default function ProfilPage() {
       <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-2">
         <section className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
           <div className="mb-5 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#1a3a5c]/10">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#1a3a5c]/10 sm:h-10 sm:w-10">
               <Bell className="h-5 w-5 text-[#1a3a5c]" />
             </div>
             <div>
@@ -571,7 +571,7 @@ export default function ProfilPage() {
 
         <section className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
           <div className="mb-5 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#1a3a5c]/10">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#1a3a5c]/10 sm:h-10 sm:w-10">
               <Download className="h-5 w-5 text-[#1a3a5c]" />
             </div>
             <div>
@@ -589,7 +589,7 @@ export default function ProfilPage() {
               disabled={exportingData}
               className="flex h-full min-h-[116px] w-full flex-col items-start gap-3 rounded-2xl border border-gray-200 px-4 py-3 text-left transition-colors hover:bg-[#f8fafc] disabled:opacity-60 min-[430px]:min-h-[132px] sm:justify-between"
             >
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-[#1a3a5c]/10 text-[#1a3a5c]">
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-[#1a3a5c]/10 text-[#1a3a5c] sm:h-9 sm:w-9">
                 <Download className="h-4 w-4 shrink-0" />
               </span>
               <span className="min-w-0">
@@ -608,7 +608,7 @@ export default function ProfilPage() {
               disabled={downloadingCard}
               className="flex h-full min-h-[116px] w-full flex-col items-start gap-3 rounded-2xl border border-gray-200 px-4 py-3 text-left transition-colors hover:bg-[#f8fafc] disabled:opacity-60 min-[430px]:min-h-[132px] sm:justify-between"
             >
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-[#1a3a5c]/10 text-[#1a3a5c]">
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-[#1a3a5c]/10 text-[#1a3a5c] sm:h-9 sm:w-9">
                 <Phone className="h-4 w-4 shrink-0" />
               </span>
               <span className="min-w-0">

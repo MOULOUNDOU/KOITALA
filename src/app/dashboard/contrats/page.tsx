@@ -634,14 +634,14 @@ export default function ContratsPage() {
       <section className="rounded-[28px] border border-gray-100 bg-white p-5 shadow-sm sm:p-6 lg:p-7">
         <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-3xl">
-            <h1 className="text-2xl font-extrabold tracking-tight text-[#0f1724] sm:text-3xl">
+            <h1 className="text-[1.45rem] font-extrabold tracking-tight text-[#0f1724] sm:text-[1.65rem] lg:text-3xl">
               Generation de contrat
             </h1>
           </div>
 
           <div className="rounded-3xl border border-[#1a3a5c]/10 bg-white px-5 py-4 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">Etape actuelle</p>
-            <p className="mt-2 text-3xl font-extrabold tracking-tight text-[#0f1724]">
+            <p className="mt-2 text-[1.8rem] font-extrabold tracking-tight text-[#0f1724] sm:text-[2rem] lg:text-3xl">
               {step}/{TOTAL_STEPS}
             </p>
             <p className="mt-1 text-sm text-gray-500">{currentStep.label}</p>
@@ -693,7 +693,7 @@ export default function ContratsPage() {
         <section className="space-y-6">
           <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
             <div className="mb-5 flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#1a3a5c]/10 text-[#1a3a5c]">
+              <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[#1a3a5c]/10 text-[#1a3a5c] sm:h-10 sm:w-10">
                 <currentStep.icon className="h-4 w-4" />
               </div>
               <div>
@@ -740,7 +740,7 @@ export default function ContratsPage() {
 
         <aside className="space-y-6 xl:sticky xl:top-6">
           <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
-            <h2 className="text-lg font-bold text-[#0f1724]">Resume du contrat</h2>
+            <h2 className="text-base font-bold text-[#0f1724] sm:text-lg">Resume du contrat</h2>
             <div className="mt-4 space-y-3 text-sm">
               <div className="rounded-2xl bg-[#f8fafc] px-4 py-3">
                 <p className="text-xs uppercase tracking-[0.18em] text-gray-400">Client</p>

@@ -285,7 +285,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gray-400">
                 CRM KOITALA
               </p>
-              <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-[#0f1724] sm:text-3xl">
+              <h1 className="mt-2 text-[1.45rem] font-extrabold tracking-tight text-[#0f1724] sm:text-[1.65rem] lg:text-3xl">
                 Vue d&apos;ensemble
               </h1>
               <p className="mt-1.5 text-sm text-gray-600">
@@ -373,7 +373,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
               style={{ backgroundColor: item.bgColor }}
             >
               <div
-                className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-2xl text-white"
+                className="mb-3 inline-flex h-9 w-9 items-center justify-center rounded-2xl text-white sm:h-10 sm:w-10"
                 style={{ backgroundColor: "rgba(255,255,255,0.2)" }}
               >
                 <item.icon className="h-4 w-4" />
@@ -381,7 +381,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
               <p className="font-display text-[11px] font-semibold uppercase tracking-[0.22em] text-white/75">
                 {item.label}
               </p>
-              <p className="font-display mt-2 text-2xl font-extrabold text-white sm:text-3xl">
+              <p className="font-display mt-2 text-[1.65rem] font-extrabold text-white sm:text-[1.9rem] lg:text-3xl">
                 {item.value}
               </p>
               <p className="mt-1 text-xs font-semibold text-white/90">{item.helper}</p>
@@ -400,7 +400,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
               <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
                 <div className="mb-4 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <h2 className="text-lg font-bold text-[#0f1724]">Pipeline des annonces</h2>
+                  <h2 className="text-base font-bold text-[#0f1724] sm:text-[1.05rem] lg:text-lg">Pipeline des annonces</h2>
                   <span className="inline-flex max-w-full items-center rounded-full border border-[#1a3a5c]/20 bg-[#1a3a5c]/5 px-2.5 py-1 text-xs font-semibold text-[#1a3a5c]">
                     {stats.totalProps} au total
                   </span>
@@ -431,7 +431,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
               <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
                 <div className="mb-4 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <h2 className="text-lg font-bold text-[#0f1724]">Flux demandes (7 jours)</h2>
+                  <h2 className="text-base font-bold text-[#0f1724] sm:text-[1.05rem] lg:text-lg">Flux demandes (7 jours)</h2>
                   <span className="inline-flex max-w-full items-center rounded-full border border-[#1a3a5c]/20 bg-[#1a3a5c]/5 px-2.5 py-1 text-xs font-semibold text-[#1a3a5c]">
                     {weeklyTotalVisits} cette semaine
                   </span>
@@ -522,7 +522,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         >
             <div className="flex flex-col gap-4 border-b border-gray-100 px-4 py-4 sm:px-5 lg:flex-row lg:items-end lg:justify-between">
               <div>
-                <h2 className="text-lg font-bold text-[#0f1724] sm:text-xl">
+                <h2 className="text-base font-bold text-[#0f1724] sm:text-[1.05rem] lg:text-xl">
                   {isSearchMode ? "Annonces trouvées" : "Tableau des annonces"}
                 </h2>
                 <p className="mt-1 text-sm text-gray-500">

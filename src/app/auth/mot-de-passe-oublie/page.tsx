@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Building2, Mail } from "lucide-react";
+import { ArrowLeft, Building2, Mail } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
@@ -76,8 +76,9 @@ export default function ForgotPasswordPage() {
           )}
 
           <p className="text-center text-sm text-gray-500 mt-6">
-            <Link href="/auth/login" className="text-[#1a3a5c] font-medium hover:underline">
-              � � Retour à la connexion
+            <Link href="/auth/login" className="inline-flex items-center gap-2 text-[#1a3a5c] font-medium hover:underline">
+              <ArrowLeft className="h-4 w-4" />
+              Retour à la connexion
             </Link>
           </p>
         </div>
@@ -85,4 +86,3 @@ export default function ForgotPasswordPage() {
     </div>
   );
 }
-

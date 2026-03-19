@@ -150,7 +150,7 @@ export default function VisitesPage() {
             style={{ backgroundColor: item.bgColor }}
           >
             <div
-              className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-2xl text-white"
+              className="mb-3 inline-flex h-9 w-9 items-center justify-center rounded-2xl text-white sm:h-10 sm:w-10"
               style={{ backgroundColor: "rgba(255,255,255,0.2)" }}
             >
               <item.icon className="h-4 w-4" />
@@ -158,7 +158,7 @@ export default function VisitesPage() {
             <p className="font-display text-[11px] font-semibold uppercase tracking-[0.22em] text-white/75">
               {item.label}
             </p>
-            <p className="font-display mt-2 text-2xl font-extrabold text-white sm:text-3xl">
+            <p className="font-display mt-2 text-[1.65rem] font-extrabold text-white sm:text-[1.9rem] lg:text-3xl">
               {item.value}
             </p>
             <p className="mt-1 text-xs font-semibold text-white/90">{item.helper}</p>
@@ -168,8 +168,8 @@ export default function VisitesPage() {
 
       {visits.length === 0 ? (
         <div className="rounded-3xl border border-gray-100 bg-white px-4 py-20 text-center shadow-sm">
-          <CalendarCheck className="mx-auto mb-4 h-14 w-14 text-gray-200" />
-          <h3 className="text-lg font-semibold text-gray-700">Aucune demande de visite</h3>
+          <CalendarCheck className="mx-auto mb-4 h-12 w-12 text-gray-200 sm:h-14 sm:w-14" />
+          <h3 className="text-base font-semibold text-gray-700 sm:text-lg">Aucune demande de visite</h3>
           <p className="mx-auto mt-2 max-w-md text-sm text-gray-400">
             Planifiez une visite depuis une annonce pour la retrouver ici.
           </p>
@@ -200,7 +200,7 @@ export default function VisitesPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="line-clamp-1 text-base font-semibold text-[#0f1724] sm:text-lg">
+                        <p className="line-clamp-1 text-[15px] font-semibold text-[#0f1724] sm:text-base lg:text-lg">
                           {property?.title ?? "Bien supprimé"}
                         </p>
                         <p className="mt-1 text-xs text-gray-400">Envoyée le {formatDate(visit.created_at)}</p>

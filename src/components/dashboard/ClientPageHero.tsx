@@ -34,15 +34,17 @@ export default function ClientPageHero({
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-gray-400">
             {eyebrow}
           </p>
-          <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-[#0f1724] sm:text-3xl">
+          <h1 className="mt-2 text-[1.45rem] font-extrabold tracking-tight text-[#0f1724] sm:text-[1.65rem] lg:text-3xl">
             {title}
           </h1>
           <p className="mt-1.5 text-sm text-gray-600">{description}</p>
         </div>
 
         {actions ? (
-          <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
-            {actions}
+          <div className="-mx-1 overflow-x-auto px-1 pb-1 sm:mx-0 sm:overflow-visible sm:px-0 sm:pb-0">
+            <div className="flex min-w-max items-center gap-2 [&>*]:shrink-0 sm:min-w-0 sm:flex-wrap sm:justify-end">
+              {actions}
+            </div>
           </div>
         ) : null}
       </div>

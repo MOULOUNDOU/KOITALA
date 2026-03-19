@@ -56,7 +56,21 @@ export interface AICompletionOutput {
 }
 
 function getApiKey(): string {
-  return process.env.OPENROUTER_API_KEY?.trim() ?? "";
+  const envCandidates = [
+    process.env.OPENROUTER_API_KEY,
+    process.env.OPEN_ROUTER_API_KEY,
+    process.env.NETLIFY_OPENROUTER_API_KEY,
+    process.env.AI_OPENROUTER_API_KEY,
+  ];
+
+  for (const candidate of envCandidates) {
+    const normalized = candidate?.trim();
+    if (normalized) {
+      return normalized;
+    }
+  }
+
+  return "";
 }
 
 function getModel(inputModel?: string): string {
@@ -243,7 +257,9 @@ async function requestOpenRouter(params: {
 export async function requestAICompletion(input: AICompletionInput): Promise<AICompletionOutput> {
   const apiKey = getApiKey();
   if (!apiKey) {
-    throw new Error("missing-openrouter-api-key");
+    throw new Error(
+      "missing-openrouter-api-key: configure OPENROUTER_API_KEY (or OPEN_ROUTER_API_KEY / NETLIFY_OPENROUTER_API_KEY)"
+    );
   }
 
   const hasImageAttachments = input.messages.some((message) =>

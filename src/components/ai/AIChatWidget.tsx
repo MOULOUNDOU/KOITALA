@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { startTransition, useEffect, useRef, useState, type ChangeEvent } from "react";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import {
   AlertTriangle,
   Bot,
@@ -32,7 +33,11 @@ import type {
   AILeadDraft,
   AIWidgetScope,
 } from "@/lib/ai/types";
-import { AI_CHAT_OPEN_EVENT, AI_CHAT_WIDGET_ANCHOR_ID } from "@/lib/ai/widget";
+import {
+  AI_CHAT_OPEN_EVENT,
+  AI_CHAT_WIDGET_ANCHOR_ID,
+  PUBLIC_ASSISTANT_PAGE_HREF,
+} from "@/lib/ai/widget";
 import { cn } from "@/lib/utils";
 
 interface ScopeConfig {
@@ -576,6 +581,7 @@ export default function AIChatWidget({
 }: AIChatWidgetProps) {
   const isPageMode = mode === "page";
   const pathname = usePathname();
+  const router = useRouter();
   const assistantConfig = ASSISTANT_CONFIG[assistant];
   const [isOpen, setIsOpen] = useState(isPageMode);
   const [inputValue, setInputValue] = useState("");
@@ -603,6 +609,18 @@ export default function AIChatWidget({
   const searchInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const config = SCOPE_CONFIG[assistant][scope];
+  const pageCloseHref =
+    assistant === "admin"
+      ? "/dashboard"
+      : scope === "dashboard"
+        ? "/dashboard-client"
+        : "/";
+  const pageCloseLabel =
+    assistant === "admin"
+      ? "Fermer et revenir au dashboard admin"
+      : scope === "dashboard"
+        ? "Fermer et revenir au dashboard client"
+        : "Fermer et revenir a l accueil";
 
   useEffect(() => {
     const stored = readConversationFromSession(scope, assistant);
@@ -647,6 +665,11 @@ export default function AIChatWidget({
       window.removeEventListener(AI_CHAT_OPEN_EVENT, handleExternalOpen);
     };
   }, [isPageMode]);
+
+  useEffect(() => {
+    if (!isPageMode) return;
+    void router.prefetch(pageCloseHref);
+  }, [isPageMode, pageCloseHref, router]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -730,6 +753,40 @@ export default function AIChatWidget({
   const handleOpenFilePicker = () => {
     if (loading) return;
     fileInputRef.current?.click();
+  };
+
+  const handleCloseAssistantPage = () => {
+    if (!isPageMode) {
+      setIsOpen(false);
+      return;
+    }
+
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+    }
+
+    if (typeof window !== "undefined") {
+      window.speechSynthesis?.cancel();
+
+      try {
+        const sameOriginReferrer =
+          document.referrer.length > 0 &&
+          new URL(document.referrer, window.location.href).origin === window.location.origin;
+
+        if (sameOriginReferrer && window.history.length > 1) {
+          startTransition(() => {
+            router.back();
+          });
+          return;
+        }
+      } catch {
+        // Fall back to the default route below if referrer parsing fails.
+      }
+    }
+
+    startTransition(() => {
+      router.replace(pageCloseHref);
+    });
   };
 
   const handleFileSelection = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -1227,18 +1284,30 @@ export default function AIChatWidget({
 
           <div className="flex min-h-0 flex-col bg-[#1f2127]">
             <header className="border-b border-white/10 px-4 py-3 text-white sm:px-6">
-              <div className="flex items-center gap-3">
-                <Image
-                  src="/logo-koitala.png"
-                  alt="KOITALA"
-                  width={36}
-                  height={36}
-                  className="h-9 w-9 rounded-lg object-cover"
-                />
-                <div>
-                  <p className="text-xs uppercase tracking-[0.18em] text-gray-400">Assistant KOITALA</p>
-                  <h2 className="mt-1 text-sm font-semibold sm:text-base">{config.title}</h2>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <Image
+                    src="/logo-koitala.png"
+                    alt="KOITALA"
+                    width={36}
+                    height={36}
+                    className="h-9 w-9 rounded-lg object-cover"
+                  />
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.18em] text-gray-400">Assistant KOITALA</p>
+                    <h2 className="mt-1 text-sm font-semibold sm:text-base">{config.title}</h2>
+                  </div>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={handleCloseAssistantPage}
+                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white transition-colors hover:bg-white/10"
+                  aria-label={pageCloseLabel}
+                  title={pageCloseLabel}
+                >
+                  <X className="h-4 w-4" />
+                </button>
               </div>
             </header>
 
@@ -1527,18 +1596,32 @@ export default function AIChatWidget({
       />
 
       {!isOpen && showFloatingLauncher && (
-        <button
-          type="button"
-          onClick={() => setIsOpen(true)}
-          className={cn(
-            "fixed right-4 z-[70] inline-flex items-center gap-2 rounded-full bg-[#1a3a5c] px-4 py-3 text-sm font-semibold text-white shadow-[0_14px_35px_rgba(15,37,64,0.35)] transition-all hover:bg-[#0f2540] hover:shadow-[0_18px_42px_rgba(15,37,64,0.42)]",
-            floatingBottomClass
-          )}
-          aria-label={assistantConfig.openButtonAriaLabel}
-        >
-          <MessageCircle className="h-4 w-4" />
-          {assistantConfig.openButtonLabel}
-        </button>
+        scope === "public" ? (
+          <Link
+            href={PUBLIC_ASSISTANT_PAGE_HREF}
+            className={cn(
+              "fixed right-4 z-[70] inline-flex items-center gap-2 rounded-full bg-[#1a3a5c] px-4 py-3 text-sm font-semibold text-white shadow-[0_14px_35px_rgba(15,37,64,0.35)] transition-all hover:bg-[#0f2540] hover:shadow-[0_18px_42px_rgba(15,37,64,0.42)]",
+              floatingBottomClass
+            )}
+            aria-label="Aller a la page assistant immobilier"
+          >
+            <MessageCircle className="h-4 w-4" />
+            {assistantConfig.openButtonLabel}
+          </Link>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setIsOpen(true)}
+            className={cn(
+              "fixed right-4 z-[70] inline-flex items-center gap-2 rounded-full bg-[#1a3a5c] px-4 py-3 text-sm font-semibold text-white shadow-[0_14px_35px_rgba(15,37,64,0.35)] transition-all hover:bg-[#0f2540] hover:shadow-[0_18px_42px_rgba(15,37,64,0.42)]",
+              floatingBottomClass
+            )}
+            aria-label={assistantConfig.openButtonAriaLabel}
+          >
+            <MessageCircle className="h-4 w-4" />
+            {assistantConfig.openButtonLabel}
+          </button>
+        )
       )}
 
       {isOpen && (

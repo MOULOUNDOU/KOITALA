@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Mail, Lock, User, Eye, EyeOff, ArrowLeft, CheckCircle2 } from "lucide-react";
+import { Mail, Lock, User, Eye, EyeOff, ArrowLeft, CheckCircle2, Circle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { registerSchema, type RegisterInput } from "@/lib/validations";
 import SocialAuthButtons from "@/components/auth/SocialAuthButtons";
@@ -70,6 +70,11 @@ function RegisterForm() {
 
       if (error) {
         const msg = error.message.toLowerCase();
+
+        if (msg.includes("gmail")) {
+          toast.error("Seules les adresses Gmail sont autorisées pour l'inscription.");
+          return;
+        }
 
         if (msg.includes("already registered") || msg.includes("already been registered") || msg.includes("user already exists")) {
           toast.error("Un compte existe déjà avec cet email. Connectez-vous ou réinitialisez votre mot de passe.", { duration: 4000 });
@@ -220,6 +225,9 @@ function RegisterForm() {
                   />
                 </div>
                 {errors.email && <p className="mt-1 text-xs text-red-500">{errors.email.message}</p>}
+                <p className="mt-1 text-xs text-gray-400">
+                  Inscription réservée aux adresses <span className="font-mono">@gmail.com</span>.
+                </p>
               </div>
 
               {/* Password */}
@@ -264,12 +272,17 @@ function RegisterForm() {
                       {PASSWORD_RULES.map((rule) => {
                         const passed = rule.test(passwordValue);
                         return (
-                          <p
+                          <div
                             key={rule.label}
-                            className={`text-[11px] ${passed ? "text-emerald-700" : "text-gray-400"}`}
+                            className={`flex items-center gap-1.5 text-[11px] ${passed ? "text-emerald-700" : "text-gray-400"}`}
                           >
-                            {passed ? "✓" : "•"} {rule.label}
-                          </p>
+                            {passed ? (
+                              <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                            ) : (
+                              <Circle className="h-3.5 w-3.5 shrink-0" />
+                            )}
+                            <span>{rule.label}</span>
+                          </div>
                         );
                       })}
                     </div>
