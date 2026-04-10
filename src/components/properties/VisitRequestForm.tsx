@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import type { z } from "zod";
 import { CalendarCheck, CheckCircle } from "lucide-react";
 import Input from "@/components/ui/Input";
 import Textarea from "@/components/ui/Textarea";
@@ -14,6 +15,8 @@ interface VisitRequestFormProps {
   propertyTitle: string;
 }
 
+type VisitRequestFormValues = z.input<typeof visitRequestSchema>;
+
 export default function VisitRequestForm({
   propertyId,
   propertyTitle,
@@ -24,7 +27,7 @@ export default function VisitRequestForm({
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<VisitRequestInput>({
+  } = useForm<VisitRequestFormValues, unknown, VisitRequestInput>({
     resolver: zodResolver(visitRequestSchema),
   });
 
