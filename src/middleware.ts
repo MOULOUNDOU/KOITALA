@@ -26,11 +26,9 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   const { pathname } = request.nextUrl;
 
-  const protectedRoutes = ["/favoris", "/dashboard-client"];
-  const isProtected = protectedRoutes.some((r) => pathname.startsWith(r));
-  const isAdmin = pathname.startsWith("/dashboard") && !pathname.startsWith("/dashboard-client");
+  const isAdmin = pathname.startsWith("/dashboard");
 
-  if ((isProtected || isAdmin) && !user) {
+  if (isAdmin && !user) {
     const url = request.nextUrl.clone();
     url.pathname = "/auth/login";
     url.searchParams.set("redirectTo", pathname);
@@ -65,7 +63,7 @@ export async function middleware(request: NextRequest) {
     }
 
     if (!hasAdminRole) {
-      return NextResponse.redirect(new URL("/", request.url));
+      return NextResponse.redirect(new URL("/auth/login?error=admin_only", request.url));
     }
   }
 

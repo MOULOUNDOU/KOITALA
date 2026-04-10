@@ -613,13 +613,13 @@ export default function AIChatWidget({
     assistant === "admin"
       ? "/dashboard"
       : scope === "dashboard"
-        ? "/dashboard-client"
+        ? "/"
         : "/";
   const pageCloseLabel =
     assistant === "admin"
       ? "Fermer et revenir au dashboard admin"
       : scope === "dashboard"
-        ? "Fermer et revenir au dashboard client"
+        ? "Fermer et revenir a l accueil"
         : "Fermer et revenir a l accueil";
 
   useEffect(() => {

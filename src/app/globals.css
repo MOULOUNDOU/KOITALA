@@ -280,14 +280,14 @@ input[type="reset"]:active {
   }
   to {
     opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
+    transform: none;
     filter: blur(0);
   }
 }
 @keyframes pageExit {
   from {
     opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
+    transform: none;
     filter: blur(0);
   }
   to {
@@ -357,41 +357,6 @@ input[type="reset"]:active {
   box-shadow: 0 20px 40px rgba(26, 58, 92, 0.12);
 }
 
-/* ── Dashboard client motion system ───────────────── */
-@keyframes dashboardClientPageEnter {
-  from {
-    opacity: 0;
-    transform: translateY(14px) scale(0.995);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-.dashboard-client-page-enter {
-  animation: dashboardClientPageEnter 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-.dashboard-client-scope :is(a, button) {
-  transition:
-    transform 0.2s cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 0.2s ease,
-    background-color 0.2s ease,
-    border-color 0.2s ease,
-    color 0.2s ease,
-    opacity 0.2s ease;
-  will-change: transform;
-}
-
-.dashboard-client-scope :is(a, button):hover {
-  transform: translateY(-1px);
-}
-
-.dashboard-client-scope :is(a, button):active {
-  transform: translateY(0) scale(0.98);
-}
-
 @media (prefers-reduced-motion: reduce) {
   button,
   [role="button"],
@@ -400,10 +365,6 @@ input[type="reset"]:active {
   input[type="reset"] {
     transition: none;
     transform: none;
-  }
-
-  .dashboard-client-page-enter {
-    animation: none;
   }
 
   .page-transition-shell,
@@ -421,8 +382,4 @@ input[type="reset"]:active {
     filter: none;
   }
 
-  .dashboard-client-scope :is(a, button) {
-    transition: none;
-    transform: none;
-  }
 }

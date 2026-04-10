@@ -16,7 +16,6 @@ import PropertyCardMobile from "@/components/properties/PropertyCardMobile";
 import HomePropertyCarousel from "@/components/properties/HomePropertyCarousel";
 import CategoryIcons from "@/components/layout/CategoryIcons";
 import SearchBar from "@/components/properties/SearchBar";
-import LoginPromptPopup from "@/components/layout/LoginPromptPopup";
 import SitePagination from "@/components/ui/SitePagination";
 import HowItWorksMobileCarousel from "@/components/layout/HowItWorksMobileCarousel";
 import { HOW_IT_WORKS_STEPS } from "@/components/layout/howItWorksData";
@@ -44,7 +43,7 @@ export const metadata: Metadata = {
 };
 
 const STATS = [
-  { label: "Années dans l'immobilier", value: "12+", icon: "Building2" },
+  { label: "Années dans l'immobilier", value: "13+", icon: "Building2" },
   { label: "Ans d'expérience pro", value: "23+", icon: "Star" },
   { label: "Clients accompagnés", value: "500+", icon: "Users" },
   { label: "Projets réalisés", value: "300+", icon: "TrendingUp" },
@@ -186,7 +185,6 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   return (
     <div className="public-motion-scope overflow-x-hidden">
       <Navbar />
-      <LoginPromptPopup />
       <main>
           {/* HERO */}
           <section className="relative min-h-[100svh] flex items-center justify-center overflow-hidden">
@@ -195,7 +193,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               <div className="text-center mb-8 sm:mb-10">
                 <HeroTextAnimation />
                 <p className="animate-fade-up stagger-1 text-base sm:text-lg text-gray-300 max-w-2xl mx-auto leading-relaxed px-1">
-                  Fort de 23 ans d&apos;expérience et 12 années d&apos;expertise dans l&apos;immobilier, KOITALA vous accompagne dans l&apos;achat, la vente, la construction et la location. Résidents et expatriés.
+                  Fort de 23 ans d&apos;expérience et 13 années d&apos;expertise dans l&apos;immobilier, KOITALA vous accompagne dans l&apos;achat, la vente, la construction et la location. Résidents et expatriés.
                 </p>
               </div>
               <SearchBar className="max-w-4xl mx-auto" />
@@ -367,7 +365,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 <span className="text-[#e8b86d] text-xs sm:text-sm font-semibold uppercase tracking-widest">Pourquoi choisir KOITALA ?</span>
                 <h2 className="text-2xl sm:text-3xl font-bold text-white mt-2 mb-5 leading-snug">Une expertise unique au service de vos projets</h2>
                 <p className="text-gray-400 text-sm sm:text-base leading-relaxed mb-7">
-                  Une expérience de 23 ans dans les télécommunications et 12 ans dans l&apos;immobilier, alliant rigueur, professionnalisme et une parfaite compréhension des besoins des clients, y compris ceux des expatriés.
+                  Une expérience de 23 ans dans les télécommunications et 13 ans dans l&apos;immobilier, alliant rigueur, professionnalisme et une parfaite compréhension des besoins des clients, y compris ceux des expatriés.
                 </p>
                 <div className="space-y-4">
                   {[

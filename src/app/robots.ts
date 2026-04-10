@@ -11,8 +11,6 @@ export default function robots(): MetadataRoute.Robots {
           "/api/",
           "/auth/",
           "/dashboard/",
-          "/dashboard-client/",
-          "/favoris",
         ],
       },
     ],

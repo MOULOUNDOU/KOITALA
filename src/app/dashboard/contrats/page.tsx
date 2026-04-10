@@ -20,7 +20,13 @@ import CustomSelect, { type SelectGroup } from "@/components/ui/CustomSelect";
 import Input from "@/components/ui/Input";
 import Textarea from "@/components/ui/Textarea";
 import { AGENCY_INFO } from "@/lib/agency";
+import { persistGeneratedContract } from "@/lib/contracts/generatedContracts";
 import { generateHousingContractPdf } from "@/lib/contracts/generateHousingContractPdf";
+import {
+  getSenegalNeighborhoodGroups,
+  SENEGAL_CITY_OPTIONS,
+} from "@/lib/locations/senegalLocations";
+import { createClient } from "@/lib/supabase/client";
 
 interface ContractFormState {
   contractReference: string;
@@ -31,6 +37,7 @@ interface ContractFormState {
   tenantEmail: string;
   tenantPhone: string;
   propertyTitle: string;
+  propertyCity: string;
   propertyAddress: string;
   contractDate: string;
   startDate: string;
@@ -85,63 +92,6 @@ const CONTRACT_PROPERTY_CATEGORY_GROUPS: SelectGroup[] = [
   },
 ];
 
-const DAKAR_NEIGHBORHOOD_GROUPS: SelectGroup[] = [
-  {
-    group: "Centre",
-    options: [
-      { value: "Plateau", label: "Plateau" },
-      { value: "Medina", label: "Medina" },
-      { value: "Bel Air", label: "Bel Air" },
-      { value: "Corniche", label: "Corniche" },
-      { value: "Gueule Tapee", label: "Gueule Tapee" },
-      { value: "Fass", label: "Fass" },
-      { value: "Colobane", label: "Colobane" },
-    ],
-  },
-  {
-    group: "Fann / Mermoz / Liberte",
-    options: [
-      { value: "Point E", label: "Point E" },
-      { value: "Fann-Residence", label: "Fann-Residence" },
-      { value: "Mermoz", label: "Mermoz" },
-      { value: "Sacre-Coeur", label: "Sacre-Coeur" },
-      { value: "Liberte", label: "Liberte" },
-      { value: "Amitie", label: "Amitie" },
-      { value: "Sicap", label: "Sicap" },
-      { value: "HLM", label: "HLM" },
-      { value: "Dieuppeul", label: "Dieuppeul" },
-      { value: "Patte d'Oie", label: "Patte d'Oie" },
-      { value: "Cite Keur Gorgui", label: "Cite Keur Gorgui" },
-      { value: "Castors", label: "Castors" },
-      { value: "Grand Dakar", label: "Grand Dakar" },
-    ],
-  },
-  {
-    group: "Ouest / Corniche",
-    options: [
-      { value: "Almadies", label: "Almadies" },
-      { value: "Ngor", label: "Ngor" },
-      { value: "Yoff", label: "Yoff" },
-      { value: "Ouakam", label: "Ouakam" },
-      { value: "Les Mamelles", label: "Les Mamelles" },
-      { value: "Ouest Foire", label: "Ouest Foire" },
-      { value: "Nord Foire", label: "Nord Foire" },
-    ],
-  },
-  {
-    group: "Nord / Est",
-    options: [
-      { value: "Grand Yoff", label: "Grand Yoff" },
-      { value: "Cambere", label: "Cambere" },
-      { value: "Hann Mariste", label: "Hann Mariste" },
-      { value: "Parcelles Assainies", label: "Parcelles Assainies" },
-      { value: "Guediawaye", label: "Guediawaye" },
-      { value: "Pikine", label: "Pikine" },
-      { value: "Keur Massar", label: "Keur Massar" },
-    ],
-  },
-];
-
 const STEPS = [
   {
     id: 1,
@@ -180,6 +130,7 @@ const REQUIRED_FIELDS: Array<keyof ContractFormState> = [
   "tenantProfession",
   "tenantNationality",
   "propertyTitle",
+  "propertyCity",
   "propertyAddress",
   "contractDate",
   "startDate",
@@ -202,6 +153,7 @@ function getInitialForm(): ContractFormState {
     tenantEmail: "",
     tenantPhone: "",
     propertyTitle: "",
+    propertyCity: "",
     propertyAddress: "",
     contractDate: today,
     startDate: today,
@@ -243,6 +195,7 @@ function formatProfessionLabel(value: string) {
 }
 
 export default function ContratsPage() {
+  const [supabase] = useState(() => createClient());
   const [form, setForm] = useState<ContractFormState>(() => getInitialForm());
   const [isGenerating, setIsGenerating] = useState(false);
   const [step, setStep] = useState(1);
@@ -256,6 +209,10 @@ export default function ContratsPage() {
   const progressPercent = (step / TOTAL_STEPS) * 100;
   const stepTransitionClass = stepDirection === "forward" ? "anim-slide-right" : "anim-slide-left";
   const currentStep = STEPS.find((item) => item.id === step) ?? STEPS[0];
+  const neighborhoodGroups: SelectGroup[] = useMemo(
+    () => getSenegalNeighborhoodGroups(form.propertyCity),
+    [form.propertyCity]
+  );
 
   const updateField = <K extends keyof ContractFormState>(key: K, value: ContractFormState[K]) => {
     setForm((current) => ({ ...current, [key]: value }));
@@ -300,8 +257,12 @@ export default function ContratsPage() {
         toast.error("L'intitule du logement est requis.");
         return false;
       }
+      if (!form.propertyCity.trim()) {
+        toast.error("La ville du logement est requise.");
+        return false;
+      }
       if (!form.propertyAddress.trim()) {
-        toast.error("L'adresse du logement est requise.");
+        toast.error("Le quartier ou la zone du logement est requis.");
         return false;
       }
     }
@@ -368,8 +329,12 @@ export default function ContratsPage() {
       toast.error("L'intitule du logement est requis.");
       return;
     }
+    if (!form.propertyCity.trim()) {
+      toast.error("La ville du logement est requise.");
+      return;
+    }
     if (!form.propertyAddress.trim()) {
-      toast.error("L'adresse du logement est requise.");
+      toast.error("Le quartier ou la zone du logement est requis.");
       return;
     }
     if (!form.contractDate || !form.startDate) {
@@ -389,9 +354,15 @@ export default function ContratsPage() {
       return;
     }
 
+    const formattedPropertyAddress = [form.propertyAddress.trim(), form.propertyCity.trim()]
+      .filter(Boolean)
+      .join(", ");
+    const representativeName =
+      form.representativeName.trim() || AGENCY_INFO.defaultRepresentative;
+
     setIsGenerating(true);
     try {
-      await generateHousingContractPdf({
+      const { pdfBlob } = await generateHousingContractPdf({
         contractReference: form.contractReference.trim(),
         tenantName: form.tenantName.trim(),
         tenantSex: form.tenantSex.trim(),
@@ -400,17 +371,45 @@ export default function ContratsPage() {
         tenantEmail: form.tenantEmail.trim(),
         tenantPhone: form.tenantPhone.trim(),
         propertyTitle: form.propertyTitle.trim(),
-        propertyAddress: form.propertyAddress.trim(),
+        propertyAddress: formattedPropertyAddress,
         contractDate: form.contractDate,
         startDate: form.startDate,
         durationMonths,
         monthlyRent,
         securityDeposit,
         paymentFrequency: form.paymentFrequency,
-        representativeName: form.representativeName.trim() || AGENCY_INFO.defaultRepresentative,
+        representativeName,
         specialClauses: form.specialClauses.trim(),
       });
-      toast.success("Le contrat PDF a ete genere.");
+
+      const { error: persistError } = await persistGeneratedContract(
+        supabase,
+        {
+          contractReference: form.contractReference.trim(),
+          tenantName: form.tenantName.trim(),
+          tenantEmail: form.tenantEmail.trim(),
+          tenantPhone: form.tenantPhone.trim(),
+          propertyTitle: form.propertyTitle.trim(),
+          propertyCity: form.propertyCity.trim(),
+          propertyAddress: formattedPropertyAddress,
+          contractDate: form.contractDate,
+          startDate: form.startDate,
+          durationMonths,
+          monthlyRent,
+          securityDeposit,
+          paymentFrequency: form.paymentFrequency,
+          representativeName,
+          specialClauses: form.specialClauses.trim(),
+          pdfBlob,
+        }
+      );
+
+      if (persistError) {
+        toast.error(persistError);
+        return;
+      }
+
+      toast.success("Le contrat PDF a ete genere et enregistre.");
     } catch {
       toast.error("La generation du contrat a echoue.");
     } finally {
@@ -490,17 +489,38 @@ export default function ContratsPage() {
             dropdownClassName={HERO_FORM_SELECT_DROPDOWN_CLASS}
           />
           <CustomSelect
-            label="Adresse du logement"
-            value={form.propertyAddress}
-            onChange={(value) => updateField("propertyAddress", value)}
-            groups={DAKAR_NEIGHBORHOOD_GROUPS}
-            placeholder="Choisir un quartier de Dakar"
+            label="Ville du logement"
+            value={form.propertyCity}
+            onChange={(value) => {
+              updateField("propertyCity", value);
+              updateField("propertyAddress", "");
+            }}
+            options={SENEGAL_CITY_OPTIONS}
+            placeholder="Choisir une ville du Senegal"
             searchable
             dropUp
             icon={<MapPinHouse className="w-4 h-4" />}
             labelClassName={HERO_FORM_SELECT_LABEL_CLASS}
             triggerClassName={HERO_FORM_SELECT_TRIGGER_CLASS}
             dropdownClassName={HERO_FORM_SELECT_DROPDOWN_CLASS}
+          />
+          <CustomSelect
+            label="Quartier / zone du logement"
+            value={form.propertyAddress}
+            onChange={(value) => updateField("propertyAddress", value)}
+            groups={neighborhoodGroups}
+            placeholder={
+              form.propertyCity
+                ? `Choisir un quartier a ${form.propertyCity}`
+                : "Choisir d'abord la ville"
+            }
+            searchable
+            dropUp
+            icon={<MapPinHouse className="w-4 h-4" />}
+            labelClassName={HERO_FORM_SELECT_LABEL_CLASS}
+            triggerClassName={HERO_FORM_SELECT_TRIGGER_CLASS}
+            dropdownClassName={HERO_FORM_SELECT_DROPDOWN_CLASS}
+            disabled={!form.propertyCity}
           />
         </div>
       );
@@ -611,7 +631,11 @@ export default function ContratsPage() {
             <p className="mt-1 font-semibold text-[#0f1724]">{form.propertyTitle || "Non renseigne"}</p>
           </div>
           <div className="rounded-2xl bg-[#f8fafc] px-4 py-3">
-            <p className="text-xs uppercase tracking-[0.18em] text-gray-400">Quartier</p>
+            <p className="text-xs uppercase tracking-[0.18em] text-gray-400">Ville</p>
+            <p className="mt-1 font-semibold text-[#0f1724]">{form.propertyCity || "Non renseignee"}</p>
+          </div>
+          <div className="rounded-2xl bg-[#f8fafc] px-4 py-3">
+            <p className="text-xs uppercase tracking-[0.18em] text-gray-400">Quartier / zone</p>
             <p className="mt-1 font-semibold text-[#0f1724]">{form.propertyAddress || "Non renseigne"}</p>
           </div>
           <div className="rounded-2xl bg-[#f8fafc] px-4 py-3">
@@ -767,7 +791,11 @@ export default function ContratsPage() {
                 <p className="mt-1 font-semibold text-[#0f1724]">{form.propertyTitle || "Non renseigne"}</p>
               </div>
               <div className="rounded-2xl bg-[#f8fafc] px-4 py-3">
-                <p className="text-xs uppercase tracking-[0.18em] text-gray-400">Quartier</p>
+                <p className="text-xs uppercase tracking-[0.18em] text-gray-400">Ville</p>
+                <p className="mt-1 font-semibold text-[#0f1724]">{form.propertyCity || "Non renseignee"}</p>
+              </div>
+              <div className="rounded-2xl bg-[#f8fafc] px-4 py-3">
+                <p className="text-xs uppercase tracking-[0.18em] text-gray-400">Quartier / zone</p>
                 <p className="mt-1 font-semibold text-[#0f1724]">{form.propertyAddress || "Non renseigne"}</p>
               </div>
               <div className="rounded-2xl bg-[#f8fafc] px-4 py-3">
@@ -784,6 +812,7 @@ export default function ContratsPage() {
           </section>
         </aside>
       </div>
+
     </div>
   );
 }

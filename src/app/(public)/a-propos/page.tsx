@@ -84,7 +84,7 @@ export default function AboutPage() {
             À propos de <span className="text-[#e8b86d]">KOITALA</span>
           </h1>
           <p className="text-gray-300 text-lg max-w-2xl mx-auto">
-            Votre partenaire pour tous vos projets immobiliers, y compris pour les expatriés. Fort de 23 ans d&apos;expérience et 12 années dans l&apos;immobilier.
+            Votre partenaire pour tous vos projets immobiliers, y compris pour les expatriés. Fort de 23 ans d&apos;expérience et 13 années dans l&apos;immobilier.
           </p>
         </div>
       </div>
@@ -110,14 +110,14 @@ export default function AboutPage() {
                 Un savoir-faire unique à votre service
               </h2>
               <p className="text-gray-600 leading-relaxed mb-4">
-                Fort de 23 ans d&apos;expérience en tant que haut cadre dans les télécommunications et 12 années d&apos;expertise dans l&apos;immobilier, je mets à votre disposition un savoir-faire unique pour vous accompagner dans l&apos;achat, la vente, la construction ou la location de vos biens.
+                Fort de 23 ans d&apos;expérience en tant que haut cadre dans les télécommunications et 13 années d&apos;expertise dans l&apos;immobilier, je mets à votre disposition un savoir-faire unique pour vous accompagner dans l&apos;achat, la vente, la construction ou la location de vos biens.
               </p>
               <p className="text-gray-600 leading-relaxed mb-6">
                 Que vous soyez résident ou expatrié, l&apos;agence KOITALA est votre alliée pour réaliser tous vos projets immobiliers avec succès. Nous allions rigueur, professionnalisme et une parfaite compréhension des besoins de chacun.
               </p>
               <div className="grid grid-cols-1 min-[420px]:grid-cols-3 gap-4">
                 {[
-                  { value: "12+", label: "Ans en immobilier" },
+                  { value: "13+", label: "Ans en immobilier" },
                   { value: "23+", label: "Ans d'expérience" },
                   { value: "500+", label: "Clients" },
                 ].map((stat) => (

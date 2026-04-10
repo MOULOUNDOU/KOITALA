@@ -1,39 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { Heart, MapPin, Bed, Bath, Maximize2, Star, Eye } from "lucide-react";
-import { useState } from "react";
+import { MapPin, Bed, Bath, Maximize2, Star, Eye } from "lucide-react";
 import { cn, formatArea, formatPrice, getListingTypeLabel, getPropertyTypeLabel, getRentalCategoryLabel, getFakeRating } from "@/lib/utils";
 import type { Property } from "@/types";
-import { createClient } from "@/lib/supabase/client";
 import PropertyCardMedia from "@/components/properties/PropertyCardMedia";
 
 interface Props {
   property: Property;
   className?: string;
   preferVideoBubble?: boolean;
+  showFavoriteButton?: boolean;
 }
 
-export default function PropertyCardHorizontal({ property, className, preferVideoBubble = false }: Props) {
-  const [favorited, setFavorited] = useState(false);
-  const [loadingFav, setLoadingFav] = useState(false);
-  const supabase = createClient();
-
-  const handleFavorite = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setLoadingFav(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { window.location.href = "/auth/login"; return; }
-    if (favorited) {
-      await supabase.from("favorites").delete().eq("user_id", user.id).eq("property_id", property.id);
-    } else {
-      await supabase.from("favorites").insert({ user_id: user.id, property_id: property.id });
-    }
-    setFavorited(!favorited);
-    setLoadingFav(false);
-  };
-
+export default function PropertyCardHorizontal({
+  property,
+  className,
+  preferVideoBubble = false,
+}: Props) {
   const rentPaymentLabel = property.rent_payment_period ?? "mois";
   const rentalCategoryLabel = getRentalCategoryLabel(property.rental_category) || null;
   const fakeSocialProof = getFakeRating(property.id);
@@ -68,19 +52,6 @@ export default function PropertyCardHorizontal({ property, className, preferVide
               )}
             >
               {getListingTypeLabel(property.listing_type)}
-            </div>
-            <div
-              role="button"
-              tabIndex={0}
-              onClick={handleFavorite}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleFavorite(e as unknown as React.MouseEvent); }}
-              aria-disabled={loadingFav}
-              className={cn(
-                "absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center shadow transition-all cursor-pointer",
-                favorited ? "bg-red-500 text-white" : "bg-white/90 text-gray-500"
-              )}
-            >
-              <Heart className={cn("w-3.5 h-3.5", favorited && "fill-current")} />
             </div>
           </PropertyCardMedia>
         </div>

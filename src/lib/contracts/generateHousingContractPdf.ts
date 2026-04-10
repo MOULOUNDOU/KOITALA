@@ -44,7 +44,12 @@ function formatLongDate(value: string): string {
 }
 
 function formatMoney(value: number): string {
-  return new Intl.NumberFormat("fr-FR").format(Math.round(value)) + " FCFA";
+  const rounded = Math.round(value);
+  const absoluteValue = Math.abs(rounded)
+    .toString()
+    .replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  const formattedValue = rounded < 0 ? `-${absoluteValue}` : absoluteValue;
+  return `${formattedValue} FCFA`;
 }
 
 function formatDuration(value: number): string {
@@ -186,7 +191,7 @@ export async function generateHousingContractPdf(payload: HousingContractPdfPayl
   };
 
   const addSectionTitle = (title: string, subtitle?: string) => {
-    ensureSpace(subtitle ? 20 : 10);
+    ensureSpace(subtitle ? 24 : 14);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(13);
     setTextColor(COLORS.navy);
@@ -195,10 +200,12 @@ export async function generateHousingContractPdf(payload: HousingContractPdfPayl
     setDrawColor(COLORS.gold);
     doc.setLineWidth(0.9);
     doc.line(margin, y + 2.5, margin + 24, y + 2.5);
-    y += 8;
+    y += 10;
 
     if (subtitle) {
-      addWrappedText(subtitle, { fontSize: 9.6, color: COLORS.muted, spacingAfter: 4 });
+      addWrappedText(subtitle, { fontSize: 9.6, color: COLORS.muted, spacingAfter: 6 });
+    } else {
+      y += 1;
     }
   };
 
@@ -257,11 +264,11 @@ export async function generateHousingContractPdf(payload: HousingContractPdfPayl
       }
     });
 
-    y += height + 4;
+    y += height + 6;
   };
 
   const addMetricGrid = (items: Array<{ label: string; value: string }>) => {
-    const gap = 4;
+    const gap = 5;
     const columns = 2;
     const cardWidth = (contentWidth - gap) / columns;
 
@@ -294,7 +301,7 @@ export async function generateHousingContractPdf(payload: HousingContractPdfPayl
         doc.text(item.lines, cardX + 5, y + 12);
       });
 
-      y += rowHeight + gap;
+      y += rowHeight + gap + 1;
     }
   };
 
@@ -326,7 +333,7 @@ export async function generateHousingContractPdf(payload: HousingContractPdfPayl
     setTextColor(COLORS.body);
     doc.text(bodyLines, textX, bodyStart);
 
-    y += blockHeight + 2;
+    y += blockHeight + 4;
   };
 
   const addNoticeBox = (title: string, text: string) => {
@@ -352,7 +359,7 @@ export async function generateHousingContractPdf(payload: HousingContractPdfPayl
     setTextColor(COLORS.body);
     doc.text(lines, margin + padding, y + 11);
 
-    y += height + 5;
+    y += height + 7;
   };
 
   const addSignatureBoxes = () => {
@@ -409,7 +416,7 @@ export async function generateHousingContractPdf(payload: HousingContractPdfPayl
       doc.text(box.name, box.x + 5, lineY + 5.5);
     });
 
-    y += boxHeight + 4;
+    y += boxHeight + 6;
   };
 
   setFillColor(COLORS.navy);
@@ -495,7 +502,7 @@ export async function generateHousingContractPdf(payload: HousingContractPdfPayl
   addClause(
     1,
     "Objet et designation du bien",
-    `Le present contrat porte sur le logement relevant de la categorie \"${payload.propertyTitle}\", situe dans le quartier ${payload.propertyAddress}. Le bien est remis au locataire pour un usage exclusif d'habitation, sauf stipulation contraire signee par les parties.`
+    `Le present contrat porte sur le logement relevant de la categorie \"${payload.propertyTitle}\", situe a ${payload.propertyAddress}. Le bien est remis au locataire pour un usage exclusif d'habitation, sauf stipulation contraire signee par les parties.`
   );
 
   addClause(
@@ -634,5 +641,10 @@ export async function generateHousingContractPdf(payload: HousingContractPdfPayl
     });
   }
 
-  doc.save(`contrat-logement-${slugify(payload.tenantName || "client")}.pdf`);
+  const fileName = `contrat-logement-${slugify(payload.tenantName || "client")}.pdf`;
+  const pdfBlob = doc.output("blob");
+
+  doc.save(fileName);
+
+  return { fileName, pdfBlob };
 }

@@ -135,6 +135,7 @@ export interface BlogPost {
   excerpt: string | null;
   content: string;
   cover_image_url: string | null;
+  video_url: string | null;
   category: string | null;
   tags: string[] | null;
   status: BlogStatus;

@@ -8,7 +8,9 @@ import CheckboxChoiceGroup from "@/components/ui/CheckboxChoiceGroup";
 import Input from "@/components/ui/Input";
 import Textarea from "@/components/ui/Textarea";
 import { AGENCY_INFO } from "@/lib/agency";
+import { persistGeneratedContract } from "@/lib/contracts/generatedContracts";
 import { generateHousingContractPdf } from "@/lib/contracts/generateHousingContractPdf";
+import { createClient } from "@/lib/supabase/client";
 
 type ContractProperty = {
   title: string;
@@ -75,6 +77,7 @@ function sanitizeMoney(value: string): number {
 
 export default function VisitContractGenerator({ visit }: VisitContractGeneratorProps) {
   const property = pickProperty(visit.property);
+  const [supabase] = useState(() => createClient());
   const [isOpen, setIsOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
 
@@ -165,9 +168,12 @@ export default function VisitContractGenerator({ visit }: VisitContractGenerator
       return;
     }
 
+    const representativeName =
+      form.representativeName.trim() || AGENCY_INFO.defaultRepresentative;
+
     setIsGenerating(true);
     try {
-      await generateHousingContractPdf({
+      const { pdfBlob } = await generateHousingContractPdf({
         contractReference: form.contractReference.trim(),
         tenantName: form.tenantName.trim(),
         tenantSex: form.tenantSex.trim(),
@@ -183,10 +189,35 @@ export default function VisitContractGenerator({ visit }: VisitContractGenerator
         monthlyRent,
         securityDeposit,
         paymentFrequency: property.rent_payment_period ?? "mois",
-        representativeName: form.representativeName.trim() || AGENCY_INFO.defaultRepresentative,
+        representativeName,
         specialClauses: form.specialClauses.trim(),
       });
-      toast.success("Le contrat PDF a ete genere.");
+
+      const { error: persistError } = await persistGeneratedContract(supabase, {
+        contractReference: form.contractReference.trim(),
+        tenantName: form.tenantName.trim(),
+        tenantEmail: form.tenantEmail.trim(),
+        tenantPhone: form.tenantPhone.trim(),
+        propertyTitle: form.propertyTitle.trim(),
+        propertyCity: property.city ?? "",
+        propertyAddress: form.propertyAddress.trim(),
+        contractDate: form.contractDate,
+        startDate: form.startDate,
+        durationMonths,
+        monthlyRent,
+        securityDeposit,
+        paymentFrequency: property.rent_payment_period ?? "mois",
+        representativeName,
+        specialClauses: form.specialClauses.trim(),
+        pdfBlob,
+      });
+
+      if (persistError) {
+        toast.error(persistError);
+        return;
+      }
+
+      toast.success("Le contrat PDF a ete genere et enregistre.");
     } catch {
       toast.error("La generation du contrat a echoue.");
     } finally {
@@ -228,7 +259,7 @@ export default function VisitContractGenerator({ visit }: VisitContractGenerator
               Modele KOITALA a relire avant signature
             </p>
             <p className="mt-1 text-xs leading-5 text-gray-600">
-              Le PDF inclut le logo, le nom de l'agence, le telephone et l'email. Ajustez les montants et les clauses avant generation.
+              Le PDF inclut le logo, le nom de l&apos;agence, le telephone et l&apos;email. Ajustez les montants et les clauses avant generation.
             </p>
           </div>
 

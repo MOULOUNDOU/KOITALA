@@ -7,9 +7,31 @@ const gmailOnlyEmailSchema = z
   .email("Email invalide")
   .refine((value) => value.toLowerCase().endsWith("@gmail.com"), "Seules les adresses Gmail sont autorisées");
 
+const noHtmlOrAngleBrackets = (value: string): boolean =>
+  !/<[^>]*>|[<>]/.test(value);
+
+const trimToUndefined = (value: unknown): unknown => {
+  if (typeof value !== "string") {
+    return value;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length === 0 ? undefined : trimmed;
+};
+
 export const loginSchema = z.object({
-  email: z.string().trim().min(1, "Email requis").email("Email invalide"),
-  password: z.string().min(1, "Mot de passe requis").min(6, "Mot de passe trop court (6 caractères min.)"),
+  email: z
+    .string()
+    .trim()
+    .min(1, "Email requis")
+    .email("Email invalide")
+    .refine(noHtmlOrAngleBrackets, "Le HTML et les caractères spéciaux ne sont pas autorisés"),
+  password: z
+    .string()
+    .min(1, "Mot de passe requis")
+    .min(6, "Mot de passe trop court (6 caractères min.)")
+    .regex(/^[a-zA-Z0-9]+$/, "Le mot de passe ne doit contenir que des lettres et des chiffres")
+    .refine(noHtmlOrAngleBrackets, "Le HTML n'est pas autorisé"),
 });
 
 export const registerSchema = z.object({
@@ -33,19 +55,80 @@ export const registerSchema = z.object({
 });
 
 export const visitRequestSchema = z.object({
-  full_name: z.string().trim().min(2, "Nom requis").regex(/^[a-zA-ZÀ-ÿ\s'-]+$/, "Le nom ne doit contenir que des lettres"),
-  email: z.string().trim().email("Email invalide"),
-  phone: z.string().optional(),
-  message: z.string().optional(),
-  preferred_date: z.string().optional(),
+  full_name: z
+    .string()
+    .trim()
+    .min(2, "Nom requis")
+    .regex(/^[a-zA-ZÀ-ÿ\s'-]+$/, "Le nom ne doit contenir que des lettres")
+    .refine(noHtmlOrAngleBrackets, "Le HTML n'est pas autorisé"),
+  email: z
+    .string()
+    .trim()
+    .email("Email invalide")
+    .refine(noHtmlOrAngleBrackets, "Le HTML n'est pas autorisé"),
+  phone: z.preprocess(
+    trimToUndefined,
+    z
+      .string()
+      .min(6, "Téléphone invalide")
+      .max(25, "Téléphone trop long")
+      .regex(/^[0-9+()\-\s.]+$/, "Le téléphone contient des caractères non autorisés")
+      .refine(noHtmlOrAngleBrackets, "Le HTML n'est pas autorisé")
+      .optional()
+  ),
+  message: z.preprocess(
+    trimToUndefined,
+    z
+      .string()
+      .max(1000, "Message trop long")
+      .refine(noHtmlOrAngleBrackets, "Le HTML n'est pas autorisé")
+      .optional()
+  ),
+  preferred_date: z.preprocess(
+    trimToUndefined,
+    z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Date invalide")
+      .optional()
+  ),
 });
 
 export const contactSchema = z.object({
-  full_name: z.string().trim().min(2, "Nom requis").regex(/^[a-zA-ZÀ-ÿ\s'-]+$/, "Le nom ne doit contenir que des lettres"),
-  email: z.string().trim().email("Email invalide"),
-  phone: z.string().optional(),
-  subject: z.string().optional(),
-  message: z.string().trim().min(10, "Message trop court (10 caractères min.)"),
+  full_name: z
+    .string()
+    .trim()
+    .min(2, "Nom requis")
+    .regex(/^[a-zA-ZÀ-ÿ\s'-]+$/, "Le nom ne doit contenir que des lettres")
+    .refine(noHtmlOrAngleBrackets, "Le HTML n'est pas autorisé"),
+  email: z
+    .string()
+    .trim()
+    .email("Email invalide")
+    .refine(noHtmlOrAngleBrackets, "Le HTML n'est pas autorisé"),
+  phone: z.preprocess(
+    trimToUndefined,
+    z
+      .string()
+      .min(6, "Téléphone invalide")
+      .max(25, "Téléphone trop long")
+      .regex(/^[0-9+()\-\s.]+$/, "Le téléphone contient des caractères non autorisés")
+      .refine(noHtmlOrAngleBrackets, "Le HTML n'est pas autorisé")
+      .optional()
+  ),
+  subject: z.preprocess(
+    trimToUndefined,
+    z
+      .string()
+      .max(120, "Sujet trop long")
+      .refine(noHtmlOrAngleBrackets, "Le HTML n'est pas autorisé")
+      .optional()
+  ),
+  message: z
+    .string()
+    .trim()
+    .min(10, "Message trop court (10 caractères min.)")
+    .max(1500, "Message trop long")
+    .refine(noHtmlOrAngleBrackets, "Le HTML n'est pas autorisé"),
 });
 
 export const propertySchema = z.object({
@@ -97,6 +180,8 @@ export const blogPostSchema = z.object({
   title: z.string().min(5, "Titre trop court"),
   excerpt: z.string().optional().nullable(),
   content: z.string().min(10, "Contenu trop court"),
+  cover_image_url: z.string().optional().nullable(),
+  video_url: z.string().optional().nullable(),
   category: z.string().optional().nullable(),
   status: z.enum(["brouillon", "publie", "archive"]),
 });

@@ -263,6 +263,7 @@ CREATE TABLE IF NOT EXISTS public.blog_posts (
   excerpt          TEXT,
   content          TEXT NOT NULL,
   cover_image_url  TEXT,
+  video_url        TEXT,
   category         TEXT,
   tags             TEXT[],
   status           TEXT NOT NULL DEFAULT 'brouillon' CHECK (status IN ('brouillon','publie','archive')),
@@ -275,8 +276,45 @@ CREATE TABLE IF NOT EXISTS public.blog_posts (
 CREATE INDEX IF NOT EXISTS blog_posts_status_idx ON public.blog_posts(status);
 CREATE INDEX IF NOT EXISTS blog_posts_slug_idx   ON public.blog_posts(slug);
 
+-- Compatibilité base existante (ajout des colonnes si absentes)
+ALTER TABLE public.blog_posts ADD COLUMN IF NOT EXISTS video_url TEXT;
+
 -- ─────────────────────────────────────────────
--- 9. UPDATED_AT TRIGGERS
+-- 9. GENERATED CONTRACTS
+-- ─────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS public.generated_contracts (
+  id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  contract_reference  TEXT NOT NULL,
+  tenant_name         TEXT NOT NULL,
+  tenant_email        TEXT,
+  tenant_phone        TEXT,
+  property_title      TEXT NOT NULL,
+  property_city       TEXT,
+  property_address    TEXT NOT NULL,
+  contract_date       DATE NOT NULL,
+  start_date          DATE NOT NULL,
+  duration_months     INTEGER NOT NULL CHECK (duration_months > 0),
+  monthly_rent        NUMERIC(15,2) NOT NULL CHECK (monthly_rent > 0),
+  security_deposit    NUMERIC(15,2) NOT NULL CHECK (security_deposit >= 0),
+  payment_frequency   TEXT NOT NULL CHECK (payment_frequency IN ('jour','mois')),
+  representative_name TEXT NOT NULL,
+  special_clauses     TEXT,
+  pdf_url             TEXT NOT NULL,
+  storage_path        TEXT NOT NULL UNIQUE,
+  created_by          UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS generated_contracts_created_at_idx
+  ON public.generated_contracts(created_at DESC);
+CREATE INDEX IF NOT EXISTS generated_contracts_reference_idx
+  ON public.generated_contracts(contract_reference);
+CREATE INDEX IF NOT EXISTS generated_contracts_tenant_name_idx
+  ON public.generated_contracts(tenant_name);
+
+-- ─────────────────────────────────────────────
+-- 10. UPDATED_AT TRIGGERS
 -- ─────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION public.set_updated_at()
 RETURNS TRIGGER AS $$
@@ -290,7 +328,7 @@ DO $$
 DECLARE
   t TEXT;
 BEGIN
-  FOREACH t IN ARRAY ARRAY['profiles','properties','visit_requests','contacts','blog_posts'] LOOP
+  FOREACH t IN ARRAY ARRAY['profiles','properties','visit_requests','contacts','blog_posts','generated_contracts'] LOOP
     EXECUTE format(
       'DROP TRIGGER IF EXISTS set_updated_at ON public.%I;
        CREATE TRIGGER set_updated_at
@@ -334,6 +372,7 @@ ALTER TABLE public.favorites        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.visit_requests   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.contacts         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.blog_posts       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.generated_contracts ENABLE ROW LEVEL SECURITY;
 
 -- Helper: is current user admin?
 CREATE OR REPLACE FUNCTION public.is_admin()
@@ -376,6 +415,7 @@ CREATE POLICY "visits_insert_any"    ON public.visit_requests FOR INSERT WITH CH
 CREATE POLICY "visits_select_own"    ON public.visit_requests FOR SELECT
   USING (auth.uid() = user_id OR public.is_admin());
 CREATE POLICY "visits_update_admin"  ON public.visit_requests FOR UPDATE USING (public.is_admin());
+CREATE POLICY "visits_delete_admin"  ON public.visit_requests FOR DELETE USING (public.is_admin());
 
 -- ── CONTACTS ──
 CREATE POLICY "contacts_insert_any"   ON public.contacts FOR INSERT WITH CHECK (TRUE);
@@ -389,6 +429,16 @@ CREATE POLICY "blog_select_public" ON public.blog_posts FOR SELECT
 CREATE POLICY "blog_insert_admin"  ON public.blog_posts FOR INSERT WITH CHECK (public.is_admin());
 CREATE POLICY "blog_update_admin"  ON public.blog_posts FOR UPDATE USING (public.is_admin());
 CREATE POLICY "blog_delete_admin"  ON public.blog_posts FOR DELETE USING (public.is_admin());
+
+-- ── GENERATED CONTRACTS ──
+CREATE POLICY "generated_contracts_select_admin" ON public.generated_contracts FOR SELECT
+  USING (public.is_admin());
+CREATE POLICY "generated_contracts_insert_admin" ON public.generated_contracts FOR INSERT
+  WITH CHECK (public.is_admin());
+CREATE POLICY "generated_contracts_update_admin" ON public.generated_contracts FOR UPDATE
+  USING (public.is_admin());
+CREATE POLICY "generated_contracts_delete_admin" ON public.generated_contracts FOR DELETE
+  USING (public.is_admin());
 
 -- ============================================================
 -- STORAGE BUCKETS
@@ -406,11 +456,19 @@ VALUES ('blog-images', 'blog-images', TRUE)
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO storage.buckets (id, name, public)
+VALUES ('blog-videos', 'blog-videos', TRUE)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO storage.buckets (id, name, public)
 VALUES ('property-videos', 'property-videos', TRUE)
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('avatars', 'avatars', TRUE)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('contract-pdfs', 'contract-pdfs', TRUE)
 ON CONFLICT (id) DO NOTHING;
 
 -- Storage policies
@@ -428,6 +486,13 @@ CREATE POLICY "storage_blog_images_admin_write"
 ON storage.objects FOR INSERT
 WITH CHECK (bucket_id = 'blog-images' AND public.is_admin());
 
+CREATE POLICY "storage_blog_videos_public_read"
+ON storage.objects FOR SELECT USING (bucket_id = 'blog-videos');
+
+CREATE POLICY "storage_blog_videos_admin_write"
+ON storage.objects FOR INSERT
+WITH CHECK (bucket_id = 'blog-videos' AND public.is_admin());
+
 CREATE POLICY "storage_property_videos_public_read"
 ON storage.objects FOR SELECT USING (bucket_id = 'property-videos');
 
@@ -444,6 +509,13 @@ WITH CHECK (
   bucket_id = 'avatars'
   AND (storage.foldername(name))[1] = (SELECT auth.uid()::text)
 );
+
+CREATE POLICY "storage_contract_pdfs_public_read"
+ON storage.objects FOR SELECT USING (bucket_id = 'contract-pdfs');
+
+CREATE POLICY "storage_contract_pdfs_admin_write"
+ON storage.objects FOR INSERT
+WITH CHECK (bucket_id = 'contract-pdfs' AND public.is_admin());
 
 -- ============================================================
 -- SAMPLE DATA (optionnel – à supprimer en production)

@@ -133,9 +133,16 @@ function LoginForm() {
 
       if (user) {
         const isAdmin = await resolveIsAdmin(user.id, user.email);
-        goTo(resolvePostAuthPath(redirectTo, isAdmin));
+        if (!isAdmin) {
+          await supabase.auth.signOut({ scope: "local" });
+          toast.error("Accès réservé aux administrateurs.");
+          goTo("/auth/login?error=admin_only");
+          return;
+        }
+
+        goTo(resolvePostAuthPath(redirectTo, true));
       } else {
-        goTo("/");
+        goTo("/auth/login");
       }
     } catch {
       toast.error("Une erreur inattendue est survenue. Veuillez réessayer.");
@@ -167,7 +174,7 @@ function LoginForm() {
                 Bon retour<br />parmi nous
               </h2>
               <p className="text-white/70 mt-3 text-base leading-relaxed max-w-md anim-fade-up anim-delay-3">
-                Connectez-vous pour accéder à vos favoris, alertes et suivre vos transactions.
+                Connectez-vous pour accéder à l&apos;espace d&apos;administration KOITALA.
               </p>
             </div>
             <div className="grid grid-cols-3 gap-4">
@@ -206,14 +213,26 @@ function LoginForm() {
           </div>
 
           <div className="mb-7">
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-[#0f1724] tracking-tight anim-fade-up anim-delay-1">Connexion</h1>
-            <p className="text-gray-500 mt-1.5 text-[15px] anim-fade-up anim-delay-2">Accédez à votre espace personnel</p>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-[#0f1724] tracking-tight anim-fade-up anim-delay-1">Connexion admin</h1>
+            <p className="text-gray-500 mt-1.5 text-[15px] anim-fade-up anim-delay-2">Accès réservé à l&apos;administration</p>
           </div>
 
           <div className="bg-white rounded-2xl shadow-[0_2px_16px_rgba(0,0,0,0.06)] border border-gray-100/80 p-6 sm:p-8 anim-scale-in anim-delay-3">
+            {authError === "signup_disabled" ? (
+              <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                L&apos;inscription publique est désactivée. Seuls les administrateurs peuvent se connecter.
+              </div>
+            ) : null}
+
+            {authError === "admin_only" ? (
+              <div className="mb-4 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">
+                Accès refusé. Ce compte n&apos;a pas les droits administrateur.
+              </div>
+            ) : null}
+
             {authError === "gmail_only" ? (
               <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-                Seules les adresses Gmail sont autorisées pour créer un compte.
+                L&apos;inscription est désactivée sur ce site.
               </div>
             ) : null}
 
@@ -312,10 +331,7 @@ function LoginForm() {
           </div>
 
           <p className="text-center text-[15px] text-gray-500 mt-6 anim-fade-up anim-delay-5">
-            Pas encore de compte ?{" "}
-            <Link href="/auth/register" className="text-[#1a3a5c] font-semibold hover:underline">
-              S&apos;inscrire
-            </Link>
+            Seuls les comptes administrateur peuvent se connecter.
           </p>
 
           <p className="hidden lg:block text-center mt-4">

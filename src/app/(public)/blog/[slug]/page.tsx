@@ -4,9 +4,9 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Calendar, Tag, ArrowLeft, User } from "lucide-react";
+import { Calendar, Tag, ArrowLeft, User, PlayCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { formatDate } from "@/lib/utils";
+import { formatDate, getEmbeddedVideoUrl, isDirectVideoUrl } from "@/lib/utils";
 import {
   absoluteUrl,
   buildBlogPostingJsonLd,
@@ -69,6 +69,9 @@ export default async function BlogPostPage({ params }: Props) {
   const { slug } = await params;
   const post = await getPost(slug);
   if (!post) notFound();
+  const videoUrl = post.video_url?.trim() || null;
+  const directVideoUrl = videoUrl && isDirectVideoUrl(videoUrl) ? videoUrl : null;
+  const embeddedVideoUrl = videoUrl && !directVideoUrl ? getEmbeddedVideoUrl(videoUrl) : null;
 
   const postJsonLd = buildBlogPostingJsonLd(post);
   const breadcrumbJsonLd = buildBreadcrumbJsonLd([
@@ -130,6 +133,45 @@ export default async function BlogPostPage({ params }: Props) {
               priority
               sizes="(max-width: 768px) 100vw, 768px"
             />
+          </div>
+        )}
+        {directVideoUrl && (
+          <div className="mb-10 overflow-hidden rounded-2xl bg-black shadow-md">
+            <video
+              src={directVideoUrl}
+              controls
+              playsInline
+              preload="metadata"
+              poster={post.cover_image_url ?? undefined}
+              className="h-auto w-full"
+            />
+          </div>
+        )}
+        {embeddedVideoUrl && (
+          <div className="relative mb-10 overflow-hidden rounded-2xl bg-black shadow-md">
+            <div className="relative pb-[56.25%]">
+              <iframe
+                src={embeddedVideoUrl}
+                title={`Video ${post.title}`}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+                className="absolute inset-0 h-full w-full border-0"
+                referrerPolicy="strict-origin-when-cross-origin"
+              />
+            </div>
+          </div>
+        )}
+        {videoUrl && !directVideoUrl && !embeddedVideoUrl && (
+          <div className="mb-10 rounded-2xl border border-gray-200 bg-[#f8fafc] p-4">
+            <a
+              href={videoUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 text-sm font-medium text-[#1a3a5c] hover:text-[#0f2540] transition-colors"
+            >
+              <PlayCircle className="h-4 w-4" />
+              Voir la vidéo associée à cet article
+            </a>
           </div>
         )}
 

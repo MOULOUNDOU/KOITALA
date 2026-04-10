@@ -4,22 +4,23 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import {
   ArrowRight,
+  BarChart3,
   Bell,
   Building2,
   CalendarCheck,
   Eye,
   FileClock,
-  Heart,
+  Globe2,
+  MousePointerClick,
   Pencil,
   Plus,
-  TrendingDown,
-  TrendingUp,
+  Users,
 } from "lucide-react";
 import DashboardSearchInput from "@/components/dashboard/DashboardSearchInput";
-import WeeklyVisitsChart from "@/components/dashboard/WeeklyVisitsChart";
 import PropertyCard from "@/components/properties/PropertyCard";
 import PropertyCardMobile from "@/components/properties/PropertyCardMobile";
 import SitePagination from "@/components/ui/SitePagination";
+import { getAdminAnalyticsOverview } from "@/lib/analytics/adminAnalytics";
 import { getHomepageListingsPage } from "@/lib/properties";
 import { createClient } from "@/lib/supabase/server";
 
@@ -36,7 +37,6 @@ interface DashboardStats {
   archivedProps: number;
   totalVisits: number;
   pendingVisits: number;
-  totalFavs: number;
 }
 
 interface RecentVisitRow {
@@ -47,50 +47,12 @@ interface RecentVisitRow {
   created_at: string;
 }
 
-interface WeeklyVisitPoint {
-  label: string;
-  total: number;
-}
-
 function toSearchPattern(search: string): string | null {
   const normalized = search.replace(/[,%()'"`]/g, " ").trim();
   if (!normalized) return null;
   return `*${normalized}*`;
 }
 
-function toDayKey(date: Date): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
-    date.getDate()
-  ).padStart(2, "0")}`;
-}
-
-function buildWeeklyVisitSeries(rows: { created_at: string }[]): WeeklyVisitPoint[] {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const days: { key: string; label: string }[] = [];
-  for (let offset = 6; offset >= 0; offset -= 1) {
-    const day = new Date(today);
-    day.setDate(today.getDate() - offset);
-    days.push({
-      key: toDayKey(day),
-      label: day.toLocaleDateString("fr-FR", { weekday: "short" }).replace(".", ""),
-    });
-  }
-
-  const counts = new Map(days.map((day) => [day.key, 0]));
-  rows.forEach((row) => {
-    const key = toDayKey(new Date(row.created_at));
-    if (counts.has(key)) {
-      counts.set(key, (counts.get(key) ?? 0) + 1);
-    }
-  });
-
-  return days.map((day) => ({
-    label: day.label,
-    total: counts.get(day.key) ?? 0,
-  }));
-}
 
 async function getStats(): Promise<DashboardStats> {
   const supabase = await createClient();
@@ -103,7 +65,6 @@ async function getStats(): Promise<DashboardStats> {
     { count: archivedProps },
     { count: totalVisits },
     { count: pendingVisits },
-    { count: totalFavs },
   ] = await Promise.all([
     supabase.from("properties").select("*", { count: "exact", head: true }),
     supabase
@@ -131,7 +92,6 @@ async function getStats(): Promise<DashboardStats> {
       .from("visit_requests")
       .select("*", { count: "exact", head: true })
       .eq("status", "en_attente"),
-    supabase.from("favorites").select("*", { count: "exact", head: true }),
   ]);
 
   return {
@@ -143,7 +103,6 @@ async function getStats(): Promise<DashboardStats> {
     archivedProps: archivedProps ?? 0,
     totalVisits: totalVisits ?? 0,
     pendingVisits: pendingVisits ?? 0,
-    totalFavs: totalFavs ?? 0,
   };
 }
 
@@ -164,23 +123,6 @@ async function getRecentVisits(search = ""): Promise<RecentVisitRow[]> {
   return (data as RecentVisitRow[] | null) ?? [];
 }
 
-async function getWeeklyVisits(): Promise<WeeklyVisitPoint[]> {
-  const supabase = await createClient();
-  const startDate = new Date();
-  startDate.setHours(0, 0, 0, 0);
-  startDate.setDate(startDate.getDate() - 6);
-
-  const { data } = await supabase
-    .from("visit_requests")
-    .select("created_at")
-    .gte("created_at", startDate.toISOString())
-    .order("created_at", { ascending: true });
-
-  return buildWeeklyVisitSeries(
-    ((data as { created_at: string }[] | null) ?? []).filter((row) => row.created_at)
-  );
-}
-
 interface DashboardPageProps {
   searchParams: Promise<Record<string, string>>;
 }
@@ -195,12 +137,12 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       ? Math.floor(parsedListingPage)
       : 1;
 
-  const [stats, listingQuery, recentVisits, weeklyVisits] =
+  const [stats, listingQuery, recentVisits, analyticsOverview] =
     await Promise.all([
       getStats(),
       getHomepageListingsPage(currentListingPage, LISTING_PAGE_SIZE, searchQuery),
       getRecentVisits(searchQuery),
-      getWeeklyVisits(),
+      getAdminAnalyticsOverview(30),
     ]);
 
   let listingProperties = listingQuery.properties;
@@ -249,31 +191,49 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     { key: "archive", label: "Archivées", value: stats.archivedProps, tone: "bg-slate-500" },
   ];
   const maxStatusValue = Math.max(...statusBoard.map((item) => item.value), 1);
-
-  const weeklyTotalVisits = weeklyVisits.reduce((sum, point) => sum + point.total, 0);
-  const peakVisitPoint = weeklyVisits.reduce(
-    (top, point) => (point.total > top.total ? point : top),
-    { label: "-", total: 0 }
-  );
-  const previousWeekEstimate = Math.max(
-    0,
-    stats.totalVisits - weeklyTotalVisits
-  );
-  const weeklyTrend =
-    previousWeekEstimate === 0
-      ? weeklyTotalVisits > 0
-        ? 100
-        : 0
-      : Math.round(((weeklyTotalVisits - previousWeekEstimate) / previousWeekEstimate) * 100);
+  const analyticsQuickMetrics = [
+    {
+      icon: Users,
+      label: "Visiteurs",
+      value: analyticsOverview.metrics.visitors,
+      hint: analyticsOverview.gaConnected ? "utilisateurs uniques" : "visiteurs connus",
+    },
+    {
+      icon: Globe2,
+      label: "Visites",
+      value: analyticsOverview.metrics.sessions,
+      hint: analyticsOverview.gaConnected ? "sessions" : "demandes internes",
+    },
+    {
+      icon: MousePointerClick,
+      label: "Clics",
+      value: analyticsOverview.metrics.clicks,
+      hint: analyticsOverview.gaConnected ? "événements GA4" : "interactions locales",
+    },
+    {
+      icon: BarChart3,
+      label: "Pages vues",
+      value: analyticsOverview.metrics.pageViews,
+      hint: analyticsOverview.gaConnected ? "vues de page" : "vues annonces",
+    },
+  ] as const;
+  const primaryProvenance = analyticsOverview.gaConnected
+    ? analyticsOverview.topCountries[0]
+    : analyticsOverview.localFallback.topDemandCities[0];
+  const primaryChannel = analyticsOverview.trafficChannels[0];
 
   const headerChips = isSearchMode
     ? [
         { icon: Building2, value: totalListingProperties, label: "annonces" },
-        { icon: CalendarCheck, value: recentVisits.length, label: "demandes" },
+        { icon: CalendarCheck, value: recentVisits.length, label: "leads" },
       ]
     : [
         { icon: Bell, value: stats.pendingVisits, label: "En attente" },
-        { icon: CalendarCheck, value: stats.totalVisits, label: "Total demandes" },
+        {
+          icon: BarChart3,
+          value: analyticsOverview.metrics.visitors,
+          label: analyticsOverview.gaConnected ? "Visiteurs" : "Visiteurs connus",
+        },
       ];
 
   return (
@@ -289,16 +249,16 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                 Vue d&apos;ensemble
               </h1>
               <p className="mt-1.5 text-sm text-gray-600">
-                Pilotage des annonces et demandes depuis un seul écran.
+                Pilotage des annonces, contrats et performances depuis un seul écran.
               </p>
             </div>
 
             <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
               <Link
-                href="/dashboard/demandes"
+                href="/dashboard/analyse"
                 className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-[#1a3a5c] transition-colors hover:bg-gray-50 sm:text-sm"
               >
-                Voir les demandes
+                Ouvrir analyse
               </Link>
               <Link
                 href="/dashboard/annonces/nouvelle"
@@ -346,10 +306,12 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
               bgColor: "#1d4ed8",
             },
             {
-              icon: CalendarCheck,
-              label: "Demandes",
-              value: stats.totalVisits,
-              helper: `${stats.pendingVisits} en attente`,
+              icon: BarChart3,
+              label: "Visites",
+              value: analyticsOverview.metrics.sessions,
+              helper: analyticsOverview.gaConnected
+                ? `${analyticsOverview.metrics.visitors} visiteurs`
+                : `${stats.pendingVisits} demandes en attente`,
               bgColor: "#047857",
             },
             {
@@ -360,10 +322,10 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
               bgColor: "#6b4226",
             },
             {
-              icon: Heart,
-              label: "Favoris",
-              value: stats.totalFavs,
-              helper: "Intérêt clients",
+              icon: Bell,
+              label: "Publiées",
+              value: stats.publishedProps,
+              helper: "Annonces en ligne",
               bgColor: "#b91c1c",
             },
           ].map((item) => (
@@ -431,34 +393,61 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
               <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
                 <div className="mb-4 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <h2 className="text-base font-bold text-[#0f1724] sm:text-[1.05rem] lg:text-lg">Flux demandes (7 jours)</h2>
-                  <span className="inline-flex max-w-full items-center rounded-full border border-[#1a3a5c]/20 bg-[#1a3a5c]/5 px-2.5 py-1 text-xs font-semibold text-[#1a3a5c]">
-                    {weeklyTotalVisits} cette semaine
-                  </span>
-                </div>
-                <WeeklyVisitsChart data={weeklyVisits} />
-
-                <div className="mt-3 flex flex-col items-start gap-3 text-xs sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-gray-500">
-                    Pic: <span className="font-semibold text-[#0f1724]">{peakVisitPoint.total}</span>{" "}
-                    demande(s), {peakVisitPoint.label}
-                  </p>
-                  <span
-                    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-semibold ${
-                      weeklyTrend >= 0
-                        ? "bg-[#1a3a5c]/10 text-[#1a3a5c]"
-                        : "bg-slate-100 text-slate-700"
-                    }`}
+                  <h2 className="text-base font-bold text-[#0f1724] sm:text-[1.05rem] lg:text-lg">
+                    Aperçu analytics (30 jours)
+                  </h2>
+                  <Link
+                    href="/dashboard/analyse"
+                    className="inline-flex items-center gap-1 rounded-full border border-[#1a3a5c]/20 bg-[#1a3a5c]/5 px-2.5 py-1 text-xs font-semibold text-[#1a3a5c] hover:bg-[#1a3a5c]/10"
                   >
-                    {weeklyTrend >= 0 ? (
-                      <TrendingUp className="h-3.5 w-3.5" />
-                    ) : (
-                      <TrendingDown className="h-3.5 w-3.5" />
-                    )}
-                    {weeklyTrend >= 0 ? "+" : ""}
-                    {weeklyTrend}% vs période précédente
-                  </span>
+                    Détail Analyse <ArrowRight className="h-3.5 w-3.5" />
+                  </Link>
                 </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  {analyticsQuickMetrics.map((metric) => (
+                    <div key={metric.label} className="rounded-2xl border border-gray-100 bg-gray-50 p-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">
+                        {metric.label}
+                      </p>
+                      <p className="mt-1 text-xl font-bold text-[#0f1724]">
+                        {new Intl.NumberFormat("fr-FR").format(metric.value)}
+                      </p>
+                      <p className="text-xs text-gray-500">{metric.hint}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="rounded-2xl border border-gray-100 bg-white p-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">
+                      Provenance principale
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-[#0f1724]">
+                      {primaryProvenance
+                        ? `${primaryProvenance.label} (${new Intl.NumberFormat("fr-FR").format(
+                            primaryProvenance.value
+                          )})`
+                        : "Aucune donnée"}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-gray-100 bg-white p-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">
+                      Canal principal
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-[#0f1724]">
+                      {primaryChannel
+                        ? `${primaryChannel.label} (${new Intl.NumberFormat("fr-FR").format(
+                            primaryChannel.value
+                          )})`
+                        : "Aucune donnée"}
+                    </p>
+                  </div>
+                </div>
+
+                {analyticsOverview.warning && (
+                  <p className="mt-3 text-xs text-amber-700">{analyticsOverview.warning}</p>
+                )}
               </div>
             </section>
           </div>
@@ -479,9 +468,9 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                     className: "bg-[#1a3a5c] text-white hover:bg-[#0f2540]",
                   },
                   {
-                    href: "/dashboard/demandes",
-                    icon: FileClock,
-                    label: "Suivre demandes",
+                    href: "/dashboard/analyse",
+                    icon: BarChart3,
+                    label: "Voir analyse",
                     className:
                       "border border-[#1a3a5c]/20 bg-white text-[#1a3a5c] hover:bg-[#f8fafc]",
                   },

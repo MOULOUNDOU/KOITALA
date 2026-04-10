@@ -79,6 +79,7 @@ const FORM_MOBILE_BUTTON_CLASS = "h-11 min-w-0 flex-1 text-sm sm:w-auto sm:flex-
 const HERO_FORM_SELECT_LABEL_CLASS = "text-sm font-medium text-gray-700 normal-case tracking-normal mb-1.5";
 const HERO_FORM_SELECT_TRIGGER_CLASS = "py-3.5";
 const HERO_FORM_SELECT_DROPDOWN_CLASS = "rounded-2xl border border-gray-100 shadow-2xl";
+const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;
 const MAX_VIDEO_SIZE_BYTES = 100 * 1024 * 1024;
 type EditAITask = "title" | "description" | "rewrite" | null;
 
@@ -94,6 +95,9 @@ export default function EditAnnoncePage() {
   const supabase = createClient();
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
+  const [mainImageFile, setMainImageFile] = useState<File | null>(null);
+  const [mainImagePreview, setMainImagePreview] = useState<string | null>(null);
+  const [mainImageFallbackUrl, setMainImageFallbackUrl] = useState<string | null>(null);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [videoPreview, setVideoPreview] = useState<string | null>(null);
   const [videoFallbackUrl, setVideoFallbackUrl] = useState<string | null>(null);
@@ -124,6 +128,7 @@ export default function EditAnnoncePage() {
     latitude,
     longitude,
     currentVideoUrlValue,
+    currentMainImageUrlValue,
   ] = useWatch({
     control,
     name: [
@@ -138,10 +143,13 @@ export default function EditAnnoncePage() {
       "latitude",
       "longitude",
       "video_url",
+      "main_image_url",
     ],
   });
   const rentalCategory = rentalCategoryValue ?? "";
   const rentPaymentPeriod = rentPaymentPeriodValue ?? "";
+  const currentMainImageUrl = currentMainImageUrlValue?.trim() || "";
+  const directMainImagePreview = mainImagePreview || currentMainImageUrl || null;
   const currentVideoUrl = currentVideoUrlValue?.trim() || "";
   const directVideoPreview = videoPreview || (currentVideoUrl && isDirectVideoUrl(currentVideoUrl) ? currentVideoUrl : null);
   const embeddedVideoPreview = !videoPreview ? getEmbeddedVideoUrl(currentVideoUrl) : null;
@@ -170,6 +178,9 @@ export default function EditAnnoncePage() {
           rental_category: data.rental_category ?? undefined,
           rent_payment_period: data.rent_payment_period ?? undefined,
         });
+        setMainImageFile(null);
+        setMainImagePreview(null);
+        setMainImageFallbackUrl(null);
         setVideoFile(null);
         setVideoPreview(null);
         setVideoFallbackUrl(null);
@@ -196,11 +207,51 @@ export default function EditAnnoncePage() {
 
   useEffect(() => {
     return () => {
+      if (mainImagePreview) {
+        URL.revokeObjectURL(mainImagePreview);
+      }
+    };
+  }, [mainImagePreview]);
+
+  useEffect(() => {
+    return () => {
       if (videoPreview) {
         URL.revokeObjectURL(videoPreview);
       }
     };
   }, [videoPreview]);
+
+  const handleMainImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (file.size > MAX_IMAGE_SIZE_BYTES) {
+      toast.error("L'image ne doit pas depasser 10 MB");
+      return;
+    }
+    if (mainImagePreview) {
+      URL.revokeObjectURL(mainImagePreview);
+    }
+    setMainImageFallbackUrl(currentMainImageUrl || null);
+    setMainImageFile(file);
+    setMainImagePreview(URL.createObjectURL(file));
+  };
+
+  const removeMainImage = () => {
+    if (mainImageFile) {
+      const fallbackImageUrl = mainImageFallbackUrl ?? "";
+      setMainImageFile(null);
+      if (mainImagePreview) {
+        URL.revokeObjectURL(mainImagePreview);
+      }
+      setMainImagePreview(null);
+      setMainImageFallbackUrl(null);
+      setValue("main_image_url", fallbackImageUrl, { shouldDirty: true, shouldValidate: true });
+      return;
+    }
+
+    setValue("main_image_url", "", { shouldDirty: true, shouldValidate: true });
+  };
 
   const handleVideoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -390,11 +441,31 @@ ${buildListingContext()}`;
     }
 
     const hasMainImageUrl = Boolean(data.main_image_url?.trim());
+    const hasPendingMainImageUpload = Boolean(mainImageFile);
     const hasVideoUrl = Boolean(data.video_url?.trim());
     const hasPendingVideoUpload = Boolean(videoFile);
-    if (!hasMainImageUrl && !hasVideoUrl && !hasPendingVideoUpload) {
+    if (!hasMainImageUrl && !hasPendingMainImageUpload && !hasVideoUrl && !hasPendingVideoUpload) {
       toast.error("Ajoutez au moins un media: une photo ou une video.");
       return;
+    }
+
+    let uploadedMainImageUrl: string | null = null;
+    if (mainImageFile) {
+      const ext = mainImageFile.name.split(".").pop();
+      const imagePath = `properties/${params.id}/main-${createUploadToken()}.${ext}`;
+      const { data: imageUploaded, error: imageUploadError } = await supabase.storage
+        .from("property-images")
+        .upload(imagePath, mainImageFile, { upsert: true });
+
+      if (imageUploadError || !imageUploaded) {
+        toast.error("L'envoi de l'image vers Supabase a echoue.");
+        return;
+      }
+
+      const { data: imagePublicUrl } = supabase.storage
+        .from("property-images")
+        .getPublicUrl(imagePath);
+      uploadedMainImageUrl = imagePublicUrl.publicUrl;
     }
 
     const payload = {
@@ -402,7 +473,7 @@ ${buildListingContext()}`;
       listing_type: currentListingType,
       rental_category: currentListingType === "location" ? (currentRentalCategory || null) : null,
       rent_payment_period: currentListingType === "location" ? (currentRentPaymentPeriod || null) : null,
-      main_image_url: data.main_image_url?.trim() || null,
+      main_image_url: uploadedMainImageUrl ?? (data.main_image_url?.trim() || null),
       video_url: data.video_url?.trim() || null,
     };
 
@@ -428,6 +499,16 @@ ${buildListingContext()}`;
     }
 
     if (error) { toast.error("Erreur lors de la mise à jour"); return; }
+
+    if (uploadedMainImageUrl) {
+      setValue("main_image_url", uploadedMainImageUrl, { shouldDirty: false, shouldValidate: true });
+      setMainImageFile(null);
+      if (mainImagePreview) {
+        URL.revokeObjectURL(mainImagePreview);
+      }
+      setMainImagePreview(null);
+      setMainImageFallbackUrl(null);
+    }
 
     if (videoFile) {
       const ext = videoFile.name.split(".").pop();
@@ -736,6 +817,55 @@ ${buildListingContext()}`;
               placeholder="https://exemple.com/image.jpg"
               {...register("main_image_url")}
             />
+            <p className="mt-1 text-xs text-gray-400">
+              Ou importez une image directement depuis votre appareil.
+            </p>
+            {!directMainImagePreview ? (
+              <label className="mt-4 flex h-36 w-full cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-200 transition-colors hover:border-[#1a3a5c]/50 hover:bg-gray-50">
+                <Upload className="mb-2 h-8 w-8 text-gray-300" />
+                <span className="text-sm text-gray-500">Cliquez pour ajouter une image</span>
+                <span className="mt-0.5 text-xs text-gray-400">PNG, JPG, WEBP jusqu&apos;a 10 MB</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleMainImageUpload}
+                />
+              </label>
+            ) : (
+              <div className="relative mt-4">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={directMainImagePreview}
+                  alt="Image principale du bien"
+                  className="h-52 w-full rounded-xl object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={removeMainImage}
+                  className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-red-500 text-white transition-all duration-200 hover:bg-red-600 active:scale-[0.96]"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+                <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-gray-400">
+                  <span>
+                    {mainImageFile
+                      ? `${mainImageFile.name} (${(mainImageFile.size / (1024 * 1024)).toFixed(1)} MB)`
+                      : "Image actuellement enregistree"}
+                  </span>
+                </div>
+                <label className="mt-3 inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-[#1a3a5c] hover:text-[#0f2540]">
+                  <Upload className="h-4 w-4" />
+                  Remplacer l&apos;image
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleMainImageUpload}
+                  />
+                </label>
+              </div>
+            )}
 
             <div>
               <input type="hidden" {...register("video_url")} />

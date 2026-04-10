@@ -52,6 +52,11 @@ export async function GET(request: Request) {
         }
       }
 
+      if (!isAdmin) {
+        await supabase.auth.signOut({ scope: "local" });
+        return NextResponse.redirect(new URL("/auth/login?error=admin_only", request.url));
+      }
+
       return NextResponse.redirect(new URL(resolvePostAuthPath(next, isAdmin), request.url));
     }
 

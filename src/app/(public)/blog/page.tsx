@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { Calendar, Tag, ArrowRight, BookOpen } from "lucide-react";
+import { Calendar, Tag, ArrowRight, BookOpen, PlayCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/utils";
 import { absoluteUrl } from "@/lib/seo";
@@ -74,6 +74,12 @@ export default async function BlogPage() {
                     {post.category && (
                       <span className="absolute top-3 left-3 px-2.5 py-1 bg-[#1a3a5c] text-white text-xs font-medium rounded-lg">
                         {post.category}
+                      </span>
+                    )}
+                    {post.video_url && (
+                      <span className="absolute top-3 right-3 inline-flex items-center gap-1 rounded-lg bg-black/70 px-2.5 py-1 text-xs font-medium text-white">
+                        <PlayCircle className="h-3.5 w-3.5" />
+                        Video
                       </span>
                     )}
                   </div>

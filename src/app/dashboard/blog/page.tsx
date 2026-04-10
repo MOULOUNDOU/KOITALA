@@ -2,20 +2,56 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { BookOpen, Plus, Trash2, Eye } from "lucide-react";
+import toast from "react-hot-toast";
+import { BookOpen, Plus, Trash2, Eye, Upload, Video, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { formatDate, getStatusColor, getStatusLabel } from "@/lib/utils";
+import { formatDate, getEmbeddedVideoUrl, getStatusColor, getStatusLabel, isDirectVideoUrl } from "@/lib/utils";
 import type { BlogPost } from "@/types";
+
+const createInitialForm = () => ({
+  title: "",
+  excerpt: "",
+  content: "",
+  category: "",
+  cover_image_url: "",
+  video_url: "",
+  status: "brouillon",
+});
+
+const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;
+const MAX_VIDEO_SIZE_BYTES = 100 * 1024 * 1024;
+
+function normalizeOptionalText(value: string): string | null {
+  const trimmedValue = value.trim();
+  return trimmedValue ? trimmedValue : null;
+}
+
+function createUploadToken(): string {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `${Math.floor(Math.random() * 1_000_000_000)}`;
+}
 
 export default function DashboardBlogPage() {
   const supabase = useMemo(() => createClient(), []);
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({
-    title: "", excerpt: "", content: "", category: "", status: "brouillon",
-  });
+  const [form, setForm] = useState(createInitialForm);
   const [saving, setSaving] = useState(false);
+  const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
+  const [coverImagePreview, setCoverImagePreview] = useState<string | null>(null);
+  const [coverImageFallbackUrl, setCoverImageFallbackUrl] = useState<string | null>(null);
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [videoPreview, setVideoPreview] = useState<string | null>(null);
+  const [videoFallbackUrl, setVideoFallbackUrl] = useState<string | null>(null);
+  const currentVideoUrl = form.video_url.trim();
+  const currentCoverImageUrl = form.cover_image_url.trim();
+  const displayedCoverImage = coverImagePreview || currentCoverImageUrl || null;
+  const directVideoPreview =
+    videoPreview || (currentVideoUrl && isDirectVideoUrl(currentVideoUrl) ? currentVideoUrl : null);
+  const embeddedVideoPreview =
+    !videoPreview && currentVideoUrl ? getEmbeddedVideoUrl(currentVideoUrl) : null;
 
   const fetchPosts = useCallback(async () => {
     const { data } = await supabase
@@ -27,23 +63,174 @@ export default function DashboardBlogPage() {
   }, [supabase]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void fetchPosts();
   }, [fetchPosts]);
 
+  useEffect(() => {
+    return () => {
+      if (coverImagePreview) {
+        URL.revokeObjectURL(coverImagePreview);
+      }
+      if (videoPreview) {
+        URL.revokeObjectURL(videoPreview);
+      }
+    };
+  }, [coverImagePreview, videoPreview]);
+
+  const resetMediaState = () => {
+    if (coverImagePreview) {
+      URL.revokeObjectURL(coverImagePreview);
+    }
+    if (videoPreview) {
+      URL.revokeObjectURL(videoPreview);
+    }
+    setCoverImageFile(null);
+    setCoverImagePreview(null);
+    setCoverImageFallbackUrl(null);
+    setVideoFile(null);
+    setVideoPreview(null);
+    setVideoFallbackUrl(null);
+  };
+
+  const handleCoverImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (file.size > MAX_IMAGE_SIZE_BYTES) {
+      toast.error("L'image ne doit pas dépasser 10 MB.");
+      return;
+    }
+    if (coverImagePreview) {
+      URL.revokeObjectURL(coverImagePreview);
+    }
+    setCoverImageFallbackUrl(currentCoverImageUrl || null);
+    setCoverImageFile(file);
+    setCoverImagePreview(URL.createObjectURL(file));
+  };
+
+  const removeCoverImage = () => {
+    if (coverImageFile) {
+      const fallbackUrl = coverImageFallbackUrl ?? "";
+      if (coverImagePreview) {
+        URL.revokeObjectURL(coverImagePreview);
+      }
+      setCoverImageFile(null);
+      setCoverImagePreview(null);
+      setCoverImageFallbackUrl(null);
+      setForm((current) => ({ ...current, cover_image_url: fallbackUrl }));
+      return;
+    }
+    setForm((current) => ({ ...current, cover_image_url: "" }));
+  };
+
+  const handleVideoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (file.size > MAX_VIDEO_SIZE_BYTES) {
+      toast.error("La vidéo ne doit pas dépasser 100 MB.");
+      return;
+    }
+    if (videoPreview) {
+      URL.revokeObjectURL(videoPreview);
+    }
+    setVideoFallbackUrl(currentVideoUrl || null);
+    setVideoFile(file);
+    setVideoPreview(URL.createObjectURL(file));
+  };
+
+  const removeVideo = () => {
+    if (videoFile) {
+      const fallbackUrl = videoFallbackUrl ?? "";
+      if (videoPreview) {
+        URL.revokeObjectURL(videoPreview);
+      }
+      setVideoFile(null);
+      setVideoPreview(null);
+      setVideoFallbackUrl(null);
+      setForm((current) => ({ ...current, video_url: fallbackUrl }));
+      return;
+    }
+    setForm((current) => ({ ...current, video_url: "" }));
+  };
+
   const handleSave = async () => {
     setSaving(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    const slug = form.title.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-") + "-" + Date.now();
-    const publishedAt = form.status === "publie" ? new Date().toISOString() : null;
-    await supabase.from("blog_posts").insert({
-      ...form, slug, author_id: user!.id, published_at: publishedAt,
-    });
-    setForm({ title: "", excerpt: "", content: "", category: "", status: "brouillon" });
-    setShowForm(false);
-    setSaving(false);
-    await fetchPosts();
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error("Session expirée. Veuillez vous reconnecter.");
+        return;
+      }
+
+      const slug = form.title.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-") + "-" + Date.now();
+      const publishedAt = form.status === "publie" ? new Date().toISOString() : null;
+      let coverImageUrl = normalizeOptionalText(form.cover_image_url);
+      let videoUrl = normalizeOptionalText(form.video_url);
+
+      if (coverImageFile) {
+        const ext = coverImageFile.name.split(".").pop() || "jpg";
+        const imagePath = `blog-posts/${slug}/cover-${createUploadToken()}.${ext}`;
+        const { data: uploadedCoverImage, error: coverImageUploadError } = await supabase.storage
+          .from("blog-images")
+          .upload(imagePath, coverImageFile);
+
+        if (coverImageUploadError || !uploadedCoverImage) {
+          toast.error("L'envoi de l'image de couverture a échoué.");
+          return;
+        }
+
+        const { data: coverImagePublicUrl } = supabase.storage
+          .from("blog-images")
+          .getPublicUrl(imagePath);
+        coverImageUrl = coverImagePublicUrl.publicUrl;
+      }
+
+      if (videoFile) {
+        const ext = videoFile.name.split(".").pop() || "mp4";
+        const videoPath = `blog-posts/${slug}/video-${createUploadToken()}.${ext}`;
+        const { data: uploadedVideo, error: videoUploadError } = await supabase.storage
+          .from("blog-videos")
+          .upload(videoPath, videoFile);
+
+        if (videoUploadError || !uploadedVideo) {
+          toast.error("L'envoi de la vidéo a échoué. Vérifiez le bucket blog-videos.");
+          return;
+        }
+
+        const { data: videoPublicUrl } = supabase.storage
+          .from("blog-videos")
+          .getPublicUrl(videoPath);
+        videoUrl = videoPublicUrl.publicUrl;
+      }
+
+      const { error: insertError } = await supabase.from("blog_posts").insert({
+        title: form.title.trim(),
+        excerpt: normalizeOptionalText(form.excerpt),
+        content: form.content.trim(),
+        category: normalizeOptionalText(form.category),
+        cover_image_url: coverImageUrl,
+        video_url: videoUrl,
+        status: form.status,
+        slug,
+        author_id: user.id,
+        published_at: publishedAt,
+      });
+
+      if (insertError) {
+        toast.error("Erreur lors de la création de l'article.");
+        return;
+      }
+
+      setForm(createInitialForm());
+      resetMediaState();
+      setShowForm(false);
+      await fetchPosts();
+      toast.success("Article enregistré.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -97,6 +284,120 @@ export default function DashboardBlogPage() {
             onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
             className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a3a5c]/30 focus:border-[#1a3a5c]"
           />
+          <input
+            placeholder="Image de couverture (URL)"
+            value={form.cover_image_url}
+            onChange={(e) => setForm((f) => ({ ...f, cover_image_url: e.target.value }))}
+            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a3a5c]/30 focus:border-[#1a3a5c]"
+          />
+          {!displayedCoverImage ? (
+            <label className="flex h-32 w-full cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-200 transition-colors hover:border-[#1a3a5c]/50 hover:bg-gray-50">
+              <Upload className="mb-2 h-7 w-7 text-gray-300" />
+              <span className="text-sm text-gray-500">Ajouter une image depuis l&apos;appareil</span>
+              <span className="mt-0.5 text-xs text-gray-400">PNG, JPG, WEBP jusqu&apos;à 10 MB</span>
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleCoverImageUpload}
+              />
+            </label>
+          ) : (
+            <div className="relative">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={displayedCoverImage}
+                alt="Image de couverture"
+                className="h-48 w-full rounded-xl object-cover"
+              />
+              <button
+                type="button"
+                onClick={removeCoverImage}
+                className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-red-500 text-white transition-all hover:bg-red-600"
+              >
+                <X className="h-4 w-4" />
+              </button>
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-gray-400">
+                <span>
+                  {coverImageFile
+                    ? `${coverImageFile.name} (${(coverImageFile.size / (1024 * 1024)).toFixed(1)} MB)`
+                    : "Image actuellement renseignée"}
+                </span>
+              </div>
+              <label className="mt-3 inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-[#1a3a5c] hover:text-[#0f2540]">
+                <Upload className="h-4 w-4" />
+                Remplacer l&apos;image
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleCoverImageUpload}
+                />
+              </label>
+            </div>
+          )}
+          <input
+            placeholder="Vidéo (URL YouTube, Vimeo ou MP4/WebM)"
+            value={form.video_url}
+            onChange={(e) => setForm((f) => ({ ...f, video_url: e.target.value }))}
+            className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a3a5c]/30 focus:border-[#1a3a5c]"
+          />
+          {!directVideoPreview && !embeddedVideoPreview ? (
+            <label className="flex h-32 w-full cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-200 transition-colors hover:border-[#1a3a5c]/50 hover:bg-gray-50">
+              <Video className="mb-2 h-7 w-7 text-gray-300" />
+              <span className="text-sm text-gray-500">Ajouter une vidéo depuis l&apos;appareil</span>
+              <span className="mt-0.5 text-xs text-gray-400">MP4, MOV, WEBM jusqu&apos;à 100 MB</span>
+              <input
+                type="file"
+                accept="video/mp4,video/mov,video/webm,video/quicktime"
+                className="hidden"
+                onChange={handleVideoUpload}
+              />
+            </label>
+          ) : (
+            <div className="relative">
+              {directVideoPreview ? (
+                <video
+                  src={directVideoPreview}
+                  controls
+                  className="w-full max-h-56 rounded-xl bg-black"
+                />
+              ) : (
+                <iframe
+                  src={embeddedVideoPreview ?? undefined}
+                  title="Vidéo de l'article"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                  className="w-full aspect-video rounded-xl border-0 bg-black"
+                  referrerPolicy="strict-origin-when-cross-origin"
+                />
+              )}
+              <button
+                type="button"
+                onClick={removeVideo}
+                className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-red-500 text-white transition-all hover:bg-red-600"
+              >
+                <X className="h-4 w-4" />
+              </button>
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-gray-400">
+                <span>
+                  {videoFile
+                    ? `${videoFile.name} (${(videoFile.size / (1024 * 1024)).toFixed(1)} MB)`
+                    : "Vidéo actuellement renseignée"}
+                </span>
+              </div>
+              <label className="mt-3 inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-[#1a3a5c] hover:text-[#0f2540]">
+                <Upload className="h-4 w-4" />
+                Remplacer la vidéo
+                <input
+                  type="file"
+                  accept="video/mp4,video/mov,video/webm,video/quicktime"
+                  className="hidden"
+                  onChange={handleVideoUpload}
+                />
+              </label>
+            </div>
+          )}
           <textarea
             placeholder="Contenu (HTML supporté) *"
             rows={8}
@@ -123,7 +424,11 @@ export default function DashboardBlogPage() {
 
               <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:justify-end">
                 <button
-                  onClick={() => setShowForm(false)}
+                  onClick={() => {
+                    setShowForm(false);
+                    setForm(createInitialForm());
+                    resetMediaState();
+                  }}
                   className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 sm:w-auto"
                 >
                   Annuler

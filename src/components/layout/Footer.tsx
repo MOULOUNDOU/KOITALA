@@ -132,7 +132,9 @@ export default function Footer() {
           </div>
         </div>
         <p className="text-center pb-3 text-[10px] text-gray-600/40 tracking-wide select-none">
-          Conçu par Digicode
+          <Link href="/auth/login" className="hover:text-gray-400 transition-colors">
+            koitala
+          </Link>
         </p>
       </div>
     </footer>

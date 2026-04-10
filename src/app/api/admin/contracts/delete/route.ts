@@ -59,42 +59,75 @@ export async function POST(request: Request) {
           adminAccess.status === 401
             ? "Authentification requise."
             : adminAccess.status === 500
-              ? "Configuration serveur incomplète pour la suppression."
-            : "Action reservee aux administrateurs.",
+              ? "Configuration serveur incomplete pour la suppression."
+              : "Action reservee aux administrateurs.",
       },
       { status: adminAccess.status }
     );
   }
 
   const rawBody = (await request.json().catch(() => null)) as unknown;
-  const rawVisitId =
-    rawBody && typeof rawBody === "object" ? Reflect.get(rawBody, "visitId") : undefined;
+  const rawContractId =
+    rawBody && typeof rawBody === "object" ? Reflect.get(rawBody, "contractId") : undefined;
 
-  if (typeof rawVisitId !== "string") {
-    return NextResponse.json({ error: "Identifiant de demande manquant." }, { status: 400 });
+  if (typeof rawContractId !== "string") {
+    return NextResponse.json({ error: "Identifiant de contrat manquant." }, { status: 400 });
   }
 
-  const visitId = rawVisitId.trim();
-  if (!UUID_REGEX.test(visitId)) {
-    return NextResponse.json({ error: "Identifiant de demande invalide." }, { status: 400 });
+  const contractId = rawContractId.trim();
+  if (!UUID_REGEX.test(contractId)) {
+    return NextResponse.json({ error: "Identifiant de contrat invalide." }, { status: 400 });
   }
 
   if (!adminAccess.adminSupabase) {
     return NextResponse.json({ error: "Suppression impossible pour le moment." }, { status: 500 });
   }
 
+  const { data: contract, error: contractReadError } = await adminAccess.adminSupabase
+    .from("generated_contracts")
+    .select("id, storage_path")
+    .eq("id", contractId)
+    .maybeSingle();
+
+  if (contractReadError) {
+    return NextResponse.json({ error: "Suppression impossible pour le moment." }, { status: 500 });
+  }
+
+  if (!contract) {
+    return NextResponse.json({ error: "Contrat introuvable." }, { status: 404 });
+  }
+
   const { error, count } = await adminAccess.adminSupabase
-    .from("visit_requests")
+    .from("generated_contracts")
     .delete({ count: "exact" })
-    .eq("id", visitId);
+    .eq("id", contractId);
 
   if (error) {
     return NextResponse.json({ error: "Suppression impossible pour le moment." }, { status: 500 });
   }
 
   if (!count) {
-    return NextResponse.json({ error: "Demande introuvable." }, { status: 404 });
+    return NextResponse.json({ error: "Contrat introuvable." }, { status: 404 });
   }
 
-  return NextResponse.json({ message: "Demande supprimee avec succes." }, { status: 200 });
+  let storageWarning = false;
+  if (typeof contract.storage_path === "string" && contract.storage_path.trim()) {
+    const { error: storageError } = await adminAccess.adminSupabase.storage
+      .from("contract-pdfs")
+      .remove([contract.storage_path.trim()]);
+
+    if (storageError) {
+      storageWarning = true;
+    }
+  }
+
+  return NextResponse.json(
+    {
+      message: storageWarning
+        ? "Contrat supprime, mais le fichier PDF n'a pas pu etre supprime."
+        : "Contrat supprime avec succes.",
+      storage_warning: storageWarning,
+    },
+    { status: 200 }
+  );
 }

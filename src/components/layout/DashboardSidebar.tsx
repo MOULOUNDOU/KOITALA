@@ -9,8 +9,9 @@ import {
   Bot,
   LayoutDashboard,
   Building2,
-  CalendarCheck,
+  BarChart3,
   FileText,
+  List,
   Users,
   BookOpen,
   Settings,
@@ -27,8 +28,9 @@ import SignOutConfirmDialog from "@/components/ui/SignOutConfirmDialog";
 const navItems = [
   { label: "Tableau de bord",    href: "/dashboard",              icon: LayoutDashboard, exact: true },
   { label: "Annonces",           href: "/dashboard/annonces",     icon: Building2 },
-  { label: "Demandes",           href: "/dashboard/demandes",     icon: CalendarCheck },
-  { label: "Contrats",           href: "/dashboard/contrats",     icon: FileText },
+  { label: "Analyse",            href: "/dashboard/analyse",      icon: BarChart3 },
+  { label: "Contrats",           href: "/dashboard/contrats",     icon: FileText, exact: true },
+  { label: "Liste contrats",     href: "/dashboard/contrats/liste", icon: List, exact: true },
   { label: "Utilisateurs",       href: "/dashboard/utilisateurs", icon: Users },
   { label: "Blog",               href: "/dashboard/blog",         icon: BookOpen },
 ];

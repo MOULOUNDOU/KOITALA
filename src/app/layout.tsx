@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { Viewport } from "next";
 import { Cormorant_Garamond, Plus_Jakarta_Sans } from "next/font/google";
+import Script from "next/script";
 import { Toaster } from "react-hot-toast";
 import "leaflet/dist/leaflet.css";
 import { AGENCY_INFO } from "@/lib/agency";
@@ -15,6 +16,8 @@ import {
   absoluteUrl,
 } from "@/lib/seo";
 import "./globals.css";
+
+const GA_MEASUREMENT_ID = "G-QV42LCNJZ6";
 
 const jakarta = Plus_Jakarta_Sans({
   variable: "--font-jakarta",
@@ -97,6 +100,18 @@ export default function RootLayout({
   return (
     <html lang="fr" className="scroll-smooth" suppressHydrationWarning>
       <body className={`${jakarta.variable} ${display.variable} antialiased`} suppressHydrationWarning>
+        <Script
+          src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
+          strategy="afterInteractive"
+        />
+        <Script id="ga4-config" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', '${GA_MEASUREMENT_ID}');
+          `}
+        </Script>
         <PageTransition>{children}</PageTransition>
         <ScrollToTop />
         <StickyContactBar />

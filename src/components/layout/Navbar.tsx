@@ -1,16 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
-import { Heart, User, UserPlus, LogOut, ChevronDown, Building2, ArrowRight, MessageCircle } from "lucide-react";
+import { ChevronDown, ArrowRight, MessageCircle } from "lucide-react";
 import { PUBLIC_ASSISTANT_PAGE_HREF } from "@/lib/ai/widget";
 import { cn } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
-import type { Profile } from "@/types";
-import SignOutConfirmDialog from "@/components/ui/SignOutConfirmDialog";
 
 const CATEGORIES = [
   {
@@ -91,18 +87,42 @@ const SERVICES_LINKS = [
   { label: "Conseil juridique",href: "/contact?sujet=juridique" },
 ];
 
+function WhatsAppIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden fill="currentColor">
+      <path d="M19.05 4.91A9.82 9.82 0 0 0 12.08 2C6.66 2 2.24 6.42 2.24 11.84a9.8 9.8 0 0 0 1.33 4.95L2 22l5.37-1.41a9.8 9.8 0 0 0 4.71 1.2h.01c5.42 0 9.84-4.42 9.84-9.84a9.8 9.8 0 0 0-2.88-7.04Zm-6.97 15.2a8.14 8.14 0 0 1-4.14-1.13l-.3-.18-3.2.84.85-3.11-.2-.32a8.13 8.13 0 0 1-1.25-4.37c0-4.49 3.65-8.15 8.15-8.15 2.18 0 4.22.85 5.76 2.38a8.08 8.08 0 0 1 2.39 5.77c0 4.5-3.66 8.16-8.16 8.16Zm4.47-6.12c-.24-.12-1.44-.71-1.66-.79-.22-.08-.38-.12-.54.12s-.62.79-.76.95c-.14.16-.28.18-.52.06-.24-.12-1-.37-1.91-1.17-.71-.63-1.18-1.4-1.32-1.64-.14-.24-.01-.37.1-.49.1-.1.24-.26.36-.39.12-.14.16-.24.24-.4.08-.16.04-.3-.02-.42-.06-.12-.54-1.29-.73-1.77-.19-.45-.38-.39-.54-.4h-.46c-.16 0-.42.06-.64.3s-.84.82-.84 2c0 1.17.86 2.31.98 2.47.12.16 1.7 2.59 4.12 3.63.58.25 1.04.4 1.39.51.58.18 1.1.15 1.51.09.46-.07 1.44-.59 1.64-1.16.2-.57.2-1.06.14-1.16-.06-.1-.22-.16-.46-.28Z" />
+    </svg>
+  );
+}
+
+function FacebookIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden fill="currentColor">
+      <path d="M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07C0 18.1 4.39 23.12 10.13 24v-8.44H7.08v-3.49h3.05V9.41c0-3.03 1.79-4.7 4.54-4.7 1.31 0 2.69.24 2.69.24v2.98h-1.52c-1.5 0-1.97.94-1.97 1.9v2.24h3.35l-.54 3.49h-2.81V24C19.61 23.12 24 18.1 24 12.07Z" />
+    </svg>
+  );
+}
+
+function TikTokIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden fill="currentColor">
+      <path d="M21.7 8.73a7.4 7.4 0 0 1-4.34-1.4v6.35a5.7 5.7 0 1 1-5.7-5.7c.2 0 .4.01.6.04v2.8a2.93 2.93 0 1 0 2.33 2.86V2h2.77a4.64 4.64 0 0 0 4.34 4.34v2.4Z" />
+    </svg>
+  );
+}
+
+const SOCIAL_LINKS = [
+  { href: "https://wa.me/221766752135", label: "WhatsApp", Icon: WhatsAppIcon },
+  { href: "https://www.facebook.com/", label: "Facebook", Icon: FacebookIcon },
+  { href: "https://www.tiktok.com/", label: "TikTok", Icon: TikTokIcon },
+] as const;
+
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [user, setUser] = useState<Pick<Profile, "id" | "full_name" | "role"> | null>(null);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
   const [biensMobileOpen, setBiensMobileOpen] = useState(false);
   const [servicesMobileOpen, setServicesMobileOpen] = useState(false);
-  const [showSignOutDialog, setShowSignOutDialog] = useState(false);
-  const [isSigningOut, setIsSigningOut] = useState(false);
   const pathname = usePathname();
-  const supabase = useMemo(() => createClient(), []);
-  const accountHref = user?.role === "admin" ? "/dashboard" : "/dashboard-client";
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -110,117 +130,7 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  useEffect(() => {
-    const resolveRole = async (
-      authUser: { id: string; email?: string | null }
-    ): Promise<"admin" | "user"> => {
-      const { data: rpcIsAdmin, error: rpcError } = await supabase.rpc("is_admin");
-      if (!rpcError && rpcIsAdmin === true) {
-        return "admin";
-      }
-
-      const { data: profileById } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", authUser.id)
-        .maybeSingle();
-
-      if (profileById?.role === "admin") {
-        return "admin";
-      }
-
-      if (authUser.email) {
-        const { data: profileByEmail } = await supabase
-          .from("profiles")
-          .select("role")
-          .eq("email", authUser.email)
-          .maybeSingle();
-
-        if (profileByEmail?.role === "admin") {
-          return "admin";
-        }
-      }
-
-      return "user";
-    };
-
-    const syncUser = async (authUser: { id: string; email?: string | null; user_metadata?: { full_name?: unknown } } | null) => {
-      if (!authUser) {
-        setUser(null);
-        return;
-      }
-
-      const metadataName = typeof authUser.user_metadata?.full_name === "string"
-        ? authUser.user_metadata.full_name.trim()
-        : "";
-      const emailFallback = authUser.email?.split("@")[0] ?? "Client";
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("id, full_name, role")
-        .eq("id", authUser.id)
-        .maybeSingle();
-
-      if (profile) {
-        const resolvedRole = profile.role === "admin"
-          ? "admin"
-          : await resolveRole(authUser);
-
-        setUser({
-          id: profile.id,
-          full_name: profile.full_name?.trim() || metadataName || emailFallback,
-          role: resolvedRole,
-        });
-        return;
-      }
-
-      const resolvedRole = await resolveRole(authUser);
-      setUser({
-        id: authUser.id,
-        full_name: metadataName || emailFallback,
-        role: resolvedRole,
-      });
-    };
-
-    void (async () => {
-      const result = await supabase.auth.getUser();
-      void syncUser(result.data.user);
-    })();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event: AuthChangeEvent, session: Session | null) => {
-        void syncUser(session?.user ?? null);
-      }
-    );
-
-    return () => subscription.unsubscribe();
-  }, [supabase]);
-
-  const confirmSignOut = async () => {
-    setShowSignOutDialog(false);
-    setIsSigningOut(true);
-    setUser(null);
-    setDropdownOpen(false);
-    setIsOpen(false);
-
-    try {
-      await supabase.auth.signOut({ scope: "local" });
-    } catch {
-      // Fallback handled by server signout route below.
-    } finally {
-      window.location.assign("/auth/signout");
-    }
-  };
-
-  const handleSignOutClick = () => {
-    if (isSigningOut) return;
-    setDropdownOpen(false);
-    setIsOpen(false);
-    setShowSignOutDialog(true);
-  };
-
   const handleAssistantMenuClick = () => {
-    setDropdownOpen(false);
     setIsOpen(false);
     setBiensMobileOpen(false);
     setServicesMobileOpen(false);
@@ -383,98 +293,23 @@ export default function Navbar() {
 
           {/* Right section */}
           <div className="hidden md:flex items-center gap-3">
-            {user ? (
-              <>
-                <Link
-                  href="/favoris"
-                  className={cn(
-                    "p-2 rounded-lg transition-colors",
-                    scrolled || !isHome
-                      ? "text-gray-600 hover:text-[#1a3a5c] hover:bg-gray-100"
-                      : "text-white/90 hover:text-white hover:bg-white/10"
-                  )}
-                >
-                  <Heart className="w-5 h-5" />
-                </Link>
-                <div className="relative">
-                  <button
-                    onClick={() => setDropdownOpen(!dropdownOpen)}
-                    className={cn(
-                      "flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-colors",
-                      scrolled || !isHome
-                        ? "text-gray-700 hover:bg-gray-100"
-                        : "text-white hover:bg-white/10"
-                    )}
-                  >
-                    <div className="w-7 h-7 bg-[#1a3a5c] rounded-full flex items-center justify-center text-white text-xs font-bold">
-                      {user.full_name?.charAt(0).toUpperCase() ?? "U"}
-                    </div>
-                    <span>{user.full_name?.split(" ")[0]}</span>
-                    <ChevronDown className="w-4 h-4" />
-                  </button>
-                  {dropdownOpen && (
-                    <div className="absolute right-0 mt-2 w-52 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50">
-                      <Link
-                        href={accountHref}
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
-                        onClick={() => setDropdownOpen(false)}
-                      >
-                        <User className="w-4 h-4" />
-                        Mon compte
-                      </Link>
-                      <Link
-                        href="/favoris"
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
-                        onClick={() => setDropdownOpen(false)}
-                      >
-                        <Heart className="w-4 h-4" />
-                        Mes favoris
-                      </Link>
-                      {user.role === "admin" && (
-                        <Link
-                          href="/dashboard"
-                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-[#1a3a5c] font-medium hover:bg-gray-50"
-                          onClick={() => setDropdownOpen(false)}
-                        >
-                          <Building2 className="w-4 h-4" />
-                          Dashboard
-                        </Link>
-                      )}
-                      <hr className="my-1 border-gray-100" />
-                      <button
-                        onClick={handleSignOutClick}
-                        className="mx-2 mt-1 flex w-[calc(100%-1rem)] items-center justify-center gap-2 rounded-xl bg-[#6b4226] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#55331d]"
-                      >
-                        <LogOut className="w-4 h-4" />
-                        Déconnexion
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </>
-            ) : (
-              <>
-                <Link
-                  href="/auth/login"
-                  className={cn(
-                    "inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl transition-colors",
-                    scrolled || !isHome
-                      ? "text-gray-700 hover:bg-gray-100"
-                      : "text-white hover:bg-white/10"
-                  )}
-                >
-                  <User className="h-4 w-4" />
-                  Connexion
-                </Link>
-                <Link
-                  href="/auth/register"
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-[#e8b86d] text-[#1a3a5c] text-sm font-semibold rounded-xl hover:bg-[#d9a45a] transition-colors shadow-sm"
-                >
-                  <UserPlus className="h-4 w-4" />
-                  S&apos;inscrire
-                </Link>
-              </>
-            )}
+            {SOCIAL_LINKS.map(({ href, label, Icon }) => (
+              <a
+                key={label}
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={label}
+                className={cn(
+                  "inline-flex h-9 w-9 items-center justify-center rounded-xl border transition-colors",
+                  scrolled || !isHome
+                    ? "border-gray-200 bg-white text-[#1a3a5c] hover:border-[#1a3a5c] hover:bg-[#1a3a5c] hover:text-white"
+                    : "border-white/40 bg-white/10 text-white hover:bg-white hover:text-[#1a3a5c]"
+                )}
+              >
+                <Icon />
+              </a>
+            ))}
           </div>
 
           {/* Animated hamburger button */}
@@ -607,60 +442,25 @@ export default function Navbar() {
 
             <hr className="my-3 border-gray-100 mx-4" />
 
-            {user ? (
-              <div className="px-4 space-y-1">
-                <div className="flex items-center gap-3 px-2 py-2 mb-2">
-                  <div className="w-9 h-9 bg-[#1a3a5c] rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0">
-                    {user.full_name?.charAt(0).toUpperCase() ?? "U"}
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-[#0f1724]">{user.full_name}</p>
-                    <p className="text-xs text-gray-500">{user.role === "admin" ? "Administrateur" : "Client"}</p>
-                  </div>
-                </div>
-                <Link href={accountHref} onClick={() => setIsOpen(false)}
-                  className="flex items-center gap-3 px-3 py-3 text-sm text-gray-700 hover:bg-gray-50 rounded-xl transition-colors">
-                  <User className="w-4 h-4 text-[#1a3a5c]" /> Mon compte
-                </Link>
-                <Link href="/favoris" onClick={() => setIsOpen(false)}
-                  className="flex items-center gap-3 px-3 py-3 text-sm text-gray-700 hover:bg-gray-50 rounded-xl transition-colors">
-                  <Heart className="w-4 h-4 text-[#1a3a5c]" /> Mes favoris
-                </Link>
-                {user.role === "admin" && (
-                  <Link href="/dashboard" onClick={() => setIsOpen(false)}
-                    className="flex items-center gap-3 px-3 py-3 text-sm text-[#1a3a5c] font-medium hover:bg-[#1a3a5c]/8 rounded-xl transition-colors">
-                    <Building2 className="w-4 h-4" /> Dashboard
-                  </Link>
-                )}
-                <button onClick={handleSignOutClick}
-                  className="w-full flex items-center justify-center gap-2 px-3 py-3 text-sm font-semibold text-white bg-[#6b4226] hover:bg-[#55331d] rounded-xl transition-colors">
-                  <LogOut className="w-4 h-4" /> Déconnexion
-                </button>
+            <div className="px-4">
+              <div className="flex items-center justify-center gap-3">
+                {SOCIAL_LINKS.map(({ href, label, Icon }) => (
+                  <a
+                    key={`mobile-${label}`}
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={label}
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 bg-white text-[#1a3a5c] transition-colors hover:border-[#1a3a5c] hover:bg-[#1a3a5c] hover:text-white"
+                  >
+                    <Icon />
+                  </a>
+                ))}
               </div>
-            ) : (
-              <div className="flex gap-3 px-4 pt-1">
-                <Link href="/auth/login" onClick={() => setIsOpen(false)}
-                  className="inline-flex flex-1 items-center justify-center gap-2 px-4 py-3 text-sm font-semibold border-2 border-[#1a3a5c] text-[#1a3a5c] rounded-xl hover:bg-[#1a3a5c] hover:text-white transition-all duration-200">
-                  <User className="h-4 w-4" />
-                  Connexion
-                </Link>
-                <Link href="/auth/register" onClick={() => setIsOpen(false)}
-                  className="inline-flex flex-1 items-center justify-center gap-2 px-4 py-3 text-sm font-semibold bg-[#e8b86d] text-[#1a3a5c] rounded-xl hover:bg-[#d9a45a] transition-colors shadow-sm">
-                  <UserPlus className="h-4 w-4" />
-                  S&apos;inscrire
-                </Link>
-              </div>
-            )}
+            </div>
           </div>
         </div>
       </nav>
-
-      <SignOutConfirmDialog
-        open={showSignOutDialog}
-        loading={isSigningOut}
-        onCancel={() => setShowSignOutDialog(false)}
-        onConfirm={confirmSignOut}
-      />
     </header>
   );
 }

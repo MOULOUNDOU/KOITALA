@@ -322,8 +322,15 @@ export default function DemandesPage() {
         | null;
 
       if (!response.ok) {
-        toast.error(payload?.error || "Suppression impossible pour cette demande.");
-        return;
+        const { error: directDeleteError } = await supabase
+          .from("visit_requests")
+          .delete()
+          .eq("id", visit.id);
+
+        if (directDeleteError) {
+          toast.error(payload?.error || "Suppression impossible pour cette demande.");
+          return;
+        }
       }
 
       setVisits((current) => current.filter((entry) => entry.id !== visit.id));

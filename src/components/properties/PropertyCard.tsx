@@ -1,11 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Heart, MapPin, Bed, Bath, Maximize2, Tag, Star, Eye } from "lucide-react";
-import { useState } from "react";
+import { MapPin, Bed, Bath, Maximize2, Tag, Star, Eye } from "lucide-react";
 import { cn, formatPrice, formatArea, getPropertyTypeLabel, getRentalCategoryLabel, getFakeRating } from "@/lib/utils";
 import type { Property } from "@/types";
-import { createClient } from "@/lib/supabase/client";
 import PropertyCardMedia from "@/components/properties/PropertyCardMedia";
 
 interface PropertyCardProps {
@@ -19,44 +17,9 @@ interface PropertyCardProps {
 
 export default function PropertyCard({
   property,
-  isFavorite = false,
-  onFavoriteToggle,
   className,
   preferVideoBubble = false,
-  showFavoriteButton = true,
 }: PropertyCardProps) {
-  const [favorited, setFavorited] = useState(isFavorite);
-  const [loadingFav, setLoadingFav] = useState(false);
-  const supabase = createClient();
-
-  const handleFavorite = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setLoadingFav(true);
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      window.location.href = "/auth/login";
-      return;
-    }
-
-    if (favorited) {
-      await supabase
-        .from("favorites")
-        .delete()
-        .eq("user_id", user.id)
-        .eq("property_id", property.id);
-    } else {
-      await supabase
-        .from("favorites")
-        .insert({ user_id: user.id, property_id: property.id });
-    }
-
-    setFavorited(!favorited);
-    onFavoriteToggle?.(property.id);
-    setLoadingFav(false);
-  };
-
   const rentPaymentLabel = property.rent_payment_period ?? "mois";
   const rentalCategoryLabel = getRentalCategoryLabel(property.rental_category);
   const fakeSocialProof = getFakeRating(property.id);
@@ -119,24 +82,6 @@ export default function PropertyCard({
                 </span>
               )}
             </div>
-
-            {showFavoriteButton && (
-              <div
-                role="button"
-                tabIndex={0}
-                onClick={handleFavorite}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleFavorite(e as unknown as React.MouseEvent); }}
-                aria-disabled={loadingFav}
-                className={cn(
-                  "absolute top-3 right-3 w-11 h-11 sm:w-9 sm:h-9 rounded-full flex items-center justify-center shadow-md transition-all cursor-pointer",
-                  favorited
-                    ? "bg-red-500 text-white"
-                    : "bg-white text-gray-400 hover:text-red-500"
-                )}
-              >
-                <Heart className={cn("w-5 h-5 sm:w-4 sm:h-4", favorited && "fill-current")} />
-              </div>
-            )}
 
             {/* Price */}
             <div className="absolute bottom-3 left-3">
