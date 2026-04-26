@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import type { Viewport } from "next";
-import { Cormorant_Garamond, Plus_Jakarta_Sans } from "next/font/google";
+import { DM_Sans } from "next/font/google";
 import Script from "next/script";
 import { Toaster } from "react-hot-toast";
 import "leaflet/dist/leaflet.css";
@@ -19,16 +19,10 @@ import "./globals.css";
 
 const GA_MEASUREMENT_ID = "G-QV42LCNJZ6";
 
-const jakarta = Plus_Jakarta_Sans({
-  variable: "--font-jakarta",
+const commerceFont = DM_Sans({
+  variable: "--font-commerce",
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700", "800"],
-});
-
-const display = Cormorant_Garamond({
-  variable: "--font-display",
-  subsets: ["latin"],
-  weight: ["600", "700"],
 });
 
 export const viewport: Viewport = {
@@ -99,7 +93,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fr" className="scroll-smooth" suppressHydrationWarning>
-      <body className={`${jakarta.variable} ${display.variable} antialiased`} suppressHydrationWarning>
+      <body className={`${commerceFont.variable} antialiased`} suppressHydrationWarning>
         <Script
           src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
           strategy="afterInteractive"

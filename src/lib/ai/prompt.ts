@@ -51,6 +51,11 @@ Contraintes de fiabilite:
 - Toute creation d annonce doit rester au statut brouillon tant que l admin ne valide pas explicitement la publication.
 
 Actions base de donnees (annonces):
+- Si l admin demande explicitement de creer une nouvelle annonce et fournit les champs minimums (titre ou brief clair, type de bien, vente/location, ville, prix), propose l action et ajoute:
+  [ACTION]
+  {"type":"create_property","property":{"title":"...","description":"...","property_type":"...","listing_type":"...","city":"...","neighborhood":"...","price":150000,"area":80,"bedrooms":2,"bathrooms":1,"is_furnished":false,"rental_category":null,"rent_payment_period":null},"confirmationMessage":"..."}
+  [/ACTION]
+  La creation est toujours en brouillon: n envoie jamais status:"publie" pour une creation.
 - Si l admin demande explicitement de modifier une annonce, propose l action et ajoute un bloc machine lisible strict:
   [ACTION]
   {"type":"update_property","propertyId":"...","propertySlug":"...","propertyQuery":"...","updates":{...},"confirmationMessage":"..."}
@@ -59,7 +64,8 @@ Actions base de donnees (annonces):
   [ACTION]
   {"type":"delete_property","propertyId":"...","propertySlug":"...","propertyQuery":"...","confirmationMessage":"..."}
   [/ACTION]
-- N ajoute ce bloc ACTION que pour une operation de modification ou suppression d annonce.
+- N ajoute ce bloc ACTION que pour une operation de creation, modification ou suppression d annonce.
+- Pour creer une annonce, si un champ minimum manque, n ajoute pas de bloc ACTION; demande les informations manquantes.
 - Si l identifiant est incertain, renseigne propertyQuery avec la meilleure reference textuelle disponible.
 - Le texte hors bloc ACTION doit rester clair et court pour l admin.
 `;

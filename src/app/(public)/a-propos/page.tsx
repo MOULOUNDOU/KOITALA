@@ -48,24 +48,6 @@ const VALUES = [
   },
 ];
 
-const TEAM = [
-  {
-    name: "Kouamé Koitala",
-    role: "Directeur & Fondateur",
-    image: "https://images.unsplash.com/photo-1552374196-c4e7ffc6e126?w=400&q=80",
-  },
-  {
-    name: "Aya Bamba",
-    role: "Responsable Ventes",
-    image: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&q=80",
-  },
-  {
-    name: "Yves Kone",
-    role: "Expert Locatif",
-    image: "https://images.unsplash.com/photo-1546961329-78bef0414d7c?w=400&q=80",
-  },
-];
-
 export default function AboutPage() {
   return (
     <>
@@ -169,33 +151,61 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* Team */}
+      {/* Direction */}
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
+          <div>
             <span className="text-[#e8b86d] text-sm font-semibold uppercase tracking-widest">
-              Notre équipe
+              La direction
             </span>
             <h2 className="text-3xl font-bold text-[#0f1724] mt-2">
-              Des experts à votre service
+              Hamza Koita, à la tête de KOITALA
             </h2>
-          </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8 max-w-4xl mx-auto">
-            {TEAM.map((member) => (
-              <div key={member.name} className="text-center group">
-                <div className="relative w-32 h-32 rounded-2xl overflow-hidden mx-auto mb-4 shadow-md group-hover:shadow-lg transition-shadow">
-                  <Image
-                    src={member.image}
-                    alt={member.name}
-                    fill
-                    className="object-cover"
-                    sizes="128px"
-                  />
+
+            <div className="mt-8 grid gap-8 md:grid-cols-[1fr_0.85fr] md:items-center lg:gap-12">
+              <div>
+                <p className="text-gray-600 leading-relaxed">
+                  Hamza Koita pilote l&apos;agence avec une approche fondée sur
+                  l&apos;écoute, la rigueur et la proximité avec les clients. Son rôle
+                  consiste à coordonner les projets, suivre les priorités de
+                  l&apos;agence et garantir un accompagnement sérieux à chaque étape.
+                </p>
+                <p className="text-gray-600 leading-relaxed mt-4">
+                  Grâce à une solide expérience professionnelle et une vraie
+                  connaissance du terrain, il accompagne les particuliers, les
+                  investisseurs et les expatriés dans leurs démarches d&apos;achat, de
+                  vente, de location et de construction.
+                </p>
+
+                <div className="grid gap-4 mt-8 sm:grid-cols-3">
+                {[
+                  { value: "Direction", label: "Pilotage de l'agence" },
+                  { value: "Conseil", label: "Accompagnement client" },
+                  { value: "Suivi", label: "Coordination des projets" },
+                ].map((item) => (
+                  <div
+                    key={item.label}
+                    className="rounded-2xl border border-gray-100 bg-[#f4f6f9] p-5"
+                  >
+                    <p className="text-lg font-bold text-[#1a3a5c]">{item.value}</p>
+                    <p className="text-sm text-gray-500 mt-1 leading-relaxed">
+                      {item.label}
+                    </p>
+                  </div>
+                ))}
                 </div>
-                <h3 className="font-semibold text-[#0f1724]">{member.name}</h3>
-                <p className="text-sm text-[#e8b86d] font-medium">{member.role}</p>
               </div>
-            ))}
+
+              <div className="relative min-h-[320px] rounded-[2rem] border border-gray-100 bg-[#f4f6f9] shadow-sm overflow-hidden md:min-h-[420px] lg:min-h-[520px]">
+                <Image
+                  src="/HAMZA%20KOITA.jpg"
+                  alt="Hamza Koita"
+                  fill
+                  className="object-contain object-center"
+                  sizes="(max-width: 1024px) 100vw, 42vw"
+                />
+              </div>
+            </div>
           </div>
         </div>
       </section>

@@ -167,7 +167,12 @@ function sanitizeAdminActionProposal(raw: unknown): AIAdminActionProposal | null
   if (!raw || typeof raw !== "object") return null;
 
   const actionType = Reflect.get(raw, "type");
-  const type = actionType === "update_property" || actionType === "delete_property" ? actionType : null;
+  const type =
+    actionType === "create_property" ||
+    actionType === "update_property" ||
+    actionType === "delete_property"
+      ? actionType
+      : null;
   if (!type) return null;
 
   const propertyIdRaw = Reflect.get(raw, "propertyId");
@@ -180,6 +185,14 @@ function sanitizeAdminActionProposal(raw: unknown): AIAdminActionProposal | null
   const propertyQuery = sanitizeActionText(Reflect.get(raw, "propertyQuery"), 200);
   const confirmationMessage = sanitizeActionText(Reflect.get(raw, "confirmationMessage"), 220);
 
+  let property: Record<string, unknown> | undefined;
+  if (type === "create_property") {
+    const rawProperty = Reflect.get(raw, "property") ?? Reflect.get(raw, "updates");
+    if (rawProperty && typeof rawProperty === "object" && !Array.isArray(rawProperty)) {
+      property = rawProperty as Record<string, unknown>;
+    }
+  }
+
   let updates: Record<string, unknown> | undefined;
   if (type === "update_property") {
     const rawUpdates = Reflect.get(raw, "updates");
@@ -188,7 +201,11 @@ function sanitizeAdminActionProposal(raw: unknown): AIAdminActionProposal | null
     }
   }
 
-  if (!propertyId && !propertySlug && !propertyQuery) {
+  if (type === "create_property" && !property) {
+    return null;
+  }
+
+  if (type !== "create_property" && !propertyId && !propertySlug && !propertyQuery) {
     return null;
   }
 
@@ -197,6 +214,7 @@ function sanitizeAdminActionProposal(raw: unknown): AIAdminActionProposal | null
     propertyId,
     propertySlug,
     propertyQuery,
+    property,
     updates,
     confirmationMessage,
   };

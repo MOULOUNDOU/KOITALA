@@ -9,7 +9,6 @@ import {
   Bot,
   Compass,
   LayoutGrid,
-  MessageCircle,
   Mic,
   MicOff,
   PencilLine,
@@ -478,7 +477,7 @@ function isUIMessageArray(value: unknown): value is UIMessage[] {
 function isAIAdminActionProposal(value: unknown): value is AIAdminActionProposal {
   if (!value || typeof value !== "object") return false;
   const type = Reflect.get(value, "type");
-  return type === "update_property" || type === "delete_property";
+  return type === "create_property" || type === "update_property" || type === "delete_property";
 }
 
 function readConversationFromSession(
@@ -564,6 +563,14 @@ function buildLeadBadges(draft: AILeadDraft | null): Array<{ label: string; valu
 }
 
 function describeAdminAction(action: AIAdminActionProposal): string {
+  if (action.type === "create_property") {
+    const title =
+      action.property && typeof action.property.title === "string"
+        ? action.property.title
+        : "nouvelle annonce";
+    return `Créer l'annonce en brouillon: ${title}`;
+  }
+
   const target = action.propertyId || action.propertySlug || action.propertyQuery || "annonce non précisée";
   if (action.type === "delete_property") {
     return `Supprimer l'annonce: ${target}`;
@@ -1141,7 +1148,7 @@ export default function AIChatWidget({
     assistant === "admin" && scope === "dashboard"
       ? "top-1/2 -translate-y-1/2"
       : scope === "public"
-        ? "bottom-24 sm:bottom-6"
+        ? "bottom-[5.5rem] sm:bottom-20"
         : "bottom-6";
   const showFloatingLauncher = !(assistant === "admin" && scope === "dashboard");
   const panelBottomClass = "bottom-2 sm:bottom-6";
@@ -1600,26 +1607,32 @@ export default function AIChatWidget({
           <Link
             href={PUBLIC_ASSISTANT_PAGE_HREF}
             className={cn(
-              "fixed right-4 z-[70] inline-flex items-center gap-2 rounded-full bg-[#1a3a5c] px-4 py-3 text-sm font-semibold text-white shadow-[0_14px_35px_rgba(15,37,64,0.35)] transition-all hover:bg-[#0f2540] hover:shadow-[0_18px_42px_rgba(15,37,64,0.42)]",
+              "fixed right-4 z-[70] inline-flex h-12 w-12 items-center justify-center rounded-full bg-[#1a3a5c] text-white shadow-[0_14px_35px_rgba(15,37,64,0.35)] ring-[3px] ring-white transition-all hover:scale-105 hover:bg-[#0f2540] hover:shadow-[0_18px_42px_rgba(15,37,64,0.42)]",
               floatingBottomClass
             )}
             aria-label="Aller a la page assistant immobilier"
+            title="Assistant IA"
           >
-            <MessageCircle className="h-4 w-4" />
-            {assistantConfig.openButtonLabel}
+            <span className="relative inline-flex h-7 w-7 animate-pulse items-center justify-center" aria-hidden>
+              <Bot className="h-6 w-6" />
+              <Sparkles className="absolute -right-1 -top-1 h-3 w-3 text-[#e8b86d]" />
+            </span>
           </Link>
         ) : (
           <button
             type="button"
             onClick={() => setIsOpen(true)}
             className={cn(
-              "fixed right-4 z-[70] inline-flex items-center gap-2 rounded-full bg-[#1a3a5c] px-4 py-3 text-sm font-semibold text-white shadow-[0_14px_35px_rgba(15,37,64,0.35)] transition-all hover:bg-[#0f2540] hover:shadow-[0_18px_42px_rgba(15,37,64,0.42)]",
+              "fixed right-4 z-[70] inline-flex h-12 w-12 items-center justify-center rounded-full bg-[#1a3a5c] text-white shadow-[0_14px_35px_rgba(15,37,64,0.35)] ring-[3px] ring-white transition-all hover:scale-105 hover:bg-[#0f2540] hover:shadow-[0_18px_42px_rgba(15,37,64,0.42)]",
               floatingBottomClass
             )}
             aria-label={assistantConfig.openButtonAriaLabel}
+            title={assistantConfig.openButtonLabel}
           >
-            <MessageCircle className="h-4 w-4" />
-            {assistantConfig.openButtonLabel}
+            <span className="relative inline-flex h-7 w-7 animate-pulse items-center justify-center" aria-hidden>
+              <Bot className="h-6 w-6" />
+              <Sparkles className="absolute -right-1 -top-1 h-3 w-3 text-[#e8b86d]" />
+            </span>
           </button>
         )
       )}

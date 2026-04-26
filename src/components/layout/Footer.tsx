@@ -50,6 +50,8 @@ export default function Footer() {
                   { href: "/biens?listing_type=vente", label: "Vente" },
                   { href: "/biens?listing_type=location", label: "Location" },
                   { href: "/a-propos", label: "À propos" },
+                  { href: "/collaborateurs", label: "Collaborateurs" },
+                  { href: "/nos-realisations", label: "Nos réalisations" },
                   { href: "/blog", label: "Blog" },
                   { href: "/contact", label: "Contact" },
                 ].map((link) => (

@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type SVGProps } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronDown, ArrowRight, MessageCircle } from "lucide-react";
 import { PUBLIC_ASSISTANT_PAGE_HREF } from "@/lib/ai/widget";
+import WhatsAppIcon from "@/components/ui/WhatsAppIcon";
 import { cn } from "@/lib/utils";
 
 const CATEGORIES = [
@@ -83,29 +84,21 @@ const TRANSACTION_LINKS = [
 const SERVICES_LINKS = [
   { label: "Vente",            href: "/biens?listing_type=vente" },
   { label: "Location",         href: "/biens?listing_type=location" },
-  { label: "Estimation",       href: "/contact?sujet=estimation" },
+  { label: "Réalisations",     href: "/nos-realisations" },
   { label: "Conseil juridique",href: "/contact?sujet=juridique" },
 ];
 
-function WhatsAppIcon() {
+function FacebookIcon({ className = "h-4 w-4", ...props }: SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden fill="currentColor">
-      <path d="M19.05 4.91A9.82 9.82 0 0 0 12.08 2C6.66 2 2.24 6.42 2.24 11.84a9.8 9.8 0 0 0 1.33 4.95L2 22l5.37-1.41a9.8 9.8 0 0 0 4.71 1.2h.01c5.42 0 9.84-4.42 9.84-9.84a9.8 9.8 0 0 0-2.88-7.04Zm-6.97 15.2a8.14 8.14 0 0 1-4.14-1.13l-.3-.18-3.2.84.85-3.11-.2-.32a8.13 8.13 0 0 1-1.25-4.37c0-4.49 3.65-8.15 8.15-8.15 2.18 0 4.22.85 5.76 2.38a8.08 8.08 0 0 1 2.39 5.77c0 4.5-3.66 8.16-8.16 8.16Zm4.47-6.12c-.24-.12-1.44-.71-1.66-.79-.22-.08-.38-.12-.54.12s-.62.79-.76.95c-.14.16-.28.18-.52.06-.24-.12-1-.37-1.91-1.17-.71-.63-1.18-1.4-1.32-1.64-.14-.24-.01-.37.1-.49.1-.1.24-.26.36-.39.12-.14.16-.24.24-.4.08-.16.04-.3-.02-.42-.06-.12-.54-1.29-.73-1.77-.19-.45-.38-.39-.54-.4h-.46c-.16 0-.42.06-.64.3s-.84.82-.84 2c0 1.17.86 2.31.98 2.47.12.16 1.7 2.59 4.12 3.63.58.25 1.04.4 1.39.51.58.18 1.1.15 1.51.09.46-.07 1.44-.59 1.64-1.16.2-.57.2-1.06.14-1.16-.06-.1-.22-.16-.46-.28Z" />
-    </svg>
-  );
-}
-
-function FacebookIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden fill="currentColor">
+    <svg viewBox="0 0 24 24" className={className} aria-hidden fill="currentColor" {...props}>
       <path d="M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07C0 18.1 4.39 23.12 10.13 24v-8.44H7.08v-3.49h3.05V9.41c0-3.03 1.79-4.7 4.54-4.7 1.31 0 2.69.24 2.69.24v2.98h-1.52c-1.5 0-1.97.94-1.97 1.9v2.24h3.35l-.54 3.49h-2.81V24C19.61 23.12 24 18.1 24 12.07Z" />
     </svg>
   );
 }
 
-function TikTokIcon() {
+function TikTokIcon({ className = "h-4 w-4", ...props }: SVGProps<SVGSVGElement>) {
   return (
-    <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden fill="currentColor">
+    <svg viewBox="0 0 24 24" className={className} aria-hidden fill="currentColor" {...props}>
       <path d="M21.7 8.73a7.4 7.4 0 0 1-4.34-1.4v6.35a5.7 5.7 0 1 1-5.7-5.7c.2 0 .4.01.6.04v2.8a2.93 2.93 0 1 0 2.33 2.86V2h2.77a4.64 4.64 0 0 0 4.34 4.34v2.4Z" />
     </svg>
   );
@@ -172,7 +165,7 @@ export default function Navbar() {
             )}>Accueil</Link>
 
             {/* Nos biens dropdown */}
-            <div className="relative group">
+            <div className="nav-submenu-trigger relative group">
               <button className={cn(
                 "flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
                 pathname.startsWith("/biens") ? (scrolled || !isHome ? "bg-[#1a3a5c]/10 text-[#1a3a5c]" : "bg-white/20 text-white")
@@ -182,8 +175,8 @@ export default function Navbar() {
                 <ChevronDown className="w-3.5 h-3.5 transition-transform duration-200 group-hover:rotate-180" />
               </button>
               {/* Mega dropdown */}
-              <div className="absolute top-full left-0 pt-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 w-[480px]">
-                <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 p-5 w-full">
+              <div className="nav-submenu-shell absolute top-full left-0 z-50 w-[480px] pt-3">
+                <div className="nav-submenu-panel w-full rounded-2xl border border-gray-100 bg-white p-5 shadow-[0_26px_70px_rgba(15,23,36,0.18)]">
                   <div className="grid grid-cols-2 gap-5">
                     {/* Left: Categories */}
                     <div>
@@ -244,7 +237,7 @@ export default function Navbar() {
             </div>
 
             {/* Services dropdown */}
-            <div className="relative group">
+            <div className="nav-submenu-trigger relative group">
               <button className={cn(
                 "flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
                 scrolled || !isHome ? "text-gray-600 hover:text-[#1a3a5c] hover:bg-gray-100" : "text-white/90 hover:text-white hover:bg-white/10"
@@ -252,13 +245,15 @@ export default function Navbar() {
                 Services
                 <ChevronDown className="w-3.5 h-3.5 transition-transform duration-200 group-hover:rotate-180" />
               </button>
-              <div className="absolute top-full left-1/2 -translate-x-1/2 pt-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 w-56">
-                <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 py-2 w-full">
-                  {SERVICES_LINKS.map((s) => (
-                    <Link key={s.href} href={s.href} className="flex items-center justify-between px-4 py-2.5 text-sm text-gray-700 hover:bg-[#f4f6f9] hover:text-[#1a3a5c] transition-colors">
-                      {s.label} <ArrowRight className="w-3.5 h-3.5 text-gray-400" />
-                    </Link>
-                  ))}
+              <div className="nav-submenu-shell absolute top-full left-1/2 z-50 w-56 pt-3">
+                <div className="-translate-x-1/2">
+                  <div className="nav-submenu-panel w-full rounded-2xl border border-gray-100 bg-white py-2 shadow-[0_22px_55px_rgba(15,23,36,0.16)]">
+                    {SERVICES_LINKS.map((s) => (
+                      <Link key={s.href} href={s.href} className="flex items-center justify-between px-4 py-2.5 text-sm text-gray-700 hover:bg-[#f4f6f9] hover:text-[#1a3a5c] transition-colors">
+                        {s.label} <ArrowRight className="w-3.5 h-3.5 text-gray-400" />
+                      </Link>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
@@ -266,6 +261,8 @@ export default function Navbar() {
             {/* Simple links */}
             {[
               { href: "/a-propos", label: "À propos" },
+              { href: "/collaborateurs", label: "Collaborateurs" },
+              { href: "/nos-realisations", label: "Réalisations" },
               { href: "/blog",     label: "Blog" },
               { href: "/contact",  label: "Contact" },
             ].map((link) => (
@@ -302,12 +299,14 @@ export default function Navbar() {
                 aria-label={label}
                 className={cn(
                   "inline-flex h-9 w-9 items-center justify-center rounded-xl border transition-colors",
-                  scrolled || !isHome
-                    ? "border-gray-200 bg-white text-[#1a3a5c] hover:border-[#1a3a5c] hover:bg-[#1a3a5c] hover:text-white"
-                    : "border-white/40 bg-white/10 text-white hover:bg-white hover:text-[#1a3a5c]"
+                  label === "WhatsApp"
+                    ? "border-[#25D366] bg-[#25D366] text-white hover:border-[#20ba5a] hover:bg-[#20ba5a]"
+                    : scrolled || !isHome
+                      ? "border-gray-200 bg-white text-[#1a3a5c] hover:border-[#1a3a5c] hover:bg-[#1a3a5c] hover:text-white"
+                      : "border-white/40 bg-white/10 text-white hover:bg-white hover:text-[#1a3a5c]"
                 )}
               >
-                <Icon />
+                <Icon className="h-4 w-4" />
               </a>
             ))}
           </div>
@@ -360,12 +359,15 @@ export default function Navbar() {
 
               {/* Nos biens expandable */}
               <div>
-                <button onClick={() => setBiensMobileOpen(!biensMobileOpen)}
+                <button
+                  onClick={() => setBiensMobileOpen(!biensMobileOpen)}
+                  aria-expanded={biensMobileOpen}
+                  aria-controls="mobile-biens-submenu"
                   className="w-full flex items-center justify-between px-4 py-3.5 text-sm font-medium rounded-xl text-gray-700 hover:bg-[#1a3a5c]/8 hover:text-[#1a3a5c] transition-all duration-200">
                   Nos biens
                   <ChevronDown className={cn("w-4 h-4 transition-transform duration-300", biensMobileOpen && "rotate-180")} />
                 </button>
-                <div className={cn("overflow-hidden transition-all duration-300", biensMobileOpen ? "max-h-[640px]" : "max-h-0")}>
+                <div id="mobile-biens-submenu" className="mobile-submenu-grid" data-open={biensMobileOpen ? "true" : "false"}>
                   <div className="mx-3 mb-2 bg-[#f8f9fb] rounded-xl p-3">
                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 px-1">Par type de bien</p>
                     <div className="max-h-[280px] space-y-1 overflow-y-auto pr-1 scrollbar-hide">
@@ -400,12 +402,15 @@ export default function Navbar() {
 
               {/* Services expandable */}
               <div>
-                <button onClick={() => setServicesMobileOpen(!servicesMobileOpen)}
+                <button
+                  onClick={() => setServicesMobileOpen(!servicesMobileOpen)}
+                  aria-expanded={servicesMobileOpen}
+                  aria-controls="mobile-services-submenu"
                   className="w-full flex items-center justify-between px-4 py-3.5 text-sm font-medium rounded-xl text-gray-700 hover:bg-[#1a3a5c]/8 hover:text-[#1a3a5c] transition-all duration-200">
                   Services
                   <ChevronDown className={cn("w-4 h-4 transition-transform duration-300", servicesMobileOpen && "rotate-180")} />
                 </button>
-                <div className={cn("overflow-hidden transition-all duration-300", servicesMobileOpen ? "max-h-60" : "max-h-0")}>
+                <div id="mobile-services-submenu" className="mobile-submenu-grid" data-open={servicesMobileOpen ? "true" : "false"}>
                   <div className="mx-3 mb-2 bg-[#f8f9fb] rounded-xl overflow-hidden">
                     {SERVICES_LINKS.map((s) => (
                       <Link key={s.href} href={s.href} onClick={() => setIsOpen(false)}
@@ -420,6 +425,8 @@ export default function Navbar() {
               {/* Other links */}
               {[
                 { href: "/a-propos", label: "À propos" },
+                { href: "/collaborateurs", label: "Collaborateurs" },
+                { href: "/nos-realisations", label: "Réalisations" },
                 { href: "/blog",     label: "Blog" },
                 { href: "/contact",  label: "Contact" },
               ].map((link) => (
@@ -451,9 +458,14 @@ export default function Navbar() {
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label={label}
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-gray-200 bg-white text-[#1a3a5c] transition-colors hover:border-[#1a3a5c] hover:bg-[#1a3a5c] hover:text-white"
+                    className={cn(
+                      "inline-flex h-10 w-10 items-center justify-center rounded-xl border transition-colors",
+                      label === "WhatsApp"
+                        ? "border-[#25D366] bg-[#25D366] text-white hover:border-[#20ba5a] hover:bg-[#20ba5a]"
+                        : "border-gray-200 bg-white text-[#1a3a5c] hover:border-[#1a3a5c] hover:bg-[#1a3a5c] hover:text-white"
+                    )}
                   >
-                    <Icon />
+                    <Icon className="h-4 w-4" />
                   </a>
                 ))}
               </div>

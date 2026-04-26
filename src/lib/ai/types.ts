@@ -2,7 +2,7 @@ export type AIChatRole = "user" | "assistant";
 
 export type AIWidgetScope = "public" | "dashboard";
 export type AIAssistantMode = "user" | "admin";
-export type AIAdminActionType = "update_property" | "delete_property";
+export type AIAdminActionType = "create_property" | "update_property" | "delete_property";
 export type AIChatAttachmentType = "text" | "image";
 
 export interface AIChatAttachment {
@@ -44,6 +44,7 @@ export interface AIAdminActionProposal {
   propertyId?: string;
   propertySlug?: string;
   propertyQuery?: string;
+  property?: Record<string, unknown>;
   updates?: Record<string, unknown>;
   confirmationMessage?: string;
 }

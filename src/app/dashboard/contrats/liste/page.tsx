@@ -2,7 +2,7 @@
 
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { Copy, Download, FileText, RefreshCw, Search, Trash2 } from "lucide-react";
+import { ChevronDown, Copy, Download, FileText, RefreshCw, Search, Trash2 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import CustomSelect from "@/components/ui/CustomSelect";
 import Input from "@/components/ui/Input";
@@ -81,6 +81,7 @@ export default function DashboardContractsListPage() {
   const [maxRentFilter, setMaxRentFilter] = useState("");
   const [sortBy, setSortBy] = useState<SortKey>("newest");
   const [currentPage, setCurrentPage] = useState(1);
+  const [expandedContractId, setExpandedContractId] = useState<string | null>(null);
 
   const deferredQuery = useDeferredValue(query);
   const normalizedQuery = normalizeSearchText(deferredQuery);
@@ -163,6 +164,7 @@ export default function DashboardContractsListPage() {
 
   useEffect(() => {
     setCurrentPage(1);
+    setExpandedContractId(null);
   }, [
     cityFilter,
     endDateFilter,
@@ -179,6 +181,10 @@ export default function DashboardContractsListPage() {
       setCurrentPage(totalPages);
     }
   }, [currentPage, totalPages]);
+
+  useEffect(() => {
+    setExpandedContractId(null);
+  }, [currentPage]);
 
   const paginatedContracts = useMemo(() => {
     const start = (currentPage - 1) * CONTRACTS_PER_PAGE;
@@ -301,6 +307,7 @@ export default function DashboardContractsListPage() {
       }
 
       setContracts((current) => current.filter((entry) => entry.id !== contract.id));
+      setExpandedContractId((current) => (current === contract.id ? null : current));
 
       if (payload?.storage_warning) {
         toast.success("Contrat supprime. Le fichier PDF n'a pas pu etre supprime.");
@@ -461,62 +468,132 @@ export default function DashboardContractsListPage() {
           </div>
         ) : (
           <div className="mt-5 space-y-3">
-            {paginatedContracts.map((contract) => (
-              <article
-                key={contract.id}
-                className="rounded-2xl border border-gray-100 bg-[#f8fafc] px-4 py-4"
-              >
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="space-y-2">
-                    <p className="text-sm font-semibold text-[#0f1724]">{contract.tenant_name}</p>
-                    <p className="text-xs text-gray-500">
-                      Matricule: <span className="font-semibold text-[#1a3a5c]">{contract.contract_reference}</span>
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      Bien: {contract.property_title} ({contract.property_city || "Ville non renseignee"})
-                    </p>
-                    <p className="text-xs text-gray-500">Adresse: {contract.property_address}</p>
-                    <p className="text-xs text-gray-500">
-                      Loyer: {formatMoneyAmount(contract.monthly_rent)}{" "}
-                      {formatPaymentFrequencyLabel(contract.payment_frequency)}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      Contrat du {formatContractDate(contract.contract_date)} • Cree le{" "}
-                      {formatContractDateTime(contract.created_at)}
-                    </p>
-                  </div>
+            {paginatedContracts.map((contract) => {
+              const isExpanded = expandedContractId === contract.id;
+              const detailsId = `contract-details-${contract.id}`;
 
-                  <a
-                    href={contract.pdf_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-[#1a3a5c]/20 bg-white px-4 text-sm font-semibold text-[#1a3a5c] transition hover:border-[#1a3a5c] hover:bg-[#1a3a5c]/5"
-                  >
-                    <Download className="h-4 w-4" />
-                    Voir le PDF
-                  </a>
-
+              return (
+                <article
+                  key={contract.id}
+                  className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition-shadow hover:shadow-md"
+                >
                   <button
                     type="button"
-                    onClick={() => void handleCopyReference(contract.contract_reference)}
-                    className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-700 transition hover:border-gray-300 hover:bg-gray-50"
+                    onClick={() => setExpandedContractId((current) => (current === contract.id ? null : contract.id))}
+                    className="flex w-full flex-col gap-3 px-4 py-4 text-left transition-colors hover:bg-[#f8fafc] sm:px-5"
+                    aria-expanded={isExpanded}
+                    aria-controls={detailsId}
                   >
-                    <Copy className="h-4 w-4" />
-                    Copier
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="truncate text-sm font-semibold text-[#0f1724]">{contract.tenant_name}</p>
+                          <span className="rounded-full bg-[#1a3a5c]/10 px-2.5 py-1 text-[11px] font-semibold text-[#1a3a5c]">
+                            {contract.contract_reference}
+                          </span>
+                        </div>
+                        <p className="mt-1 truncate text-xs text-gray-500">
+                          {contract.property_title} • {contract.property_city || "Ville non renseignee"}
+                        </p>
+                      </div>
+
+                      <ChevronDown
+                        className={`mt-1 h-5 w-5 shrink-0 text-gray-400 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                      />
+                    </div>
+
+                    <div className="grid gap-2 text-xs text-gray-500 sm:grid-cols-3">
+                      <p>
+                        <span className="font-semibold text-gray-700">Loyer:</span>{" "}
+                        {formatMoneyAmount(contract.monthly_rent)}
+                      </p>
+                      <p>
+                        <span className="font-semibold text-gray-700">Contrat:</span>{" "}
+                        {formatContractDate(contract.contract_date)}
+                      </p>
+                      <p>
+                        <span className="font-semibold text-gray-700">Cree:</span>{" "}
+                        {formatContractDateTime(contract.created_at)}
+                      </p>
+                    </div>
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={() => void handleDeleteContract(contract)}
-                    disabled={deletingId === contract.id}
-                    className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-4 text-sm font-semibold text-red-600 transition hover:border-red-300 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    {deletingId === contract.id ? "Suppression..." : "Supprimer"}
-                  </button>
-                </div>
-              </article>
-            ))}
+                  {isExpanded && (
+                    <div id={detailsId} className="border-t border-gray-100 bg-[#f8fafc] px-4 py-4 sm:px-5">
+                      <div className="grid gap-3 lg:grid-cols-2">
+                        <div className="rounded-xl border border-gray-100 bg-white p-4">
+                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">Locataire</p>
+                          <p className="mt-2 text-sm font-semibold text-[#0f1724]">{contract.tenant_name}</p>
+                          <p className="mt-1 text-xs text-gray-500">{contract.tenant_email || "Email non renseigne"}</p>
+                          <p className="mt-1 text-xs text-gray-500">{contract.tenant_phone || "Telephone non renseigne"}</p>
+                        </div>
+
+                        <div className="rounded-xl border border-gray-100 bg-white p-4">
+                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">Bien</p>
+                          <p className="mt-2 text-sm font-semibold text-[#0f1724]">{contract.property_title}</p>
+                          <p className="mt-1 text-xs text-gray-500">{contract.property_city || "Ville non renseignee"}</p>
+                          <p className="mt-1 text-xs text-gray-500">{contract.property_address}</p>
+                        </div>
+
+                        <div className="rounded-xl border border-gray-100 bg-white p-4">
+                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">Contrat</p>
+                          <div className="mt-2 grid gap-1 text-xs text-gray-500">
+                            <p>Matricule: <span className="font-semibold text-[#1a3a5c]">{contract.contract_reference}</span></p>
+                            <p>Date du contrat: {formatContractDate(contract.contract_date)}</p>
+                            <p>Date de debut: {formatContractDate(contract.start_date)}</p>
+                            <p>Duree: {contract.duration_months} mois</p>
+                            <p>Representant: {contract.representative_name}</p>
+                          </div>
+                        </div>
+
+                        <div className="rounded-xl border border-gray-100 bg-white p-4">
+                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">Paiement</p>
+                          <div className="mt-2 grid gap-1 text-xs text-gray-500">
+                            <p>
+                              Loyer: {formatMoneyAmount(contract.monthly_rent)}{" "}
+                              {formatPaymentFrequencyLabel(contract.payment_frequency)}
+                            </p>
+                            <p>Caution: {formatMoneyAmount(contract.security_deposit)}</p>
+                            <p>Clauses: {contract.special_clauses || "Aucune clause speciale"}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                        <a
+                          href={contract.pdf_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-[#1a3a5c]/20 bg-white px-4 text-sm font-semibold text-[#1a3a5c] transition hover:border-[#1a3a5c] hover:bg-[#1a3a5c]/5"
+                        >
+                          <Download className="h-4 w-4" />
+                          Voir le PDF
+                        </a>
+
+                        <button
+                          type="button"
+                          onClick={() => void handleCopyReference(contract.contract_reference)}
+                          className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-700 transition hover:border-gray-300 hover:bg-gray-50"
+                        >
+                          <Copy className="h-4 w-4" />
+                          Copier le matricule
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => void handleDeleteContract(contract)}
+                          disabled={deletingId === contract.id}
+                          className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-4 text-sm font-semibold text-red-600 transition hover:border-red-300 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          {deletingId === contract.id ? "Suppression..." : "Supprimer"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </article>
+              );
+            })}
           </div>
         )}
 

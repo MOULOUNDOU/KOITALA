@@ -44,33 +44,33 @@ export default function SignOutConfirmDialog({
   return createPortal(
     <div
       data-signout-dialog="true"
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#22080d]/80 p-4 backdrop-blur-[3px] animate-fade-in"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#22080d]/70 p-4 animate-fade-in"
       onClick={() => {
         if (!loading) onCancel();
       }}
       role="presentation"
     >
       <div
-        className="relative w-full max-w-md overflow-hidden rounded-[24px] border border-[#7c2631] bg-[#5a1720] shadow-[0_30px_80px_rgba(24,4,8,0.48)] anim-scale-in"
+        className="relative w-full max-w-md overflow-hidden rounded-2xl border border-[#8f3744] bg-[#5a1720] shadow-[0_28px_80px_rgba(24,4,8,0.34)] anim-scale-in"
         onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby="logout-dialog-title"
         aria-describedby="logout-dialog-description"
       >
-        <div className="absolute inset-x-0 top-0 h-1.5 bg-[#b73041]" />
+        <div className="absolute inset-x-0 top-0 h-1 bg-[#ff5b6d]" />
 
-        <div className="flex items-start justify-between gap-3 border-b border-[#7d2b36] bg-[#6a1d28] px-5 pb-4 pt-5">
+        <div className="flex items-start justify-between gap-4 border-b border-[#7d2b36] bg-[#6a1d28] px-5 pb-5 pt-6">
           <div className="flex items-start gap-3">
             <div className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[#b55a67] bg-[#8b2d3a] text-[#fff1f3]">
               <LogOut className="h-5 w-5" />
             </div>
             <div>
-              <h3 id="logout-dialog-title" className="text-[17px] font-semibold leading-6 text-white">
-                Voulez-vous vraiment vous déconnecter ?
+              <h3 id="logout-dialog-title" className="text-lg font-bold leading-6 text-white">
+                Confirmer la déconnexion
               </h3>
-              <p id="logout-dialog-description" className="mt-1 text-sm leading-relaxed text-[#f0d0d5]">
-                Vous allez quitter votre session Koitala. Vous pourrez vous reconnecter à tout moment.
+              <p id="logout-dialog-description" className="mt-2 text-sm leading-6 text-[#f0d0d5]">
+                Vous allez quitter votre session KOITALA sur cet appareil.
               </p>
             </div>
           </div>
@@ -85,32 +85,32 @@ export default function SignOutConfirmDialog({
           </button>
         </div>
 
-        <div className="mx-5 mt-4 rounded-2xl border border-[#8f3744] bg-[#6d222d] px-3.5 py-3 text-xs text-[#f7dde1] shadow-[inset_0_1px_0_#8f3744]">
-          Cette action ferme uniquement la session en cours sur cet appareil. Vos données restent enregistrées.
+        <div className="mx-5 mt-5 rounded-xl border border-[#8f3744] bg-[#6d222d] px-4 py-3 text-sm leading-6 text-[#f7dde1] shadow-[inset_0_1px_0_#8f3744]">
+          Vos données restent enregistrées. Vous pourrez vous reconnecter à tout moment avec votre compte.
         </div>
 
-        <div className="bg-[#5a1720] px-5 pb-5 pt-4">
-          <div className="flex items-center gap-2.5">
+        <div className="px-5 pb-5 pt-5">
+          <div className="flex flex-col-reverse gap-2.5 sm:flex-row">
             <button
               type="button"
               onClick={onCancel}
               disabled={loading}
-              className="h-11 flex-1 rounded-xl bg-[#1f4f8f] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#173f72] disabled:cursor-not-allowed disabled:opacity-50"
+              className="h-11 flex-1 rounded-xl border border-[#9b4652] bg-[#6a1d28] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#7d2b36] disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Rester connecté
+              Annuler
             </button>
             <button
               type="button"
               onClick={onConfirm}
               disabled={loading}
-              className="h-11 flex-1 rounded-xl bg-[#6b4226] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#55331d] disabled:cursor-not-allowed disabled:opacity-70"
+              className="h-11 flex-1 rounded-xl bg-[#f2d06b] px-4 text-sm font-semibold text-[#3a1017] transition-colors hover:bg-[#e4bf58] disabled:cursor-not-allowed disabled:opacity-70"
             >
-              {loading ? "Déconnexion..." : "Oui, me déconnecter"}
+              {loading ? "Déconnexion..." : "Se déconnecter"}
             </button>
           </div>
 
-          <p className="mt-3 text-center text-[11px] font-medium tracking-[0.08em] text-[#ddb0b7] uppercase">
-            Session Koitala
+          <p className="mt-3 text-center text-[11px] font-semibold uppercase tracking-[0.14em] text-[#ddb0b7]">
+            Session KOITALA
           </p>
         </div>
       </div>

@@ -23,10 +23,26 @@ interface GoogleAnalyticsReportResponse {
   rows?: GoogleAnalyticsRow[];
 }
 
+interface GoogleApiErrorPayload {
+  error?: {
+    message?: string;
+    status?: string;
+    details?: Array<{
+      reason?: string;
+      [key: string]: unknown;
+    }>;
+  };
+}
+
 interface GoogleAnalyticsConfig {
   propertyId: string;
   serviceAccountEmail: string;
   privateKey: string;
+}
+
+interface GoogleAnalyticsConfigResolution {
+  config: GoogleAnalyticsConfig | null;
+  error: string | null;
 }
 
 export interface AnalyticsTopItem {
@@ -140,19 +156,61 @@ function toTopItems(report: GoogleAnalyticsReportResponse, options?: { limit?: n
   return items;
 }
 
-function getGoogleAnalyticsConfig(): GoogleAnalyticsConfig | null {
-  const propertyId = process.env.GOOGLE_ANALYTICS_PROPERTY_ID?.trim();
-  const serviceAccountEmail = process.env.GOOGLE_ANALYTICS_SERVICE_ACCOUNT_EMAIL?.trim();
-  const privateKeyEnv = process.env.GOOGLE_ANALYTICS_PRIVATE_KEY?.trim();
+function getGoogleAnalyticsConfig(): GoogleAnalyticsConfigResolution {
+  const rawPropertyId = process.env.GOOGLE_ANALYTICS_PROPERTY_ID?.trim() ?? "";
+  const serviceAccountEmail = process.env.GOOGLE_ANALYTICS_SERVICE_ACCOUNT_EMAIL?.trim() ?? "";
+  const privateKeyEnv = process.env.GOOGLE_ANALYTICS_PRIVATE_KEY?.trim() ?? "";
 
-  if (!propertyId || !serviceAccountEmail || !privateKeyEnv) {
-    return null;
+  if (!rawPropertyId || !serviceAccountEmail || !privateKeyEnv) {
+    return {
+      config: null,
+      error:
+        "Variables GA4 manquantes. Renseignez GOOGLE_ANALYTICS_PROPERTY_ID, GOOGLE_ANALYTICS_SERVICE_ACCOUNT_EMAIL et GOOGLE_ANALYTICS_PRIVATE_KEY.",
+    };
+  }
+
+  const propertyId = rawPropertyId.replace(/^properties\//i, "");
+  if (!/^\d+$/.test(propertyId)) {
+    return {
+      config: null,
+      error:
+        "GOOGLE_ANALYTICS_PROPERTY_ID invalide. Utilisez l'identifiant numérique de la propriété GA4 (pas le Measurement ID G-XXXXXX).",
+    };
+  }
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(serviceAccountEmail)) {
+    return {
+      config: null,
+      error:
+        "GOOGLE_ANALYTICS_SERVICE_ACCOUNT_EMAIL invalide. Vérifiez l'adresse email du service account Google Cloud.",
+    };
+  }
+
+  let normalizedPrivateKey = privateKeyEnv;
+  if (
+    (normalizedPrivateKey.startsWith("\"") && normalizedPrivateKey.endsWith("\"")) ||
+    (normalizedPrivateKey.startsWith("'") && normalizedPrivateKey.endsWith("'"))
+  ) {
+    normalizedPrivateKey = normalizedPrivateKey.slice(1, -1);
+  }
+
+  normalizedPrivateKey = normalizedPrivateKey.replace(/\\n/g, "\n").trim();
+
+  if (!normalizedPrivateKey.includes("BEGIN PRIVATE KEY")) {
+    return {
+      config: null,
+      error:
+        "GOOGLE_ANALYTICS_PRIVATE_KEY invalide. Collez la clé privée complète du JSON service account (BEGIN PRIVATE KEY ... END PRIVATE KEY).",
+    };
   }
 
   return {
-    propertyId,
-    serviceAccountEmail,
-    privateKey: privateKeyEnv.replace(/\\n/g, "\n"),
+    config: {
+      propertyId,
+      serviceAccountEmail,
+      privateKey: normalizedPrivateKey,
+    },
+    error: null,
   };
 }
 
@@ -169,7 +227,13 @@ async function getGoogleAccessToken(config: GoogleAnalyticsConfig) {
   });
 
   if (!response.ok) {
-    throw new Error(`Impossible de récupérer un token Google (${response.status}).`);
+    const errorPayload = (await response.json().catch(() => null)) as GoogleApiErrorPayload | null;
+    const googleMessage = errorPayload?.error?.message?.trim();
+    throw new Error(
+      googleMessage
+        ? `Impossible de récupérer un token Google (${response.status}): ${googleMessage}`
+        : `Impossible de récupérer un token Google (${response.status}).`
+    );
   }
 
   const payload = (await response.json()) as GoogleAccessTokenResponse;
@@ -199,7 +263,15 @@ async function runGoogleAnalyticsReport(
   );
 
   if (!response.ok) {
-    throw new Error(`Impossible de lire les données GA4 (${response.status}).`);
+    const errorPayload = (await response.json().catch(() => null)) as GoogleApiErrorPayload | null;
+    const googleMessage = errorPayload?.error?.message?.trim();
+    const googleReason = errorPayload?.error?.details?.[0]?.reason?.trim();
+    const details = [googleMessage, googleReason].filter(Boolean).join(" | ");
+    throw new Error(
+      details
+        ? `Impossible de lire les données GA4 (${response.status}): ${details}`
+        : `Impossible de lire les données GA4 (${response.status}).`
+    );
   }
 
   return (await response.json()) as GoogleAnalyticsReportResponse;
@@ -286,7 +358,8 @@ async function getLocalAnalyticsFallback(periodDays: number): Promise<LocalAnaly
 export async function getAdminAnalyticsOverview(periodDays = 30): Promise<AdminAnalyticsOverview> {
   const normalizedPeriod = normalizePeriod(periodDays);
   const localFallback = await getLocalAnalyticsFallback(normalizedPeriod);
-  const config = getGoogleAnalyticsConfig();
+  const configResolution = getGoogleAnalyticsConfig();
+  const config = configResolution.config;
 
   if (!config) {
     return {
@@ -294,7 +367,9 @@ export async function getAdminAnalyticsOverview(periodDays = 30): Promise<AdminA
       gaConnected: false,
       gaPropertyId: null,
       updatedAt: new Date().toISOString(),
-      warning: "Google Analytics n'est pas configuré. Affichage des indicateurs internes.",
+      warning:
+        configResolution.error ??
+        "Google Analytics n'est pas configuré. Affichage des indicateurs internes.",
       metrics: {
         visitors: localFallback.knownVisitors,
         sessions: localFallback.visitRequests,
@@ -363,14 +438,19 @@ export async function getAdminAnalyticsOverview(periodDays = 30): Promise<AdminA
       trafficSources: toTopItems(sourcesReport, { limit: 8 }),
       localFallback,
     };
-  } catch {
+  } catch (error) {
+    const detail =
+      error instanceof Error && error.message
+        ? error.message
+        : "Erreur inconnue lors de l'appel GA4.";
+
     return {
       periodDays: normalizedPeriod,
       gaConnected: false,
       gaPropertyId: config.propertyId,
       updatedAt: new Date().toISOString(),
       warning:
-        "Connexion GA4 indisponible pour le moment. Vérifiez les identifiants du service account et les permissions de la propriété.",
+        `Connexion GA4 indisponible. ${detail}`,
       metrics: {
         visitors: localFallback.knownVisitors,
         sessions: localFallback.visitRequests,

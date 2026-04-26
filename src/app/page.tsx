@@ -518,16 +518,16 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                     <div className="mt-5 grid grid-cols-2 gap-3">
                       <Link
                         href="/contact"
-                        className="inline-flex min-w-0 items-center justify-center gap-2 rounded-xl bg-white px-4 py-3.5 text-sm font-semibold text-[#1a3a5c] transition-all duration-200 hover:bg-[#f8fafc] active:scale-95 sm:text-base"
+                        className="inline-flex min-w-0 items-center justify-center gap-1 rounded-lg bg-white px-2.5 py-2 text-[12px] font-semibold text-[#1a3a5c] transition-all duration-200 hover:bg-[#f8fafc] active:scale-95"
                       >
                         Nous contacter
-                        <ArrowRight className="h-4 w-4" />
+                        <ArrowRight className="h-3 w-3" />
                       </Link>
                       <a
                         href="tel:+221766752135"
-                        className="inline-flex min-w-0 items-center justify-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-4 py-3.5 text-sm font-semibold text-white transition-all duration-200 hover:bg-white/15 active:scale-95 sm:text-base"
+                        className="inline-flex min-w-0 items-center justify-center gap-1 rounded-lg border border-white/20 bg-white/10 px-2.5 py-2 text-[12px] font-semibold text-white transition-all duration-200 hover:bg-white/15 active:scale-95"
                       >
-                        <Phone className="h-4 w-4" />
+                        <Phone className="h-3 w-3" />
                         +221 76 675 21 35
                       </a>
                     </div>

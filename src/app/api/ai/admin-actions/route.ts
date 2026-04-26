@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { generateSlug } from "@/lib/utils";
 import type { AIAdminActionProposal } from "@/lib/ai/types";
 
 export const runtime = "nodejs";
@@ -80,7 +81,11 @@ function sanitizeAction(raw: unknown): AIAdminActionProposal | null {
 
   const typeValue = Reflect.get(raw, "type");
   const type =
-    typeValue === "update_property" || typeValue === "delete_property" ? typeValue : null;
+    typeValue === "create_property" ||
+    typeValue === "update_property" ||
+    typeValue === "delete_property"
+      ? typeValue
+      : null;
   if (!type) return null;
 
   const propertyIdRaw = Reflect.get(raw, "propertyId");
@@ -93,6 +98,14 @@ function sanitizeAction(raw: unknown): AIAdminActionProposal | null {
   const propertyQuery = toOptionalString(Reflect.get(raw, "propertyQuery"), 200);
   const confirmationMessage = toOptionalString(Reflect.get(raw, "confirmationMessage"), 220);
 
+  let property: Record<string, unknown> | undefined;
+  if (type === "create_property") {
+    const rawProperty = Reflect.get(raw, "property") ?? Reflect.get(raw, "updates");
+    if (rawProperty && typeof rawProperty === "object" && !Array.isArray(rawProperty)) {
+      property = rawProperty as Record<string, unknown>;
+    }
+  }
+
   let updates: Record<string, unknown> | undefined;
   if (type === "update_property") {
     const rawUpdates = Reflect.get(raw, "updates");
@@ -101,7 +114,11 @@ function sanitizeAction(raw: unknown): AIAdminActionProposal | null {
     }
   }
 
-  if (!propertyId && !propertySlug && !propertyQuery) {
+  if (type === "create_property" && !property) {
+    return null;
+  }
+
+  if (type !== "create_property" && !propertyId && !propertySlug && !propertyQuery) {
     return null;
   }
 
@@ -110,12 +127,13 @@ function sanitizeAction(raw: unknown): AIAdminActionProposal | null {
     propertyId,
     propertySlug,
     propertyQuery,
+    property,
     updates,
     confirmationMessage,
   };
 }
 
-async function resolveAdminAccess(): Promise<{ allowed: boolean; status: number }> {
+async function resolveAdminAccess(): Promise<{ allowed: boolean; status: number; userId?: string }> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -151,7 +169,7 @@ async function resolveAdminAccess(): Promise<{ allowed: boolean; status: number 
     }
   }
 
-  return { allowed: hasAdminRole, status: hasAdminRole ? 200 : 403 };
+  return { allowed: hasAdminRole, status: hasAdminRole ? 200 : 403, userId: user.id };
 }
 
 async function resolvePropertyTarget(action: AIAdminActionProposal): Promise<{
@@ -268,6 +286,16 @@ function buildUpdatePayload(rawUpdates: Record<string, unknown> | undefined): Re
   if (mainImageUrl) payload.main_image_url = mainImageUrl;
   if (rawUpdates.main_image_url === null) payload.main_image_url = null;
 
+  const videoUrl = toOptionalString(rawUpdates.video_url, 600);
+  if (videoUrl) payload.video_url = videoUrl;
+  if (rawUpdates.video_url === null) payload.video_url = null;
+
+  const latitude = toOptionalNumber(rawUpdates.latitude);
+  if (latitude !== undefined) payload.latitude = latitude;
+
+  const longitude = toOptionalNumber(rawUpdates.longitude);
+  if (longitude !== undefined) payload.longitude = longitude;
+
   const price = toOptionalNumber(rawUpdates.price);
   if (price !== undefined) payload.price = price;
 
@@ -287,6 +315,93 @@ function buildUpdatePayload(rawUpdates: Record<string, unknown> | undefined): Re
   if (isFurnished !== undefined) payload.is_furnished = isFurnished;
 
   return payload;
+}
+
+function buildCreatePayload(
+  rawProperty: Record<string, unknown> | undefined,
+  userId: string
+): { payload: Record<string, unknown> | null; error?: string } {
+  if (!rawProperty) {
+    return { payload: null, error: "Données de création manquantes." };
+  }
+
+  const title = toOptionalString(rawProperty.title, 140);
+  const propertyType = pickEnum(rawProperty.property_type, PROPERTY_TYPES);
+  const listingType = pickEnum(rawProperty.listing_type, LISTING_TYPES);
+  const city = toOptionalString(rawProperty.city, 80);
+  const price = toOptionalNumber(rawProperty.price);
+
+  const missingFields = [
+    !title ? "titre" : null,
+    !propertyType ? "type de bien" : null,
+    !listingType ? "vente ou location" : null,
+    !city ? "ville" : null,
+    price === undefined || price <= 0 ? "prix" : null,
+  ].filter((item): item is string => Boolean(item));
+
+  if (missingFields.length > 0) {
+    return {
+      payload: null,
+      error: `Création impossible: champs manquants ou invalides (${missingFields.join(", ")}).`,
+    };
+  }
+
+  const normalizedTitle = title ?? "Annonce";
+
+  const payload: Record<string, unknown> = {
+    title: normalizedTitle,
+    property_type: propertyType,
+    listing_type: listingType,
+    city,
+    price,
+    status: "brouillon",
+    slug: `${generateSlug(normalizedTitle)}-${Date.now()}`,
+    created_by: userId,
+    country: toOptionalString(rawProperty.country, 60) ?? "Sénégal",
+    is_featured: false,
+    is_furnished: false,
+  };
+
+  const description = toOptionalString(rawProperty.description, 4000);
+  if (description) payload.description = description;
+
+  const area = toOptionalNumber(rawProperty.area);
+  if (area !== undefined) payload.area = area;
+
+  const bedrooms = toOptionalNumber(rawProperty.bedrooms ?? rawProperty.rooms);
+  if (bedrooms !== undefined) payload.bedrooms = Math.max(0, Math.trunc(bedrooms));
+
+  const bathrooms = toOptionalNumber(rawProperty.bathrooms);
+  if (bathrooms !== undefined) payload.bathrooms = Math.max(0, Math.trunc(bathrooms));
+
+  const address = toOptionalString(rawProperty.address, 180);
+  if (address) payload.address = address;
+
+  const neighborhood = toOptionalString(rawProperty.neighborhood, 120);
+  if (neighborhood) payload.neighborhood = neighborhood;
+
+  const postalCode = toOptionalString(rawProperty.postal_code, 30);
+  if (postalCode) payload.postal_code = postalCode;
+
+  const mainImageUrl = toOptionalString(rawProperty.main_image_url, 600);
+  if (mainImageUrl) payload.main_image_url = mainImageUrl;
+
+  const videoUrl = toOptionalString(rawProperty.video_url, 600);
+  if (videoUrl) payload.video_url = videoUrl;
+
+  const isFeatured = toOptionalBoolean(rawProperty.is_featured);
+  if (isFeatured !== undefined) payload.is_featured = isFeatured;
+
+  const isFurnished = toOptionalBoolean(rawProperty.is_furnished);
+  if (isFurnished !== undefined) payload.is_furnished = isFurnished;
+
+  const rentalCategory = pickEnum(rawProperty.rental_category, RENTAL_CATEGORIES);
+  if (listingType === "location" && rentalCategory) payload.rental_category = rentalCategory;
+
+  const rentPaymentPeriod = pickEnum(rawProperty.rent_payment_period, RENT_PAYMENT_PERIODS);
+  if (listingType === "location" && rentPaymentPeriod) payload.rent_payment_period = rentPaymentPeriod;
+
+  return { payload };
 }
 
 export async function POST(request: NextRequest) {
@@ -321,6 +436,46 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const supabase = await createClient();
+
+    if (action.type === "create_property") {
+      if (!adminAccess.userId) {
+        return NextResponse.json(
+          { error: "Utilisateur admin introuvable pour créer l'annonce." },
+          { status: 401 }
+        );
+      }
+
+      const createPayload = buildCreatePayload(action.property, adminAccess.userId);
+      if (!createPayload.payload) {
+        return NextResponse.json(
+          { error: createPayload.error ?? "Données de création invalides." },
+          { status: 400 }
+        );
+      }
+
+      const { data, error } = await supabase
+        .from("properties")
+        .insert(createPayload.payload)
+        .select("id,title,slug,status,created_at")
+        .single();
+
+      if (error) {
+        return NextResponse.json(
+          { error: "Création impossible pour cette annonce." },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        action: "create_property",
+        property: data,
+        message: `Annonce créée en brouillon: ${data.title}.`,
+        updatedFields: Object.keys(createPayload.payload),
+      });
+    }
+
     const target = await resolvePropertyTarget(action);
     if (!target.property) {
       return NextResponse.json(
@@ -328,8 +483,6 @@ export async function POST(request: NextRequest) {
         { status: target.status ?? 404 }
       );
     }
-
-    const supabase = await createClient();
 
     if (action.type === "delete_property") {
       const { data, error } = await supabase

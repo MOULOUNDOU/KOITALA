@@ -40,7 +40,7 @@ html {
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-jakarta, 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif);
+  font-family: var(--font-commerce, 'DM Sans', system-ui, -apple-system, sans-serif);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
@@ -57,18 +57,9 @@ body.signout-dialog-open {
   overflow: hidden;
 }
 
-body > *:not([data-signout-dialog="true"]) {
-  transition: filter 220ms ease;
-}
-
-body.signout-dialog-open > *:not([data-signout-dialog="true"]) {
-  filter: blur(6px);
-  pointer-events: none;
-}
-
 .font-display {
-  font-family: var(--font-display, Georgia, serif);
-  letter-spacing: -0.02em;
+  font-family: var(--font-commerce, 'DM Sans', system-ui, -apple-system, sans-serif);
+  letter-spacing: 0;
 }
 
 /* Ensure images and videos never overflow their containers */
@@ -135,6 +126,66 @@ img, video, iframe {
 .animate-slide-down{ animation: slideDown 0.3s ease forwards; }
 .animate-scale-in  { animation: scaleIn  0.4s ease forwards; }
 .animate-pulse-gold{ animation: pulse-gold 2s infinite; }
+
+/* ── Navigation submenus ───────────────────────────── */
+.nav-submenu-trigger {
+  perspective: 900px;
+}
+
+.nav-submenu-shell {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translate3d(0, 14px, 0) scale(0.96);
+  transform-origin: top center;
+  transition:
+    opacity 220ms var(--smooth-ease),
+    transform 360ms var(--smooth-ease),
+    visibility 0s linear 220ms;
+}
+
+.nav-submenu-panel {
+  transform: rotateX(-8deg);
+  transform-origin: top center;
+  transition: transform 420ms var(--smooth-ease);
+}
+
+.nav-submenu-trigger:hover .nav-submenu-shell,
+.nav-submenu-trigger:focus-within .nav-submenu-shell {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translate3d(0, 0, 0) scale(1);
+  transition-delay: 0s;
+}
+
+.nav-submenu-trigger:hover .nav-submenu-panel,
+.nav-submenu-trigger:focus-within .nav-submenu-panel {
+  transform: rotateX(0deg);
+}
+
+.mobile-submenu-grid {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-8px) scale(0.98);
+  transition:
+    grid-template-rows 420ms var(--smooth-ease),
+    opacity 260ms ease,
+    transform 420ms var(--smooth-ease);
+}
+
+.mobile-submenu-grid[data-open="true"] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+}
+
+.mobile-submenu-grid > div {
+  overflow: hidden;
+}
 
 /* Stagger helpers */
 .stagger-1 { animation-delay: 0.08s; }
@@ -275,31 +326,21 @@ input[type="reset"]:active {
 @keyframes pageEnter {
   from {
     opacity: 0;
-    transform: translate3d(0, 18px, 0) scale(0.985);
-    filter: blur(10px);
   }
   to {
     opacity: 1;
-    transform: none;
-    filter: blur(0);
   }
 }
 @keyframes pageExit {
   from {
     opacity: 1;
-    transform: none;
-    filter: blur(0);
   }
   to {
     opacity: 0;
-    transform: translate3d(0, -10px, 0) scale(0.992);
-    filter: blur(8px);
   }
 }
 .page-transition-shell {
-  will-change: opacity, transform, filter;
-  transform-origin: center top;
-  backface-visibility: hidden;
+  will-change: opacity;
 }
 .animate-page-enter {
   animation: pageEnter 0.56s var(--smooth-ease) both;
