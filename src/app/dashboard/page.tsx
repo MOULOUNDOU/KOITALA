@@ -16,6 +16,9 @@ import {
   Plus,
   Users,
 } from "lucide-react";
+import AnalyticsVisualBadge, {
+  getAnalyticsDisplayLabel,
+} from "@/components/dashboard/AnalyticsVisualBadge";
 import DashboardSearchInput from "@/components/dashboard/DashboardSearchInput";
 import PropertyCard from "@/components/properties/PropertyCard";
 import PropertyCardMobile from "@/components/properties/PropertyCardMobile";
@@ -196,30 +199,28 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       icon: Users,
       label: "Visiteurs",
       value: analyticsOverview.metrics.visitors,
-      hint: analyticsOverview.gaConnected ? "utilisateurs uniques" : "visiteurs connus",
+      hint: "utilisateurs réels",
     },
     {
       icon: Globe2,
       label: "Visites",
       value: analyticsOverview.metrics.sessions,
-      hint: analyticsOverview.gaConnected ? "sessions" : "demandes internes",
+      hint: "sessions GA4",
     },
     {
       icon: MousePointerClick,
-      label: "Clics",
+      label: "Événements",
       value: analyticsOverview.metrics.clicks,
-      hint: analyticsOverview.gaConnected ? "événements GA4" : "interactions locales",
+      hint: "événements GA4",
     },
     {
       icon: BarChart3,
       label: "Pages vues",
       value: analyticsOverview.metrics.pageViews,
-      hint: analyticsOverview.gaConnected ? "vues de page" : "vues annonces",
+      hint: "vues de page",
     },
   ] as const;
-  const primaryProvenance = analyticsOverview.gaConnected
-    ? analyticsOverview.topCountries[0]
-    : analyticsOverview.localFallback.topDemandCities[0];
+  const primaryProvenance = analyticsOverview.topCountries[0];
   const primaryChannel = analyticsOverview.trafficChannels[0];
 
   const headerChips = isSearchMode
@@ -232,7 +233,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         {
           icon: BarChart3,
           value: analyticsOverview.metrics.visitors,
-          label: analyticsOverview.gaConnected ? "Visiteurs" : "Visiteurs connus",
+          label: "Visiteurs",
         },
       ];
 
@@ -309,9 +310,9 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
               icon: BarChart3,
               label: "Visites",
               value: analyticsOverview.metrics.sessions,
-              helper: analyticsOverview.gaConnected
+              helper: analyticsOverview.hasRealData
                 ? `${analyticsOverview.metrics.visitors} visiteurs`
-                : `${stats.pendingVisits} demandes en attente`,
+                : "Aucune donnée GA4",
               bgColor: "#047857",
             },
             {
@@ -352,14 +353,10 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         </section>
       )}
 
-      <section
-        className={`grid grid-cols-1 gap-6 ${
-          isSearchMode ? "" : "xl:grid-cols-[minmax(0,1.5fr)_360px]"
-        }`}
-      >
+      <section className="grid grid-cols-1 gap-6">
         {!isSearchMode && (
           <div className="space-y-6">
-            <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <section className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.35fr)]">
               <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
                 <div className="mb-4 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <h2 className="text-base font-bold text-[#0f1724] sm:text-[1.05rem] lg:text-lg">Pipeline des annonces</h2>
@@ -398,13 +395,13 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                   </h2>
                   <Link
                     href="/dashboard/analyse"
-                    className="inline-flex items-center gap-1 rounded-full border border-[#1a3a5c]/20 bg-[#1a3a5c]/5 px-2.5 py-1 text-xs font-semibold text-[#1a3a5c] hover:bg-[#1a3a5c]/10"
+                    className="inline-flex w-full shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-full border border-[#1a3a5c]/20 bg-[#1a3a5c]/5 px-3 py-1.5 text-xs font-semibold text-[#1a3a5c] hover:bg-[#1a3a5c]/10 sm:w-auto"
                   >
                     Détail Analyse <ArrowRight className="h-3.5 w-3.5" />
                   </Link>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
                   {analyticsQuickMetrics.map((metric) => (
                     <div key={metric.label} className="rounded-2xl border border-gray-100 bg-gray-50 p-3">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">
@@ -423,90 +420,65 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                     <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">
                       Provenance principale
                     </p>
-                    <p className="mt-1 text-sm font-semibold text-[#0f1724]">
-                      {primaryProvenance
-                        ? `${primaryProvenance.label} (${new Intl.NumberFormat("fr-FR").format(
-                            primaryProvenance.value
-                          )})`
-                        : "Aucune donnée"}
-                    </p>
+                    {primaryProvenance ? (
+                      <div className="mt-2 flex min-w-0 items-center gap-2">
+                        <AnalyticsVisualBadge
+                          kind="country"
+                          label={primaryProvenance.label}
+                          className="h-8 w-8 rounded-xl"
+                        />
+                        <p className="min-w-0 text-sm font-semibold text-[#0f1724]">
+                          <span className="block truncate">{getAnalyticsDisplayLabel(primaryProvenance.label)}</span>
+                          <span className="text-xs font-medium text-gray-500">
+                            {new Intl.NumberFormat("fr-FR").format(primaryProvenance.value)} utilisateurs
+                          </span>
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="mt-1 text-sm font-semibold text-[#0f1724]">Aucune donnée réelle</p>
+                    )}
                   </div>
                   <div className="rounded-2xl border border-gray-100 bg-white p-3">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">
                       Canal principal
                     </p>
-                    <p className="mt-1 text-sm font-semibold text-[#0f1724]">
-                      {primaryChannel
-                        ? `${primaryChannel.label} (${new Intl.NumberFormat("fr-FR").format(
-                            primaryChannel.value
-                          )})`
-                        : "Aucune donnée"}
-                    </p>
+                    {primaryChannel ? (
+                      <div className="mt-2 flex min-w-0 items-center gap-2">
+                        <AnalyticsVisualBadge
+                          kind="channel"
+                          label={primaryChannel.label}
+                          className="h-8 w-8 rounded-xl"
+                        />
+                        <p className="min-w-0 text-sm font-semibold text-[#0f1724]">
+                          <span className="block truncate">{getAnalyticsDisplayLabel(primaryChannel.label)}</span>
+                          <span className="text-xs font-medium text-gray-500">
+                            {new Intl.NumberFormat("fr-FR").format(primaryChannel.value)} sessions
+                          </span>
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="mt-1 text-sm font-semibold text-[#0f1724]">Aucune donnée réelle</p>
+                    )}
                   </div>
                 </div>
 
                 {analyticsOverview.warning && (
                   <p className="mt-3 text-xs text-amber-700">{analyticsOverview.warning}</p>
                 )}
+                {analyticsOverview.gaConnected && !analyticsOverview.hasRealData && (
+                  <p className="mt-3 text-xs font-semibold text-gray-500">
+                    Aucune donnée réelle disponible pour le moment
+                  </p>
+                )}
               </div>
             </section>
           </div>
         )}
 
-        {!isSearchMode && (
-          <aside className="space-y-6 xl:order-2">
-            <section className="rounded-3xl border border-gray-100 bg-white p-4 shadow-sm sm:p-5">
-              <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-gray-400">
-                Actions rapides
-              </h2>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                {[
-                  {
-                    href: "/dashboard/annonces/nouvelle",
-                    icon: Plus,
-                    label: "Ajouter annonce",
-                    className: "bg-[#1a3a5c] text-white hover:bg-[#0f2540]",
-                  },
-                  {
-                    href: "/dashboard/analyse",
-                    icon: BarChart3,
-                    label: "Voir analyse",
-                    className:
-                      "border border-[#1a3a5c]/20 bg-white text-[#1a3a5c] hover:bg-[#f8fafc]",
-                  },
-                ].map((action) => (
-                  <Link
-                    key={action.href}
-                    href={action.href}
-                    className={`inline-flex items-center justify-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-semibold transition-colors ${action.className}`}
-                  >
-                    <action.icon className="h-4 w-4" />
-                    {action.label}
-                  </Link>
-                ))}
-              </div>
-
-              {stats.pendingVisits > 0 && (
-                <div className="mt-3 flex items-center gap-2 rounded-xl bg-[#f4f6f9] px-3 py-2 text-xs text-[#0f1724]">
-                  <Bell className="h-3.5 w-3.5 text-[#1a3a5c]" />
-                  {stats.pendingVisits} demande(s) en attente de traitement
-                </div>
-              )}
-
-              <Link
-                href="/dashboard/annonces"
-                className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-[#1a3a5c] hover:underline"
-              >
-                Ouvrir la gestion complète <ArrowRight className="h-3.5 w-3.5" />
-              </Link>
-            </section>
-          </aside>
-        )}
-
         <section
           id="listing-board"
           className={`rounded-3xl border border-gray-100 bg-white shadow-sm ${
-            isSearchMode ? "anim-fade-up w-full" : "w-full xl:order-3 xl:col-span-2"
+            isSearchMode ? "anim-fade-up w-full" : "w-full"
           }`}
         >
             <div className="flex flex-col gap-4 border-b border-gray-100 px-4 py-4 sm:px-5 lg:flex-row lg:items-end lg:justify-between">

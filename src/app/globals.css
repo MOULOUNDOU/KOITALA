@@ -30,7 +30,7 @@
 }
 
 html {
-  scroll-behavior: smooth;
+  scroll-behavior: auto;
   overflow-x: hidden;
   /* Prevent pinch-zoom horizontal shift */
   width: 100%;
@@ -322,34 +322,6 @@ input[type="reset"]:active {
 }
 .animate-blink { animation: blink 0.8s step-end infinite; }
 
-/* ── Page enter/exit transitions ──────────────────── */
-@keyframes pageEnter {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-@keyframes pageExit {
-  from {
-    opacity: 1;
-  }
-  to {
-    opacity: 0;
-  }
-}
-.page-transition-shell {
-  will-change: opacity;
-}
-.animate-page-enter {
-  animation: pageEnter 0.56s var(--smooth-ease) both;
-}
-.animate-page-exit {
-  animation: pageExit 0.26s var(--smooth-ease) both;
-  pointer-events: none;
-}
-
 /* ── Public site motion system ─────────────────────── */
 .public-motion-scope :is(a[href], button, [role="button"], input[type="button"], input[type="submit"], input[type="reset"]) {
   transition:
@@ -406,14 +378,6 @@ input[type="reset"]:active {
   input[type="reset"] {
     transition: none;
     transform: none;
-  }
-
-  .page-transition-shell,
-  .animate-page-enter,
-  .animate-page-exit {
-    animation: none;
-    transform: none;
-    filter: none;
   }
 
   .public-motion-scope :is(a[href], button, [role="button"], input[type="button"], input[type="submit"], input[type="reset"]) {

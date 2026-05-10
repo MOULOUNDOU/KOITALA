@@ -3,16 +3,29 @@ export const dynamic = "force-dynamic";
 import type { Metadata } from "next";
 import Link from "next/link";
 import {
+  Activity,
   ArrowRight,
   BarChart3,
   CheckCircle2,
+  Compass,
+  FileText,
+  Flag,
   Globe2,
+  Link2,
+  MapPin,
   MousePointerClick,
+  Network,
   RadioTower,
   RefreshCw,
+  Search,
   Users,
   WifiOff,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import AnalyticsVisualBadge, {
+  getAnalyticsDisplayLabel,
+  type AnalyticsVisualKind,
+} from "@/components/dashboard/AnalyticsVisualBadge";
 import { getAdminAnalyticsOverview, type AnalyticsTopItem } from "@/lib/analytics/adminAnalytics";
 
 export const metadata: Metadata = { title: "Analyse" };
@@ -48,34 +61,51 @@ function getSafePeriod(value: string | undefined) {
 function SectionList({
   title,
   subtitle,
+  icon: Icon,
+  kind,
   items,
   metricLabel,
+  emptyLabel = "Aucune donnée réelle disponible pour le moment",
 }: {
   title: string;
   subtitle: string;
+  icon: LucideIcon;
+  kind: AnalyticsVisualKind;
   items: AnalyticsTopItem[];
   metricLabel: string;
+  emptyLabel?: string;
 }) {
   const strongestValue = Math.max(...items.map((item) => item.value), 1);
 
   return (
     <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gray-400">{subtitle}</p>
-      <h2 className="mt-1 text-base font-bold text-[#0f1724] sm:text-lg">{title}</h2>
+      <div className="flex items-start gap-3">
+        <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#1a3a5c] text-white">
+          <Icon className="h-4 w-4" />
+        </span>
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">{subtitle}</p>
+          <h2 className="mt-1 text-base font-bold text-[#0f1724] sm:text-lg">{title}</h2>
+        </div>
+      </div>
 
       {items.length === 0 ? (
         <div className="mt-4 rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-5 text-sm text-gray-500">
-          Données indisponibles pour le moment.
+          {emptyLabel}
         </div>
       ) : (
         <ul className="mt-4 space-y-3">
           {items.map((item) => {
             const ratio = item.value <= 0 ? 0 : Math.max(8, Math.round((item.value / strongestValue) * 100));
+            const displayLabel = getAnalyticsDisplayLabel(item.label);
             return (
-              <li key={`${title}-${item.label}`} className="space-y-1.5">
+              <li key={`${title}-${item.label}`} className="space-y-2 rounded-2xl border border-gray-100 bg-gray-50/70 p-3">
                 <div className="flex items-center justify-between gap-3 text-sm">
-                  <span className="font-medium text-[#0f1724]">{item.label}</span>
-                  <span className="text-gray-500">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <AnalyticsVisualBadge kind={kind} label={item.label} />
+                    <span className="truncate font-semibold text-[#0f1724]">{displayLabel}</span>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-gray-600 shadow-sm">
                     {formatMetricValue(item.value)} {metricLabel}
                   </span>
                 </div>
@@ -101,7 +131,8 @@ export default async function DashboardAnalysePage({ searchParams }: AnalysePage
   const selectedPeriod = getSafePeriod(periodParam);
 
   const analytics = await getAdminAnalyticsOverview(selectedPeriod);
-  const provenanceItems = analytics.gaConnected ? analytics.topCountries : analytics.localFallback.topDemandCities;
+  const hasRealMetrics = analytics.gaConnected && analytics.hasRealData;
+  const statusLabel = analytics.gaConnected ? "GA4 connecté" : "GA4 indisponible";
 
   return (
     <div className="w-full space-y-6 p-4 pb-8 sm:p-6 sm:pb-10 lg:p-8">
@@ -120,17 +151,17 @@ export default async function DashboardAnalysePage({ searchParams }: AnalysePage
           <div className="flex flex-wrap items-center gap-2">
             <span
               className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${
-                analytics.gaConnected
+                hasRealMetrics
                   ? "bg-emerald-50 text-emerald-700"
                   : "bg-amber-50 text-amber-700"
               }`}
             >
-              {analytics.gaConnected ? (
+              {hasRealMetrics ? (
                 <CheckCircle2 className="h-3.5 w-3.5" />
               ) : (
                 <WifiOff className="h-3.5 w-3.5" />
               )}
-              {analytics.gaConnected ? "GA4 connecté" : "GA4 non configuré"}
+              {statusLabel}
             </span>
             <span className="inline-flex items-center gap-1 rounded-full bg-[#1a3a5c]/10 px-3 py-1 text-xs font-semibold text-[#1a3a5c]">
               <RefreshCw className="h-3.5 w-3.5" />
@@ -163,35 +194,48 @@ export default async function DashboardAnalysePage({ searchParams }: AnalysePage
             {analytics.warning}
           </div>
         )}
+
+        {analytics.gaConnected && !analytics.hasRealData && (
+          <div className="mt-4 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-600">
+            Aucune donnée réelle disponible pour le moment
+          </div>
+        )}
       </section>
 
-      <section className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+      <section className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-5">
         {[
           {
             label: "Visiteurs",
             value: analytics.metrics.visitors,
-            helper: analytics.gaConnected ? "Utilisateurs uniques" : "Visiteurs connus (fallback)",
+            helper: "Utilisateurs réels",
             icon: Users,
             bgColor: "#1d4ed8",
           },
           {
+            label: "Actifs",
+            value: analytics.metrics.activeUsers,
+            helper: "Utilisateurs actifs",
+            icon: RadioTower,
+            bgColor: "#4338ca",
+          },
+          {
             label: "Visites",
             value: analytics.metrics.sessions,
-            helper: analytics.gaConnected ? "Sessions" : "Demandes enregistrées",
+            helper: "Sessions",
             icon: Globe2,
             bgColor: "#0f5b3d",
           },
           {
-            label: "Clics",
+            label: "Événements",
             value: analytics.metrics.clicks,
-            helper: analytics.gaConnected ? "Événements GA4" : "Interactions locales",
+            helper: "Événements GA4",
             icon: MousePointerClick,
             bgColor: "#6b4226",
           },
           {
             label: "Pages vues",
             value: analytics.metrics.pageViews,
-            helper: analytics.gaConnected ? "Vues de page" : "Vues annonces internes",
+            helper: "Vues de page",
             icon: BarChart3,
             bgColor: "#8a1f1f",
           },
@@ -220,24 +264,88 @@ export default async function DashboardAnalysePage({ searchParams }: AnalysePage
 
       <section className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <SectionList
-          title={analytics.gaConnected ? "Provenance des visiteurs" : "Provenance des demandes"}
-          subtitle={analytics.gaConnected ? "Pays" : "Villes (fallback)"}
-          items={provenanceItems}
-          metricLabel={analytics.gaConnected ? "visiteurs" : "demandes"}
+          title="Pays des visiteurs"
+          subtitle="country"
+          icon={Flag}
+          kind="country"
+          items={analytics.topCountries}
+          metricLabel="utilisateurs actifs"
+        />
+
+        <SectionList
+          title="Villes des visiteurs"
+          subtitle="city"
+          icon={MapPin}
+          kind="city"
+          items={analytics.topCities}
+          metricLabel="utilisateurs actifs"
         />
 
         <SectionList
           title="Canaux de trafic"
-          subtitle="Acquisition"
+          subtitle="sessionDefaultChannelGroup"
+          icon={Network}
+          kind="channel"
           items={analytics.trafficChannels}
+          metricLabel="sessions"
+        />
+      </section>
+
+      <section className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        <SectionList
+          title="Sources de trafic"
+          subtitle="sessionSource"
+          icon={Search}
+          kind="source"
+          items={analytics.trafficSources}
           metricLabel="sessions"
         />
 
         <SectionList
-          title="Sources de trafic"
-          subtitle="Source / Medium"
-          items={analytics.trafficSources}
+          title="Supports de trafic"
+          subtitle="sessionMedium"
+          icon={Compass}
+          kind="medium"
+          items={analytics.trafficMediums}
           metricLabel="sessions"
+        />
+
+        <SectionList
+          title="Source / support"
+          subtitle="sessionSource + sessionMedium"
+          icon={Network}
+          kind="sourceMedium"
+          items={analytics.trafficSourceMediums}
+          metricLabel="sessions"
+        />
+      </section>
+
+      <section className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        <SectionList
+          title="Provenance"
+          subtitle="pageReferrer"
+          icon={Link2}
+          kind="referrer"
+          items={analytics.referrers}
+          metricLabel="sessions"
+        />
+
+        <SectionList
+          title="Pages les plus consultées"
+          subtitle="pagePath"
+          icon={FileText}
+          kind="page"
+          items={analytics.topPages}
+          metricLabel="vues"
+        />
+
+        <SectionList
+          title="Événements reçus"
+          subtitle="eventName"
+          icon={Activity}
+          kind="event"
+          items={analytics.events}
+          metricLabel="événements"
         />
       </section>
 
@@ -255,7 +363,8 @@ export default async function DashboardAnalysePage({ searchParams }: AnalysePage
                 <li>
                   Ajouter les variables serveur:
                   <code className="ml-1 rounded bg-gray-100 px-1.5 py-0.5 text-xs">GOOGLE_ANALYTICS_PROPERTY_ID</code>,
-                  <code className="ml-1 rounded bg-gray-100 px-1.5 py-0.5 text-xs">GOOGLE_ANALYTICS_SERVICE_ACCOUNT_EMAIL</code>,
+                  <code className="ml-1 rounded bg-gray-100 px-1.5 py-0.5 text-xs">GOOGLE_ANALYTICS_SERVICE_ACCOUNT_EMAIL</code>
+                  et
                   <code className="ml-1 rounded bg-gray-100 px-1.5 py-0.5 text-xs">GOOGLE_ANALYTICS_PRIVATE_KEY</code>.
                 </li>
               </ol>
@@ -269,27 +378,6 @@ export default async function DashboardAnalysePage({ searchParams }: AnalysePage
             >
               Ouvrir GA4 <ArrowRight className="h-3.5 w-3.5" />
             </Link>
-          </div>
-
-          <div className="mt-5 grid gap-3 sm:grid-cols-3">
-            <div className="rounded-2xl border border-gray-100 bg-gray-50 p-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-400">Visites internes</p>
-              <p className="mt-1 text-xl font-bold text-[#0f1724]">
-                {formatMetricValue(analytics.localFallback.visitRequests)}
-              </p>
-            </div>
-            <div className="rounded-2xl border border-gray-100 bg-gray-50 p-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-400">En attente</p>
-              <p className="mt-1 text-xl font-bold text-[#0f1724]">
-                {formatMetricValue(analytics.localFallback.pendingVisitRequests)}
-              </p>
-            </div>
-            <div className="rounded-2xl border border-gray-100 bg-gray-50 p-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-400">Vues annonces</p>
-              <p className="mt-1 text-xl font-bold text-[#0f1724]">
-                {formatMetricValue(analytics.localFallback.propertyViews)}
-              </p>
-            </div>
           </div>
         </section>
       )}

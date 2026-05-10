@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import type { Viewport } from "next";
 import { DM_Sans } from "next/font/google";
-import Script from "next/script";
+import { Suspense } from "react";
 import { Toaster } from "react-hot-toast";
 import "leaflet/dist/leaflet.css";
 import { AGENCY_INFO } from "@/lib/agency";
+import GoogleAnalytics from "@/components/analytics/GoogleAnalytics";
 import PageTransition from "@/components/layout/PageTransition";
 import ScrollToTop from "@/components/layout/ScrollToTop";
 import StickyContactBar from "@/components/layout/StickyContactBar";
@@ -16,8 +17,6 @@ import {
   absoluteUrl,
 } from "@/lib/seo";
 import "./globals.css";
-
-const GA_MEASUREMENT_ID = "G-QV42LCNJZ6";
 
 const commerceFont = DM_Sans({
   variable: "--font-commerce",
@@ -92,20 +91,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr" className="scroll-smooth" suppressHydrationWarning>
+    <html lang="fr" suppressHydrationWarning>
       <body className={`${commerceFont.variable} antialiased`} suppressHydrationWarning>
-        <Script
-          src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
-          strategy="afterInteractive"
-        />
-        <Script id="ga4-config" strategy="afterInteractive">
-          {`
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-            gtag('config', '${GA_MEASUREMENT_ID}');
-          `}
-        </Script>
+        <Suspense fallback={null}>
+          <GoogleAnalytics />
+        </Suspense>
         <PageTransition>{children}</PageTransition>
         <ScrollToTop />
         <StickyContactBar />

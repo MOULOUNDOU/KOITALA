@@ -280,7 +280,34 @@ CREATE INDEX IF NOT EXISTS blog_posts_slug_idx   ON public.blog_posts(slug);
 ALTER TABLE public.blog_posts ADD COLUMN IF NOT EXISTS video_url TEXT;
 
 -- ─────────────────────────────────────────────
--- 9. GENERATED CONTRACTS
+-- 9. REALISATIONS
+-- ─────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS public.realisations (
+  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  slug           TEXT UNIQUE NOT NULL,
+  title          TEXT NOT NULL,
+  description    TEXT NOT NULL,
+  category       TEXT,
+  location       TEXT,
+  image_url      TEXT,
+  image_alt      TEXT,
+  image_credit   TEXT,
+  image_source   TEXT,
+  completed_at   DATE,
+  status         TEXT NOT NULL DEFAULT 'brouillon' CHECK (status IN ('brouillon','publie','archive')),
+  sort_order     INTEGER NOT NULL DEFAULT 0,
+  created_by     UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS realisations_status_idx ON public.realisations(status);
+CREATE INDEX IF NOT EXISTS realisations_slug_idx ON public.realisations(slug);
+CREATE INDEX IF NOT EXISTS realisations_sort_order_idx ON public.realisations(sort_order);
+CREATE INDEX IF NOT EXISTS realisations_completed_at_idx ON public.realisations(completed_at DESC);
+
+-- ─────────────────────────────────────────────
+-- 10. GENERATED CONTRACTS
 -- ─────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.generated_contracts (
   id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -314,7 +341,7 @@ CREATE INDEX IF NOT EXISTS generated_contracts_tenant_name_idx
   ON public.generated_contracts(tenant_name);
 
 -- ─────────────────────────────────────────────
--- 10. UPDATED_AT TRIGGERS
+-- 11. UPDATED_AT TRIGGERS
 -- ─────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION public.set_updated_at()
 RETURNS TRIGGER AS $$
@@ -328,7 +355,7 @@ DO $$
 DECLARE
   t TEXT;
 BEGIN
-  FOREACH t IN ARRAY ARRAY['profiles','properties','visit_requests','contacts','blog_posts','generated_contracts'] LOOP
+  FOREACH t IN ARRAY ARRAY['profiles','properties','visit_requests','contacts','blog_posts','realisations','generated_contracts'] LOOP
     EXECUTE format(
       'DROP TRIGGER IF EXISTS set_updated_at ON public.%I;
        CREATE TRIGGER set_updated_at
@@ -372,6 +399,7 @@ ALTER TABLE public.favorites        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.visit_requests   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.contacts         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.blog_posts       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.realisations     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.generated_contracts ENABLE ROW LEVEL SECURITY;
 
 -- Helper: is current user admin?
@@ -382,6 +410,8 @@ RETURNS BOOLEAN AS $$
     WHERE id = auth.uid() AND role = 'admin'
   );
 $$ LANGUAGE sql SECURITY DEFINER STABLE;
+
+GRANT EXECUTE ON FUNCTION public.is_admin() TO anon, authenticated, service_role;
 
 -- ── PROFILES ──
 CREATE POLICY "profiles_select_own"   ON public.profiles FOR SELECT USING (auth.uid() = id OR public.is_admin());
@@ -430,6 +460,13 @@ CREATE POLICY "blog_insert_admin"  ON public.blog_posts FOR INSERT WITH CHECK (p
 CREATE POLICY "blog_update_admin"  ON public.blog_posts FOR UPDATE USING (public.is_admin());
 CREATE POLICY "blog_delete_admin"  ON public.blog_posts FOR DELETE USING (public.is_admin());
 
+-- ── REALISATIONS ──
+CREATE POLICY "realisations_select_public" ON public.realisations FOR SELECT
+  USING (status = 'publie' OR public.is_admin());
+CREATE POLICY "realisations_insert_admin" ON public.realisations FOR INSERT WITH CHECK (public.is_admin());
+CREATE POLICY "realisations_update_admin" ON public.realisations FOR UPDATE USING (public.is_admin());
+CREATE POLICY "realisations_delete_admin" ON public.realisations FOR DELETE USING (public.is_admin());
+
 -- ── GENERATED CONTRACTS ──
 CREATE POLICY "generated_contracts_select_admin" ON public.generated_contracts FOR SELECT
   USING (public.is_admin());
@@ -446,6 +483,7 @@ CREATE POLICY "generated_contracts_delete_admin" ON public.generated_contracts F
 -- Run these in Supabase Dashboard > Storage or via the API:
 -- 1. Create bucket: property-images (public)
 -- 2. Create bucket: blog-images (public)
+-- 3. Create bucket: realisation-images (public)
 
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('property-images', 'property-images', TRUE)
@@ -453,6 +491,10 @@ ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('blog-images', 'blog-images', TRUE)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('realisation-images', 'realisation-images', TRUE)
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO storage.buckets (id, name, public)
@@ -485,6 +527,13 @@ ON storage.objects FOR SELECT USING (bucket_id = 'blog-images');
 CREATE POLICY "storage_blog_images_admin_write"
 ON storage.objects FOR INSERT
 WITH CHECK (bucket_id = 'blog-images' AND public.is_admin());
+
+CREATE POLICY "storage_realisation_images_public_read"
+ON storage.objects FOR SELECT USING (bucket_id = 'realisation-images');
+
+CREATE POLICY "storage_realisation_images_admin_write"
+ON storage.objects FOR INSERT
+WITH CHECK (bucket_id = 'realisation-images' AND public.is_admin());
 
 CREATE POLICY "storage_blog_videos_public_read"
 ON storage.objects FOR SELECT USING (bucket_id = 'blog-videos');

@@ -1,7 +1,6 @@
 export const dynamic = "force-dynamic";
 
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -10,8 +9,9 @@ import {
   Compass,
   Hammer,
   Home,
-  MapPinned,
 } from "lucide-react";
+import RealisationCard from "@/components/realisations/RealisationCard";
+import { getPublishedRealisations } from "@/lib/realisations";
 import { absoluteUrl } from "@/lib/seo";
 
 export const metadata: Metadata = {
@@ -43,55 +43,6 @@ const STATS = [
     label: "zones d'intervention",
   },
 ];
-
-const PROJECTS = [
-  {
-    title: "Commercialisation d'un programme résidentiel",
-    category: "Vente",
-    location: "Dakar",
-    description:
-      "Positionnement de l'offre, création des supports de vente, qualification des prospects et accompagnement jusqu'à la signature.",
-    image: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/bd/DakarMermoz.JPG/1280px-DakarMermoz.JPG",
-    imageAlt: "Rue résidentielle avec maisons dans le quartier Mermoz à Dakar",
-    imageCredit: "Photo : Ji-Elle, Wikimedia Commons, domaine public",
-    imageSource: "https://commons.wikimedia.org/wiki/File:DakarMermoz.JPG",
-  },
-  {
-    title: "Mise en location d'appartements meublés",
-    category: "Location",
-    location: "Mamelles",
-    description:
-      "Préparation des biens, stratégie de diffusion, visites ciblées et sécurisation des dossiers locataires pour une occupation rapide.",
-    image: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/ba/Maison_%C3%A0_Dakar.jpg/1280px-Maison_%C3%A0_Dakar.jpg",
-    imageAlt: "Maison réelle à Dakar au Sénégal",
-    imageCredit: "Photo : Geertivp, Wikimedia Commons, CC BY-SA 4.0",
-    imageSource: "https://commons.wikimedia.org/wiki/File:Maison_%C3%A0_Dakar.jpg",
-  },
-  {
-    title: "Accompagnement d'acquisition pour expatrié",
-    category: "Conseil",
-    location: "Almadies",
-    description:
-      "Recherche ciblée, vérification des critères, coordination des visites et accompagnement administratif pour un achat serein à distance.",
-    image:
-      "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cd/Villa_Thi%C3%A8soise_Standard.jpg/1280px-Villa_Thi%C3%A8soise_Standard.jpg",
-    imageAlt: "Devanture d'une villa typique à Thiès au Sénégal",
-    imageCredit: "Photo : Bigfall91, Wikimedia Commons, CC BY-SA 4.0",
-    imageSource: "https://commons.wikimedia.org/wiki/File:Villa_Thi%C3%A8soise_Standard.jpg",
-  },
-  {
-    title: "Pilotage d'une construction clé en main",
-    category: "Construction",
-    location: "Sénégal",
-    description:
-      "Cadrage du besoin, coordination terrain, suivi des étapes et contrôle de la qualité pour livrer un projet cohérent et bien maîtrisé.",
-    image:
-      "https://upload.wikimedia.org/wikipedia/commons/thumb/b/bc/Villa_dans_un_village_%C3%A0_thi%C3%A8s.jpg/1280px-Villa_dans_un_village_%C3%A0_thi%C3%A8s.jpg",
-    imageAlt: "Villa dans le village de Keur Modou Ndiaye à Thiès",
-    imageCredit: "Photo : Deyonro23, Wikimedia Commons, CC BY-SA 4.0",
-    imageSource: "https://commons.wikimedia.org/wiki/File:Villa_dans_un_village_%C3%A0_thi%C3%A8s.jpg",
-  },
-] as const;
 
 const EXPERTISES = [
   {
@@ -127,7 +78,9 @@ const PROMISES = [
   "Une expérience fluide pour les résidents comme pour les expatriés.",
 ];
 
-export default function NosRealisationsPage() {
+export default async function NosRealisationsPage() {
+  const projects = await getPublishedRealisations();
+
   return (
     <>
       <section className="bg-[#0f1724] pt-28 pb-16">
@@ -187,45 +140,21 @@ export default function NosRealisationsPage() {
             </p>
           </div>
 
-          <div className="grid gap-8 lg:grid-cols-2">
-            {PROJECTS.map((project) => (
-              <article
-                key={project.title}
-                className="overflow-hidden rounded-[28px] border border-gray-100 bg-[#f8fafc] shadow-sm transition-shadow hover:shadow-lg"
-              >
-                <div className="relative h-72 overflow-hidden">
-                  <Image
-                    src={project.image}
-                    alt={project.imageAlt}
-                    fill
-                    className="object-cover"
-                    sizes="(max-width: 1024px) 100vw, 50vw"
-                  />
-                  <a
-                    href={project.imageSource}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="absolute bottom-3 left-3 right-3 rounded-xl bg-black/55 px-3 py-1.5 text-left text-[11px] font-medium leading-snug text-white backdrop-blur-sm transition-colors hover:bg-black/70"
-                  >
-                    {project.imageCredit}
-                  </a>
-                </div>
-                <div className="p-7">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <span className="rounded-full bg-[#1a3a5c] px-3 py-1 text-xs font-semibold text-white">
-                      {project.category}
-                    </span>
-                    <span className="inline-flex items-center gap-1 text-sm text-gray-500">
-                      <MapPinned className="h-4 w-4 text-[#c4903f]" />
-                      {project.location}
-                    </span>
-                  </div>
-                  <h3 className="mt-4 text-2xl font-bold text-[#0f1724]">{project.title}</h3>
-                  <p className="mt-3 text-sm leading-7 text-gray-600">{project.description}</p>
-                </div>
-              </article>
-            ))}
-          </div>
+          {projects.length > 0 ? (
+            <div className="grid gap-8 lg:grid-cols-2">
+              {projects.map((project) => (
+                <RealisationCard key={project.id} realisation={project} />
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-[28px] border border-dashed border-gray-200 bg-[#f8fafc] px-6 py-14 text-center">
+              <Building2 className="mx-auto mb-4 h-12 w-12 text-gray-300" />
+              <p className="font-semibold text-[#0f1724]">Aucune réalisation publiée pour le moment.</p>
+              <p className="mt-2 text-sm text-gray-500">
+                Les projets publiés depuis le dashboard apparaîtront ici automatiquement.
+              </p>
+            </div>
+          )}
         </div>
       </section>
 
@@ -245,6 +174,8 @@ export default function NosRealisationsPage() {
               <div
                 key={item.title}
                 className="rounded-3xl border border-white bg-white p-6 shadow-sm"
+                data-ga-event="service_click"
+                data-ga-label={item.title}
               >
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#1a3a5c]/10">
                   <item.icon className="h-5 w-5 text-[#1a3a5c]" />

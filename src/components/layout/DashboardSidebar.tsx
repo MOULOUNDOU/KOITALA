@@ -12,7 +12,7 @@ import {
   BarChart3,
   FileText,
   List,
-  Users,
+  Trophy,
   BookOpen,
   Settings,
   LogOut,
@@ -31,7 +31,7 @@ const navItems = [
   { label: "Analyse",            href: "/dashboard/analyse",      icon: BarChart3 },
   { label: "Contrats",           href: "/dashboard/contrats",     icon: FileText, exact: true },
   { label: "Liste contrats",     href: "/dashboard/contrats/liste", icon: List, exact: true },
-  { label: "Utilisateurs",       href: "/dashboard/utilisateurs", icon: Users },
+  { label: "Réalisation",        href: "/dashboard/realisations", icon: Trophy },
   { label: "Blog",               href: "/dashboard/blog",         icon: BookOpen },
 ];
 

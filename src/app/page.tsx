@@ -21,7 +21,9 @@ import HowItWorksMobileCarousel from "@/components/layout/HowItWorksMobileCarous
 import { HOW_IT_WORKS_STEPS } from "@/components/layout/howItWorksData";
 import TestimonialsMobileCarousel from "@/components/layout/TestimonialsMobileCarousel";
 import AIChatWidget from "@/components/ai/AIChatWidget";
+import RealisationCard from "@/components/realisations/RealisationCard";
 import { getFeaturedProperties, getRecentProperties } from "@/lib/properties";
+import { getPublishedRealisations } from "@/lib/realisations";
 import { SITE_DESCRIPTION, absoluteUrl } from "@/lib/seo";
 
 export const metadata: Metadata = {
@@ -148,9 +150,10 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       ? Math.floor(parsedFeaturedPage)
       : 1;
 
-  const [featuredQuery, recent] = await Promise.all([
+  const [featuredQuery, recent, homeRealisations] = await Promise.all([
     getFeaturedProperties(currentFeaturedPage, FEATURED_PAGE_SIZE),
     getRecentProperties(RECENT_LIMIT),
+    getPublishedRealisations(3),
   ]);
 
   let featured = featuredQuery.properties;
@@ -304,6 +307,42 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           </div>
         </section>
 
+        {/* REALISATIONS */}
+        <section id="realisations" className="py-16 sm:py-20 bg-white">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex flex-col gap-3 min-[420px]:flex-row min-[420px]:items-end min-[420px]:justify-between mb-8 sm:mb-10">
+              <div>
+                <span className="text-[#e8b86d] text-xs sm:text-sm font-semibold uppercase tracking-widest">Réalisations</span>
+                <h2 className="font-display text-2xl sm:text-3xl font-bold text-[#0f1724] mt-1">Nos projets accompagnés</h2>
+                <p className="mt-3 max-w-2xl text-sm sm:text-base leading-relaxed text-gray-500">
+                  Une sélection de missions suivies par KOITALA, alimentée depuis le dashboard admin.
+                </p>
+              </div>
+              <Link href="/nos-realisations" className="inline-flex w-fit items-center gap-1 text-xs min-[420px]:text-sm font-semibold text-[#1a3a5c] hover:text-[#e8b86d] transition-colors shrink-0">
+                Voir tout <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+
+            {homeRealisations.length > 0 ? (
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+                {homeRealisations.map((realisation, i) => (
+                  <AnimatedSection key={realisation.id} animation="fade-up" delay={i * 80}>
+                    <RealisationCard realisation={realisation} compact />
+                  </AnimatedSection>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-3xl border border-dashed border-gray-200 bg-[#f8fafc] px-6 py-12 text-center">
+                <Building2 className="mx-auto mb-4 h-12 w-12 text-gray-300" />
+                <p className="font-semibold text-[#0f1724]">Aucune réalisation publiée pour le moment.</p>
+                <p className="mt-2 text-sm text-gray-500">
+                  Les réalisations publiées depuis l&apos;administration s&apos;afficheront ici.
+                </p>
+              </div>
+            )}
+          </div>
+        </section>
+
         {/* SERVICES */}
         <section className="py-16 sm:py-20 bg-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -314,7 +353,11 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-6">
               {SERVICES.map((service, i) => (
                 <AnimatedSection key={service.title} animation="scale-in" delay={i * 80}>
-                  <div className="h-full bg-[#f4f6f9] rounded-2xl p-6 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group cursor-default">
+                  <div
+                    className="h-full bg-[#f4f6f9] rounded-2xl p-6 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group cursor-default"
+                    data-ga-event="service_click"
+                    data-ga-label={service.title}
+                  >
                     <div className="w-12 h-12 bg-[#1a3a5c] rounded-xl flex items-center justify-center mb-5 group-hover:bg-[#e8b86d] group-hover:scale-110 transition-all duration-300">
                       <service.icon className="w-6 h-6 text-white" />
                     </div>

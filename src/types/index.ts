@@ -29,6 +29,8 @@ export type ContactStatus = "nouveau" | "lu" | "traite" | "archive";
 
 export type BlogStatus = "brouillon" | "publie" | "archive";
 
+export type RealisationStatus = "brouillon" | "publie" | "archive";
+
 export interface Profile {
   id: string;
   email: string;
@@ -144,6 +146,25 @@ export interface BlogPost {
   created_at: string;
   updated_at: string;
   author?: Profile;
+}
+
+export interface Realisation {
+  id: string;
+  slug: string;
+  title: string;
+  description: string;
+  category: string | null;
+  location: string | null;
+  image_url: string | null;
+  image_alt: string | null;
+  image_credit: string | null;
+  image_source: string | null;
+  completed_at: string | null;
+  status: RealisationStatus;
+  sort_order: number;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface DashboardStats {

@@ -1,6 +1,5 @@
 import "server-only";
 import { createSign } from "node:crypto";
-import { createClient } from "@/lib/supabase/server";
 
 interface GoogleAccessTokenResponse {
   access_token?: string;
@@ -50,36 +49,42 @@ export interface AnalyticsTopItem {
   value: number;
 }
 
-export interface LocalAnalyticsFallback {
-  knownVisitors: number;
-  visitRequests: number;
-  pendingVisitRequests: number;
-  propertyViews: number;
-  topDemandCities: AnalyticsTopItem[];
-}
-
 export interface AdminAnalyticsOverview {
   periodDays: number;
   gaConnected: boolean;
   gaPropertyId: string | null;
   updatedAt: string;
   warning: string | null;
+  hasRealData: boolean;
   metrics: {
     visitors: number;
+    activeUsers: number;
     sessions: number;
     clicks: number;
     pageViews: number;
   };
   topCountries: AnalyticsTopItem[];
+  topCities: AnalyticsTopItem[];
   trafficChannels: AnalyticsTopItem[];
   trafficSources: AnalyticsTopItem[];
-  localFallback: LocalAnalyticsFallback;
+  trafficMediums: AnalyticsTopItem[];
+  trafficSourceMediums: AnalyticsTopItem[];
+  referrers: AnalyticsTopItem[];
+  topPages: AnalyticsTopItem[];
+  events: AnalyticsTopItem[];
 }
 
 const GOOGLE_ANALYTICS_SCOPE = "https://www.googleapis.com/auth/analytics.readonly";
 const GOOGLE_TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token";
 const GOOGLE_ANALYTICS_REPORT_ENDPOINT = "https://analyticsdata.googleapis.com/v1beta";
 const ALLOWED_PERIODS = new Set([7, 30, 90]);
+const EMPTY_METRICS: AdminAnalyticsOverview["metrics"] = {
+  visitors: 0,
+  activeUsers: 0,
+  sessions: 0,
+  clicks: 0,
+  pageViews: 0,
+};
 
 function normalizePeriod(periodDays: number) {
   if (ALLOWED_PERIODS.has(periodDays)) return periodDays;
@@ -103,57 +108,35 @@ function toBase64Url(value: string | Buffer) {
     .replace(/=+$/g, "");
 }
 
-function buildGoogleAssertion(config: GoogleAnalyticsConfig) {
-  const now = Math.floor(Date.now() / 1000);
-  const payload = {
-    iss: config.serviceAccountEmail,
-    scope: GOOGLE_ANALYTICS_SCOPE,
-    aud: GOOGLE_TOKEN_ENDPOINT,
-    iat: now,
-    exp: now + 3600,
-  };
+function unwrapEnvValue(value: string) {
+  const trimmed = value.trim();
 
-  const header = {
-    alg: "RS256",
-    typ: "JWT",
-  };
-
-  const encodedHeader = toBase64Url(JSON.stringify(header));
-  const encodedPayload = toBase64Url(JSON.stringify(payload));
-  const unsignedToken = `${encodedHeader}.${encodedPayload}`;
-
-  const signer = createSign("RSA-SHA256");
-  signer.update(unsignedToken);
-  signer.end();
-
-  const signature = signer.sign(config.privateKey);
-  return `${unsignedToken}.${toBase64Url(signature)}`;
-}
-
-function normalizeGoogleDimensionLabel(rawValue: string | undefined) {
-  const normalized = (rawValue ?? "").trim();
-  if (!normalized || normalized.toLowerCase() === "(not set)") return "Non défini";
-  return normalized;
-}
-
-function toTopItems(report: GoogleAnalyticsReportResponse, options?: { limit?: number }) {
-  const rawRows = report.rows ?? [];
-  const items = rawRows
-    .map((row) => ({
-      label:
-        (row.dimensionValues ?? [])
-          .map((dimension) => normalizeGoogleDimensionLabel(dimension.value))
-          .filter((value) => value.length > 0)
-          .join(" / ") || "Non défini",
-      value: Math.max(0, Math.round(toNumber(row.metricValues?.[0]?.value))),
-    }))
-    .filter((item) => item.value > 0);
-
-  if (typeof options?.limit === "number") {
-    return items.slice(0, options.limit);
+  if (
+    (trimmed.startsWith("\"") && trimmed.endsWith("\"")) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1).trim();
   }
 
-  return items;
+  return trimmed;
+}
+
+function normalizePrivateKey(rawValue: string) {
+  const normalized = unwrapEnvValue(rawValue)
+    .replace(/\\r\\n/g, "\n")
+    .replace(/\\n/g, "\n")
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .trim();
+
+  if (
+    normalized.startsWith("-----BEGIN PRIVATE KEY-----") &&
+    normalized.endsWith("-----END PRIVATE KEY-----")
+  ) {
+    return normalized;
+  }
+
+  return null;
 }
 
 function getGoogleAnalyticsConfig(): GoogleAnalyticsConfigResolution {
@@ -165,7 +148,7 @@ function getGoogleAnalyticsConfig(): GoogleAnalyticsConfigResolution {
     return {
       config: null,
       error:
-        "Variables GA4 manquantes. Renseignez GOOGLE_ANALYTICS_PROPERTY_ID, GOOGLE_ANALYTICS_SERVICE_ACCOUNT_EMAIL et GOOGLE_ANALYTICS_PRIVATE_KEY.",
+        "Variables Google Analytics manquantes. Renseignez GOOGLE_ANALYTICS_PROPERTY_ID, GOOGLE_ANALYTICS_SERVICE_ACCOUNT_EMAIL et GOOGLE_ANALYTICS_PRIVATE_KEY.",
     };
   }
 
@@ -174,7 +157,7 @@ function getGoogleAnalyticsConfig(): GoogleAnalyticsConfigResolution {
     return {
       config: null,
       error:
-        "GOOGLE_ANALYTICS_PROPERTY_ID invalide. Utilisez l'identifiant numérique de la propriété GA4 (pas le Measurement ID G-XXXXXX).",
+        "GOOGLE_ANALYTICS_PROPERTY_ID invalide. Utilisez l'identifiant numérique de la propriété GA4, pas le Measurement ID G-XXXXXX.",
     };
   }
 
@@ -186,21 +169,12 @@ function getGoogleAnalyticsConfig(): GoogleAnalyticsConfigResolution {
     };
   }
 
-  let normalizedPrivateKey = privateKeyEnv;
-  if (
-    (normalizedPrivateKey.startsWith("\"") && normalizedPrivateKey.endsWith("\"")) ||
-    (normalizedPrivateKey.startsWith("'") && normalizedPrivateKey.endsWith("'"))
-  ) {
-    normalizedPrivateKey = normalizedPrivateKey.slice(1, -1);
-  }
-
-  normalizedPrivateKey = normalizedPrivateKey.replace(/\\n/g, "\n").trim();
-
-  if (!normalizedPrivateKey.includes("BEGIN PRIVATE KEY")) {
+  const privateKey = normalizePrivateKey(privateKeyEnv);
+  if (!privateKey) {
     return {
       config: null,
       error:
-        "GOOGLE_ANALYTICS_PRIVATE_KEY invalide. Collez la clé privée complète du JSON service account (BEGIN PRIVATE KEY ... END PRIVATE KEY).",
+        "GOOGLE_ANALYTICS_PRIVATE_KEY invalide. Collez la valeur private_key complète du JSON service account avec les retours ligne \\n.",
     };
   }
 
@@ -208,20 +182,41 @@ function getGoogleAnalyticsConfig(): GoogleAnalyticsConfigResolution {
     config: {
       propertyId,
       serviceAccountEmail,
-      privateKey: normalizedPrivateKey,
+      privateKey,
     },
     error: null,
   };
 }
 
+function buildGoogleAssertion(config: GoogleAnalyticsConfig) {
+  const now = Math.floor(Date.now() / 1000);
+  const header = {
+    alg: "RS256",
+    typ: "JWT",
+  };
+  const payload = {
+    iss: config.serviceAccountEmail,
+    scope: GOOGLE_ANALYTICS_SCOPE,
+    aud: GOOGLE_TOKEN_ENDPOINT,
+    iat: now,
+    exp: now + 3600,
+  };
+
+  const unsignedToken = `${toBase64Url(JSON.stringify(header))}.${toBase64Url(JSON.stringify(payload))}`;
+  const signer = createSign("RSA-SHA256");
+  signer.update(unsignedToken);
+  signer.end();
+
+  return `${unsignedToken}.${toBase64Url(signer.sign(config.privateKey))}`;
+}
+
 async function getGoogleAccessToken(config: GoogleAnalyticsConfig) {
-  const assertion = buildGoogleAssertion(config);
   const response = await fetch(GOOGLE_TOKEN_ENDPOINT, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
       grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
-      assertion,
+      assertion: buildGoogleAssertion(config),
     }),
     cache: "no-store",
   });
@@ -231,8 +226,8 @@ async function getGoogleAccessToken(config: GoogleAnalyticsConfig) {
     const googleMessage = errorPayload?.error?.message?.trim();
     throw new Error(
       googleMessage
-        ? `Impossible de récupérer un token Google (${response.status}): ${googleMessage}`
-        : `Impossible de récupérer un token Google (${response.status}).`
+        ? `Impossible de récupérer un token Google Analytics (${response.status}): ${googleMessage}`
+        : `Impossible de récupérer un token Google Analytics (${response.status}).`
     );
   }
 
@@ -269,127 +264,134 @@ async function runGoogleAnalyticsReport(
     const details = [googleMessage, googleReason].filter(Boolean).join(" | ");
     throw new Error(
       details
-        ? `Impossible de lire les données GA4 (${response.status}): ${details}`
-        : `Impossible de lire les données GA4 (${response.status}).`
+        ? `Impossible de lire les données Google Analytics (${response.status}): ${details}`
+        : `Impossible de lire les données Google Analytics (${response.status}).`
     );
   }
 
   return (await response.json()) as GoogleAnalyticsReportResponse;
 }
 
-function extractDemandCity(propertyField: unknown) {
-  if (Array.isArray(propertyField)) {
-    const firstEntry = propertyField[0] as { city?: unknown } | undefined;
-    const city = typeof firstEntry?.city === "string" ? firstEntry.city.trim() : "";
-    return city;
-  }
-
-  if (propertyField && typeof propertyField === "object") {
-    const city = (propertyField as { city?: unknown }).city;
-    return typeof city === "string" ? city.trim() : "";
-  }
-
-  return "";
+function normalizeGoogleDimensionLabel(rawValue: string | undefined) {
+  const normalized = (rawValue ?? "").trim();
+  if (!normalized || normalized.toLowerCase() === "(not set)") return "Non défini";
+  return normalized;
 }
 
-async function getLocalAnalyticsFallback(periodDays: number): Promise<LocalAnalyticsFallback> {
-  const supabase = await createClient();
-  const startDate = new Date();
-  startDate.setHours(0, 0, 0, 0);
-  startDate.setDate(startDate.getDate() - (periodDays - 1));
-  const startIso = startDate.toISOString();
+function toTopItems(
+  report: GoogleAnalyticsReportResponse,
+  options?: {
+    limit?: number;
+    labelBuilder?: (dimensions: string[]) => string;
+  }
+) {
+  const items = (report.rows ?? [])
+    .map((row) => {
+      const dimensions = (row.dimensionValues ?? []).map((dimension) =>
+        normalizeGoogleDimensionLabel(dimension.value)
+      );
+      const label =
+        options?.labelBuilder?.(dimensions) ||
+        dimensions.filter((value) => value.length > 0).join(" / ") ||
+        "Non défini";
 
-  const [
-    { count: visitRequestsCount },
-    { count: pendingRequestsCount },
-    { data: propertyViewsRows },
-    { data: visitorEmailRows },
-    { data: visitCityRows },
-  ] = await Promise.all([
-    supabase
-      .from("visit_requests")
-      .select("id", { count: "exact", head: true })
-      .gte("created_at", startIso),
-    supabase
-      .from("visit_requests")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "en_attente")
-      .gte("created_at", startIso),
-    supabase.from("properties").select("views_count"),
-    supabase.from("visit_requests").select("email").gte("created_at", startIso),
-    supabase
-      .from("visit_requests")
-      .select("property:properties(city)")
-      .gte("created_at", startIso),
-  ]);
+      return {
+        label,
+        value: Math.max(0, Math.round(toNumber(row.metricValues?.[0]?.value))),
+      };
+    })
+    .filter((item) => item.value > 0);
 
-  const knownVisitors = new Set(
-    ((visitorEmailRows as { email?: string | null }[] | null) ?? [])
-      .map((row) => (row.email ?? "").trim().toLowerCase())
-      .filter(Boolean)
-  ).size;
+  if (typeof options?.limit === "number") {
+    return items.slice(0, options.limit);
+  }
 
-  const propertyViews = ((propertyViewsRows as { views_count?: number | null }[] | null) ?? []).reduce(
-    (sum, row) => sum + Math.max(0, Math.round(toNumber(row.views_count))),
-    0
-  );
+  return items;
+}
 
-  const cityCounter = new Map<string, number>();
-  ((visitCityRows as { property?: unknown }[] | null) ?? []).forEach((row) => {
-    const city = extractDemandCity(row.property);
-    if (!city) return;
-    cityCounter.set(city, (cityCounter.get(city) ?? 0) + 1);
-  });
+function hasAnyRealData(overview: Omit<AdminAnalyticsOverview, "hasRealData">) {
+  const metricTotal =
+    overview.metrics.visitors +
+    overview.metrics.activeUsers +
+    overview.metrics.sessions +
+    overview.metrics.clicks +
+    overview.metrics.pageViews;
+  const listTotal = [
+    overview.topCountries,
+    overview.topCities,
+    overview.trafficChannels,
+    overview.trafficSources,
+    overview.trafficMediums,
+    overview.trafficSourceMediums,
+    overview.referrers,
+    overview.topPages,
+    overview.events,
+  ].reduce((sum, items) => sum + items.length, 0);
 
-  const topDemandCities = Array.from(cityCounter.entries())
-    .map(([label, value]) => ({ label, value }))
-    .sort((a, b) => b.value - a.value)
-    .slice(0, 6);
+  return metricTotal > 0 || listTotal > 0;
+}
 
+function createEmptyOverview(
+  periodDays: number,
+  options: {
+    gaPropertyId: string | null;
+    warning: string | null;
+  }
+): AdminAnalyticsOverview {
   return {
-    knownVisitors,
-    visitRequests: visitRequestsCount ?? 0,
-    pendingVisitRequests: pendingRequestsCount ?? 0,
-    propertyViews,
-    topDemandCities,
+    periodDays,
+    gaConnected: false,
+    gaPropertyId: options.gaPropertyId,
+    updatedAt: new Date().toISOString(),
+    warning: options.warning,
+    hasRealData: false,
+    metrics: { ...EMPTY_METRICS },
+    topCountries: [],
+    topCities: [],
+    trafficChannels: [],
+    trafficSources: [],
+    trafficMediums: [],
+    trafficSourceMediums: [],
+    referrers: [],
+    topPages: [],
+    events: [],
   };
 }
 
 export async function getAdminAnalyticsOverview(periodDays = 30): Promise<AdminAnalyticsOverview> {
   const normalizedPeriod = normalizePeriod(periodDays);
-  const localFallback = await getLocalAnalyticsFallback(normalizedPeriod);
   const configResolution = getGoogleAnalyticsConfig();
   const config = configResolution.config;
 
   if (!config) {
-    return {
-      periodDays: normalizedPeriod,
-      gaConnected: false,
+    return createEmptyOverview(normalizedPeriod, {
       gaPropertyId: null,
-      updatedAt: new Date().toISOString(),
       warning:
         configResolution.error ??
-        "Google Analytics n'est pas configuré. Affichage des indicateurs internes.",
-      metrics: {
-        visitors: localFallback.knownVisitors,
-        sessions: localFallback.visitRequests,
-        clicks: localFallback.propertyViews,
-        pageViews: localFallback.propertyViews,
-      },
-      topCountries: [],
-      trafficChannels: [],
-      trafficSources: [],
-      localFallback,
-    };
+        "Google Analytics n'est pas configuré. Aucune donnée réelle ne peut être chargée.",
+    });
   }
 
   try {
     const accessToken = await getGoogleAccessToken(config);
+    const dateRanges = [{ startDate: `${normalizedPeriod}daysAgo`, endDate: "today" }];
 
-    const [totalsReport, countriesReport, channelsReport, sourcesReport] = await Promise.all([
+    const [
+      totalsReport,
+      countriesReport,
+      citiesReport,
+      channelsReport,
+      sourcesReport,
+      mediumsReport,
+      sourceMediumReport,
+      referrersReport,
+      pagesReport,
+      eventsReport,
+    ] = await Promise.all([
       runGoogleAnalyticsReport(accessToken, config.propertyId, {
-        dateRanges: [{ startDate: `${normalizedPeriod}daysAgo`, endDate: "today" }],
+        dateRanges,
         metrics: [
+          { name: "totalUsers" },
           { name: "activeUsers" },
           { name: "sessions" },
           { name: "eventCount" },
@@ -397,31 +399,72 @@ export async function getAdminAnalyticsOverview(periodDays = 30): Promise<AdminA
         ],
       }),
       runGoogleAnalyticsReport(accessToken, config.propertyId, {
-        dateRanges: [{ startDate: `${normalizedPeriod}daysAgo`, endDate: "today" }],
+        dateRanges,
         dimensions: [{ name: "country" }],
         metrics: [{ name: "activeUsers" }],
         orderBys: [{ metric: { metricName: "activeUsers" }, desc: true }],
         limit: 8,
       }),
       runGoogleAnalyticsReport(accessToken, config.propertyId, {
-        dateRanges: [{ startDate: `${normalizedPeriod}daysAgo`, endDate: "today" }],
+        dateRanges,
+        dimensions: [{ name: "city" }],
+        metrics: [{ name: "activeUsers" }],
+        orderBys: [{ metric: { metricName: "activeUsers" }, desc: true }],
+        limit: 8,
+      }),
+      runGoogleAnalyticsReport(accessToken, config.propertyId, {
+        dateRanges,
         dimensions: [{ name: "sessionDefaultChannelGroup" }],
         metrics: [{ name: "sessions" }],
         orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
         limit: 8,
       }),
       runGoogleAnalyticsReport(accessToken, config.propertyId, {
-        dateRanges: [{ startDate: `${normalizedPeriod}daysAgo`, endDate: "today" }],
+        dateRanges,
+        dimensions: [{ name: "sessionSource" }],
+        metrics: [{ name: "sessions" }],
+        orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
+        limit: 8,
+      }),
+      runGoogleAnalyticsReport(accessToken, config.propertyId, {
+        dateRanges,
+        dimensions: [{ name: "sessionMedium" }],
+        metrics: [{ name: "sessions" }],
+        orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
+        limit: 8,
+      }),
+      runGoogleAnalyticsReport(accessToken, config.propertyId, {
+        dateRanges,
         dimensions: [{ name: "sessionSource" }, { name: "sessionMedium" }],
         metrics: [{ name: "sessions" }],
         orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
         limit: 8,
       }),
+      runGoogleAnalyticsReport(accessToken, config.propertyId, {
+        dateRanges,
+        dimensions: [{ name: "pageReferrer" }],
+        metrics: [{ name: "sessions" }],
+        orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
+        limit: 8,
+      }),
+      runGoogleAnalyticsReport(accessToken, config.propertyId, {
+        dateRanges,
+        dimensions: [{ name: "pagePath" }, { name: "pageTitle" }],
+        metrics: [{ name: "screenPageViews" }],
+        orderBys: [{ metric: { metricName: "screenPageViews" }, desc: true }],
+        limit: 10,
+      }),
+      runGoogleAnalyticsReport(accessToken, config.propertyId, {
+        dateRanges,
+        dimensions: [{ name: "eventName" }],
+        metrics: [{ name: "eventCount" }],
+        orderBys: [{ metric: { metricName: "eventCount" }, desc: true }],
+        limit: 10,
+      }),
     ]);
 
     const totalRow = totalsReport.rows?.[0];
-
-    return {
+    const overviewWithoutDataFlag: Omit<AdminAnalyticsOverview, "hasRealData"> = {
       periodDays: normalizedPeriod,
       gaConnected: true,
       gaPropertyId: config.propertyId,
@@ -429,38 +472,42 @@ export async function getAdminAnalyticsOverview(periodDays = 30): Promise<AdminA
       warning: null,
       metrics: {
         visitors: Math.max(0, Math.round(toNumber(totalRow?.metricValues?.[0]?.value))),
-        sessions: Math.max(0, Math.round(toNumber(totalRow?.metricValues?.[1]?.value))),
-        clicks: Math.max(0, Math.round(toNumber(totalRow?.metricValues?.[2]?.value))),
-        pageViews: Math.max(0, Math.round(toNumber(totalRow?.metricValues?.[3]?.value))),
+        activeUsers: Math.max(0, Math.round(toNumber(totalRow?.metricValues?.[1]?.value))),
+        sessions: Math.max(0, Math.round(toNumber(totalRow?.metricValues?.[2]?.value))),
+        clicks: Math.max(0, Math.round(toNumber(totalRow?.metricValues?.[3]?.value))),
+        pageViews: Math.max(0, Math.round(toNumber(totalRow?.metricValues?.[4]?.value))),
       },
       topCountries: toTopItems(countriesReport, { limit: 8 }),
+      topCities: toTopItems(citiesReport, { limit: 8 }),
       trafficChannels: toTopItems(channelsReport, { limit: 8 }),
       trafficSources: toTopItems(sourcesReport, { limit: 8 }),
-      localFallback,
+      trafficMediums: toTopItems(mediumsReport, { limit: 8 }),
+      trafficSourceMediums: toTopItems(sourceMediumReport, {
+        limit: 8,
+        labelBuilder: ([source, medium]) => `${source || "Non défini"} / ${medium || "Non défini"}`,
+      }),
+      referrers: toTopItems(referrersReport, { limit: 8 }),
+      topPages: toTopItems(pagesReport, {
+        limit: 10,
+        labelBuilder: ([path, title]) =>
+          title && title !== "Non défini" ? `${title} (${path || "/"})` : path || "/",
+      }),
+      events: toTopItems(eventsReport, { limit: 10 }),
+    };
+
+    return {
+      ...overviewWithoutDataFlag,
+      hasRealData: hasAnyRealData(overviewWithoutDataFlag),
     };
   } catch (error) {
     const detail =
       error instanceof Error && error.message
         ? error.message
-        : "Erreur inconnue lors de l'appel GA4.";
+        : "Erreur inconnue lors de l'appel Google Analytics.";
 
-    return {
-      periodDays: normalizedPeriod,
-      gaConnected: false,
+    return createEmptyOverview(normalizedPeriod, {
       gaPropertyId: config.propertyId,
-      updatedAt: new Date().toISOString(),
-      warning:
-        `Connexion GA4 indisponible. ${detail}`,
-      metrics: {
-        visitors: localFallback.knownVisitors,
-        sessions: localFallback.visitRequests,
-        clicks: localFallback.propertyViews,
-        pageViews: localFallback.propertyViews,
-      },
-      topCountries: [],
-      trafficChannels: [],
-      trafficSources: [],
-      localFallback,
-    };
+      warning: `Connexion Google Analytics indisponible. ${detail}`,
+    });
   }
 }
